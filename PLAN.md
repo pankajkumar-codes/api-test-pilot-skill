@@ -28,7 +28,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] scripts/parse_graphql.py: introspection query or SDL → queries, mutations, types, args (JSON)
 - [x] references/graphql.md: positive/negative/edge adapted to GraphQL (errors arrive as 200 + `errors` array, so assert on the body, not just status)
 - [x] GraphQL security checks: query depth/complexity limits, introspection exposure in prod, batching/alias abuse, field-level authorization, injection in variables
-- [~] Reuse shared modules where possible: auth, redaction, safety gate and runtime reused (done); load (k6) and reporting reuse follow in Phases 3 and 4 via the shared intake endpoint shape
+- [x] Reuse shared modules where possible: auth, redaction, safety gate and runtime reused; k6 load (Phase 3) and reporting (Phase 4; GraphQL results arrive as ordinary pytest/k6 output) reuse the shared intake endpoint shape
 - [ ] Add a GraphQL API to eval-apis.md and validate (Phase 5)
 
 ## Phase 3 — Non-functional modules
@@ -39,9 +39,10 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [~] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
 
 ## Phase 4 — Reporting
-- [ ] templates/report.md: summary, per-endpoint coverage, severity-ranked findings
-- [ ] scripts/summarize_results.py (pytest + k6 output → report)
-- [ ] Every finding includes a reproducible command
+- [x] templates/report.md: summary, per-endpoint coverage, severity-ranked findings
+- [x] scripts/summarize_results.py (pytest JUnit XML + k6 `--summary-export` JSON → report; `references/reporting.md`)
+- [x] Every finding includes a reproducible command (curl line from the runtime when present, exact pytest or `run_k6.py` command always)
+- [~] Phase 4 eval: validated on real pytest and real k6 v1.3.0 output from the local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
 
 ## Phase 5 — Evals
 - [ ] Run against each API in eval-apis.md; record expected vs found bugs

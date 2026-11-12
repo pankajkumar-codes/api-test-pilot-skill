@@ -44,8 +44,10 @@ Execute if the environment allows; otherwise print the exact commands to run. Al
 If k6 is not installed, say so and print the command; never claim a load run happened when it did not.
 
 ## 6. Report
-Summarize per endpoint, rank findings by severity, include a reproducible command per finding
-(`templates/report.md`).
+Collect JUnit XML (`pytest --junitxml=results/pytest.xml`) and k6 summaries (`results/<profile>-summary.json`), then:
+`python scripts/summarize_results.py --junit results/pytest.xml --k6 results/load-summary.json --intake intake.json -o reports/report.md`
+Per-endpoint coverage, findings ranked by severity, a reproducible command per finding (`templates/report.md`, `references/reporting.md`).
+Report what was run and what was skipped; never state results the files do not contain.
 
 ## Reference files (load on demand)
 - `references/test-types.md` — the 18 test types and what each checks
@@ -59,6 +61,7 @@ Summarize per endpoint, rank findings by severity, include a reproducible comman
 - `references/resilience.md` — idempotency, pagination, timeouts, rate-limit behaviour
 - `references/load.md` — k6 setup, caps and the launcher; load profile
 - `references/stress.md`, `references/spike.md`, `references/soak.md` — the other k6 profiles
+- `references/reporting.md` — building the report, severity rules, what it never prints
 - `references/chaos.md` — fault-injection plans (plans only in v1)
 - `references/fuzzing.md` — malformed-input fuzzing
 

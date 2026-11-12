@@ -3,7 +3,7 @@
 An Agent Skill that plans, generates and runs API tests: functional, security,
 contract, performance and resilience.
 
-> Status: Phase 3 built (k6 load/stress/spike/soak, fuzzing, chaos plans) on top of the Phase 2 pytest generators. See [PLAN.md](PLAN.md) for progress.
+> Status: Phase 4 built (Markdown report from pytest and k6 results) on top of Phase 3 (k6 load/stress/spike/soak, fuzzing, chaos plans) and the Phase 2 pytest generators. See [PLAN.md](PLAN.md) for progress.
 
 ## Layout
 ```
@@ -71,6 +71,14 @@ python skills/api-testing/scripts/gen_chaos_plan.py intake.json -o chaos-plan.md
 ```
 k6 scripts are GET-only by default, capped (100 req/s, 200 VUs, 4 h, gentle ramps) and abort when half the requests fail. See
 `skills/api-testing/references/load.md`.
+
+## Report (Phase 4)
+```bash
+python -m pytest api_tests -p no:cacheprovider --junitxml=results/pytest.xml
+python skills/api-testing/scripts/summarize_results.py --junit results/pytest.xml --k6 results/load-summary.json \
+    --intake intake.json -o reports/report.md       # summary, per-endpoint coverage, findings ranked by severity, repro commands
+```
+Result files are treated as untrusted input and secrets are scrubbed from the report. See `skills/api-testing/references/reporting.md`.
 
 ## Develop
 ```bash

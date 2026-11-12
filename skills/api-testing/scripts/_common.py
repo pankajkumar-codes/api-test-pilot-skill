@@ -269,6 +269,70 @@ def redact_example(value: Any, key: str = "") -> Any:
     return value
 
 
+REDACTED = "<redacted>"
+_FALSY_OR_TRUTHY = {"0", "1", "true", "false", "yes", "no", "y", "n", "on", "off"}
+_HEADER_LINE_RE = re.compile(
+    r"(?im)(?<![A-Za-z0-9_-])(?P<k>authorization|proxy-authorization|cookie|set-cookie|x-api-key|x-auth-token|x-access-token|"
+    r"x-csrf-token)(?P<sep>\s*:\s*)(?P<v>[^\r\n'\"]+)")
+_CURL_USER_RE = re.compile(r"(?<![\w-])(?P<f>-u|--user|--proxy-user)(?P<sep>\s+|=)(?:'[^'\n]*'|\"[^\"\n]*\"|\S+)")
+_BEARER_RE = re.compile(r"(?i)\b(?P<k>bearer)(?P<sep>\s+)[A-Za-z0-9._~+/=-]{6,}")
+_TOKEN_SHAPES_RE = re.compile(
+    r"\beyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]*"          # JWT
+    r"|\bgh[pousr]_[A-Za-z0-9]{20,}|\bAKIA[0-9A-Z]{16}\b|\bsk-[A-Za-z0-9_-]{20,}|\bxox[baprs]-[A-Za-z0-9-]{10,}")
+_KEYSEP_RE = re.compile(
+    r"""(?P<key>(?<![A-Za-z0-9_.-])[A-Za-z][A-Za-z0-9_.-]{0,63})(?P<sep>(?:\\?["'])?[ \t]*(?::|=>|=)[ \t]*)""")
+_VALUE_RE = re.compile(r"""\\?"(?:[^"\\\n]|\\.)*"|\\"[^"\\\n]*\\"|'[^'\n]*'|[^\s,;&}\])'"]+""")
+MAX_REDACT_CHARS = 200_000
+
+
+def secret_values_from_env(environ: "dict[str, str] | None" = None) -> list[str]:
+    """Values of secret-looking APITEST_* variables (tokens, passwords, keys), to scrub wherever they appear in free text."""
+    import os
+    env = os.environ if environ is None else environ
+    out = []
+    for name, value in env.items():
+        if name.startswith("APITEST_") and is_secret_name(name) and len(value) >= 4 and value.strip().lower() not in _FALSY_OR_TRUTHY:
+            out.append(value)
+    return out
+
+
+def redact_text(text: str, secrets: "list[str] | tuple[str, ...]" = ()) -> str:
+    """Scrub secrets from untrusted free text (failure messages, curl lines, URLs, JSON snippets).
+
+    Defence in depth for the report: generated suites already redact their own output, but result files may come from any
+    pytest run. Removes: the exact values in `secrets`, URL userinfo, Authorization/Cookie-style header lines, Bearer tokens,
+    JWT and well-known token shapes, `curl -u`, and values of secret-looking keys in JSON, key=value, headers and query strings.
+    Over-redaction is accepted (same broad SECRET_KEY_RE as everywhere else); leaking is not.
+    """
+    import urllib.parse
+    s = text[:MAX_REDACT_CHARS]
+    for v in sorted({x for x in secrets if x and len(x) >= 4}, key=len, reverse=True):
+        for variant in {v, urllib.parse.quote(v, safe=""), urllib.parse.quote_plus(v)}:
+            s = s.replace(variant, REDACTED)
+    s = USERINFO_RE.sub(REDACTED + "@", s)
+    s = _HEADER_LINE_RE.sub(lambda m: m.group("k") + m.group("sep") + REDACTED, s)
+    s = _CURL_USER_RE.sub(lambda m: m.group("f") + m.group("sep") + REDACTED, s)
+    s = _BEARER_RE.sub(lambda m: m.group("k") + m.group("sep") + REDACTED, s)
+    s = _TOKEN_SHAPES_RE.sub(REDACTED, s)
+
+    # Manual scan (linear): a non-secret key must not swallow the text after it (`http://h/x?token=...` starts with key `http`),
+    # and the value is only parsed for secret keys, so a long run of `a=a=a=...` cannot make this quadratic.
+    out, pos = [], 0
+    while True:
+        m = _KEYSEP_RE.search(s, pos)
+        if not m:
+            out.append(s[pos:])
+            return "".join(out)
+        out.append(s[pos:m.end("sep")])
+        pos = m.end("sep")
+        if is_secret_name(m.group("key")):
+            v = _VALUE_RE.match(s, pos)
+            if v and REDACTED not in v.group(0):
+                q = next((x for x in ('\\"', '"', "'") if v.group(0).startswith(x)), "")
+                out.append(q + REDACTED + q)   # keep JSON/shell quoting valid
+                pos = v.end()
+
+
 def strip_userinfo(url: str) -> tuple[str, bool]:
     """Remove user:pass@ from a URL string. Returns (clean_url, was_stripped)."""
     clean = USERINFO_RE.sub("", url, count=1)
