@@ -41,6 +41,38 @@ def test_repro_and_describe_survive_deeply_nested_json(tmp_path):
     assert rt.json_of(resp) is rt.UNSET            # and it is treated as "not JSON"
 
 
+CANARY = "CANARY-s3cr3t-value"
+
+
+def _deep_secret(depth: int) -> bytes:
+    return b"[" * depth + b'{"password": "' + CANARY.encode() + b'", "token": "' + CANARY.encode() + b'"}' + b"]" * depth
+
+
+def test_redaction_fails_closed_on_deeply_nested_secrets(tmp_path):
+    """Depths straddle the recursion limits of 3.11 (~600) and 3.13 (~1100): the canary must never reach a message."""
+    rt = _runtime(tmp_path)
+    for depth in (10, 63, 64, 65, 700, 1200, 5000, DEPTH):
+        body = _deep_secret(depth)
+        resp = _response(body)
+        out = rt.describe(resp)
+        assert CANARY not in out, (depth, "describe leaked")
+        assert CANARY not in rt.curl_of(resp), (depth, "curl_of leaked")
+        try:
+            rt.fail(resp, "boom")
+        except BaseException as exc:  # pytest.fail raises its own Failed exception
+            assert CANARY not in str(exc), (depth, "fail() message leaked")
+        else:
+            raise AssertionError("fail() must raise")
+        assert CANARY not in str(rt.redact(rt.json_of(resp)) if rt.json_of(resp) is not rt.UNSET else ""), depth
+
+
+def test_shallow_secrets_are_still_redacted_and_ordinary_bodies_still_shown(tmp_path):
+    rt = _runtime(tmp_path)
+    resp = _response(b'{"name": "rex", "nested": {"password": "' + CANARY.encode() + b'"}}')
+    out = rt.describe(resp)
+    assert CANARY not in out and "<redacted>" in out and "rex" in out
+
+
 def test_intake_reports_over_nested_input_with_exit_code_2(tmp_path):
     schema = "null"
     for _ in range(3000):

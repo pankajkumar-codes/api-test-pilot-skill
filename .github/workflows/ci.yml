@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+# Actions are pinned by major-version tag, not by commit SHA (SHAs could not be verified when this was written).
+# Before the public launch, replace each tag with its verified commit SHA (keep the tag in a comment).
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true

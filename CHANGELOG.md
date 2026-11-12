@@ -26,6 +26,8 @@ First release candidate, built in phases (see PLAN.md).
 - `examples/`: a demo API with seedable flaws, a sample spec and a real generated report.
 
 ### Fixed
+- Redaction fails closed: values nested deeper than 64 levels, or too deep to parse, are replaced by a placeholder and never printed
+  raw (a secret hidden deep in a response can no longer reach a failure message or the JUnit file).
 - Deeply nested JSON (a hostile spec, a fuzz body or a server response) no longer crashes redaction, repro lines or
   response parsing: `RecursionError` is handled like "not JSON" (this made five fuzz tests fail on Python 3.11); `intake.py`
   reports an over-nested input with exit code 2.

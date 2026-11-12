@@ -120,11 +120,20 @@ def intrusive_skip_reason(base_url: str) -> str | None:
 
 
 # --------------------------------------------------------------------------- redaction / repro
-def redact(value: Any, key: str = "") -> Any:
+MAX_REDACT_DEPTH = 64
+TOO_DEEP = "<redacted: nested too deeply to inspect>"
+BODY_OMITTED = "<body omitted: nested too deeply to redact>"
+
+
+def redact(value: Any, key: str = "", _depth: int = 0) -> Any:
+    """Copy of `value` with secret-looking fields replaced. Fails closed: anything nested deeper than MAX_REDACT_DEPTH is
+    replaced wholesale, so a secret hidden below the limit (or below the interpreter's recursion limit) is never printed."""
+    if isinstance(value, (dict, list)) and _depth >= MAX_REDACT_DEPTH:
+        return TOO_DEEP
     if isinstance(value, dict):
-        return {k: redact(v, str(k)) for k, v in value.items()}
+        return {k: redact(v, str(k), _depth + 1) for k, v in value.items()}
     if isinstance(value, list):
-        return [redact(v, key) for v in value]
+        return [redact(v, key, _depth + 1) for v in value]
     if key and SECRET_KEY_RE.search(key) and value not in ("", None):
         return "<redacted>"
     return value
@@ -153,7 +162,9 @@ def curl_of(resp: requests.Response) -> str:
         text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
         try:
             text = json.dumps(redact(json.loads(text)))
-        except (ValueError, RecursionError):  # not JSON, or nested deeper than the interpreter allows (hostile/fuzz input)
+        except RecursionError:  # valid-looking JSON nested past the interpreter's limit: it cannot be redacted, so do not print it
+            text = BODY_OMITTED
+        except ValueError:  # not JSON: printed as text
             pass
         parts += ["--data-raw", shlex.quote(text[:600] + ("..." if len(text) > 600 else ""))]
     return " ".join(parts)
@@ -164,7 +175,9 @@ def describe(resp: requests.Response) -> str:
     body = resp.text[:300].replace("\n", " ")
     try:
         body = json.dumps(redact(resp.json()))[:300]
-    except (ValueError, RecursionError):
+    except RecursionError:  # cannot be redacted: never print the raw text
+        body = BODY_OMITTED
+    except ValueError:
         pass
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
