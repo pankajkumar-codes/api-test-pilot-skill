@@ -175,7 +175,7 @@ def test_curl_never_leaks_secrets():
     blob = json.dumps(parse_curl.build(str(FIXTURES / "examples.curl")))
     for s in ("hunter2", "sk_live_ABCDEF", "zzz"):
         assert s not in blob
-    assert "credential-looking literal" in blob
+    assert "Credentials found in the input were NOT copied" in blob
 
 
 def test_curl_method_inference_and_errors():
@@ -206,3 +206,83 @@ def test_cli_summary_and_error_exit(tmp_path):
     assert "GET     /pets" in r.stdout and "public" in r.stdout
     bad = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(tmp_path / "nope.yaml")], capture_output=True, text=True)
     assert bad.returncode == 2 and "error:" in bad.stderr and "Traceback" not in bad.stderr
+
+
+# ---------------------------------------------------------------- canary secrets (regression for review of PR #1)
+CANARIES = ["CANARYPW", "CANARYTOK", "CANARYSIG", "CANARYSID", "CANARYJWT", "CANARYPWD", "CANARYBEARER",
+            "CANARYQ", "CANARYEX", "CANARYCOOKIE", "CANARYHDR"]
+
+
+def _no_canaries(doc):
+    blob = json.dumps(doc)
+    leaked = [c for c in CANARIES if c in blob]
+    assert not leaked, f"leaked: {leaked}"
+
+
+def test_canary_curl_all_vectors():
+    text = "\n".join([
+        "curl https://alice:CANARYPW@api.example.com/v1/x",
+        "curl --oauth2-bearer CANARYBEARER https://api.example.com/v1/me",
+        "curl -c jar.txt --max-redirs 5 -b CANARYCOOKIE https://api.example.com/v1/jar",
+        "curl 'https://api.example.com/v1/q?signature=CANARYSIG&sid=CANARYSID&jwt=CANARYJWT&token=CANARYTOK&page=2'",
+        "curl -X POST https://api.example.com/v1/p -H 'X-Custom-Token: CANARYHDR' -H 'Cookie: s=CANARYCOOKIE'"
+        " -d '{\"pwd\":\"CANARYPWD\",\"ok\":true,\"secret\":1.5}'",
+    ])
+    d = parse_curl.parse_text(text)
+    _no_canaries(d)
+    assert d["servers"] == ["https://api.example.com"]  # no http://TOKEN, http://jar.txt, http://5
+    assert any(p["name"] == "page" and p["example"] == "2" for e in d["endpoints"] for p in e["parameters"])
+    me = next(e for e in d["endpoints"] if e["path"] == "/v1/me")
+    assert me["security"] == [["bearerAuth"]]
+    x = next(e for e in d["endpoints"] if e["path"] == "/v1/x")
+    assert x["security"] == [["basicAuth"]]
+    post = next(e for e in d["endpoints"] if e["method"] == "POST")
+    assert post["request_body"]["example"] == {"pwd": "<redacted>", "ok": True, "secret": "<redacted>"}
+
+
+def test_curl_stray_flag_argument_never_becomes_url():
+    c = parse_curl.parse_command("curl --some-future-flag VALUE https://h.example/a")
+    assert c["url"] == "https://h.example/a"
+    with pytest.raises(_common.IntakeError):
+        parse_curl.parse_command("curl --unknown-flag 5")
+
+
+def test_canary_openapi():
+    doc = {"openapi": "3.0.0", "info": {}, "servers": [{"url": "https://u:CANARYPW@api.example.com/v1"}],
+           "paths": {"/x": {"get": {
+               "parameters": [{"name": "signature", "in": "query", "example": "CANARYSIG", "schema": {"type": "string", "default": "CANARYSIG"}},
+                              {"name": "sid", "in": "query", "schema": {"type": "string", "enum": ["CANARYSID"]}},
+                              {"name": "X-Auth-Token", "in": "header", "example": "CANARYTOK", "schema": {"type": "string"}}],
+               "requestBody": {"content": {"application/json": {
+                   "schema": {"type": "object", "properties": {"pwd": {"type": "string", "example": "CANARYPWD"}}},
+                   "example": {"pwd": "CANARYPWD", "jwt": "CANARYJWT"}}}},
+               "responses": {"200": {"description": "ok"}}}}}}
+    d = parse_openapi.parse(doc)
+    _no_canaries(d)
+    assert d["servers"] == ["https://api.example.com/v1"]
+    assert any("stripped" in w for w in d["warnings"])
+
+
+def test_canary_postman():
+    coll = {"info": {"name": "c", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+            "variable": [{"key": "baseUrl", "value": "https://u:CANARYPW@api.example.com"}],
+            "item": [{"name": "a", "request": {
+                "method": "POST", "header": [{"key": "X-Auth-Token", "value": "CANARYHDR"}],
+                "url": {"raw": "https://u:CANARYPW@api.example.com/a?token=CANARYTOK&signature=CANARYSIG&q=1",
+                        "query": [{"key": "token", "value": "CANARYTOK"}, {"key": "signature", "value": "CANARYSIG"}, {"key": "q", "value": "1"}]},
+                "body": {"mode": "raw", "raw": "{\"pwd\":\"CANARYPWD\"}", "options": {"raw": {"language": "json"}}}}},
+                     {"name": "b", "request": {"method": "GET", "url": "https://api.example.com/b?sid=CANARYSID&jwt=CANARYJWT"}}]}
+    d = parse_postman.parse(coll)
+    _no_canaries(d)
+    assert d["servers"] == ["https://api.example.com"]
+    a = next(e for e in d["endpoints"] if e["path"] == "/a")
+    assert any(p["name"] == "q" and p["example"] == "1" for p in a["parameters"])
+
+
+def test_redact_example_any_scalar_and_shared_regex():
+    assert _common.redact_example({"pwd": True, "sig": 1.5, "n": 1, "otp": 123456}) == {
+        "pwd": "<redacted>", "sig": "<redacted>", "n": 1, "otp": "<redacted>"}
+    for name in ("pwd", "signature", "sid", "jwt", "auth", "bearer", "otp", "X-API-Key"):
+        assert _common.is_secret_name(name)
+    assert not _common.is_secret_name("page")
+    assert not hasattr(parse_curl, "SECRET_KEY_RE")  # parsers share _common's single regex

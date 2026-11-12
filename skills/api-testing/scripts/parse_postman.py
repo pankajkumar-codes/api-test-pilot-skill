@@ -16,7 +16,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
-    SECRET_HEADERS, IntakeError, cli_main, env_name, load_document, redact_example, slug, unique_ids,
+    SECRET_HEADERS, IntakeError, cli_main, env_name, is_secret_name, load_document, redact_example,
+    slug, strip_userinfo, unique_ids,
 )
 
 
@@ -38,10 +39,13 @@ def _url_parts(url: Any) -> tuple[str, str, list[dict]]:
         if not raw:
             host = ".".join(url.get("host", [])) if isinstance(url.get("host"), list) else url.get("host", "")
             raw = f"{url.get('protocol', 'https')}://{host}/" + "/".join(url.get("path", []))
-    raw = raw.split("#")[0]
+    raw, _ = strip_userinfo(raw.split("#")[0])
+    for q in query:
+        if is_secret_name(q["name"]):
+            q["example"] = "<redacted>"
     base, _, qs = raw.partition("?")
     if not query and qs:
-        query = [{"name": kv.split("=")[0], "example": kv.partition("=")[2]} for kv in qs.split("&") if kv]
+        query = [{"name": kv.split("=")[0], "example": "<redacted>" if is_secret_name(kv.split("=")[0]) else kv.partition("=")[2]} for kv in qs.split("&") if kv]
     m = re.match(r"^((?:[a-z]+://)?\{\{[^}]+\}\}|[a-z]+://[^/]+|\{\{[^}]+\}\})(/.*)?$", base)
     if m:
         origin, path = m.group(1), m.group(2) or "/"
@@ -94,6 +98,8 @@ def parse(doc: Any, filename: str = "") -> dict:
             req = {"method": "GET", "url": req}
         method = req.get("method", "GET").upper()
         origin, path, query = _url_parts(req.get("url"))
+        if "@" in json.dumps(req.get("url") or "") and strip_userinfo(json.dumps(req.get("url")))[1]:
+            warnings.append("Credentials embedded in a URL were stripped; use env vars for auth.")
         if origin and origin not in origins:
             origins.append(origin)
 
@@ -160,7 +166,8 @@ def parse(doc: Any, filename: str = "") -> dict:
     servers = origins
     for k in ("baseUrl", "base_url", "host"):
         if k in base_vars and isinstance(base_vars[k], str) and base_vars[k].startswith("http"):
-            servers = [base_vars[k]] + [o for o in origins if o != base_vars[k]]
+            bv, _ = strip_userinfo(base_vars[k])
+            servers = [bv] + [o for o in origins if o != bv]
             break
     if any(s.startswith("http") for s in servers):
         servers = [s for s in servers if not s.startswith("{{")]

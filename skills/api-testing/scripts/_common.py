@@ -14,10 +14,14 @@ from typing import Any
 
 HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
+# Single source of truth for "does this name look like it carries a secret?" (keys, params, headers).
 SECRET_KEY_RE = re.compile(
-    r"(pass(word|wd)?|secret|token|api[-_]?key|authorization|credential|session|cookie|private[-_]?key)",
+    r"(pass(word|wd|phrase)?|pwd|secret|token|api[-_]?key|apikey|authorization|auth|bearer|credential|"
+    r"session|sess|sid|cookie|private[-_]?key|signature|sig|jwt|otp|pin|cvv|ssn|salt|nonce|code[-_]?verifier|"
+    r"access[-_]?key|client[-_]?secret)",
     re.I,
 )
+USERINFO_RE = re.compile(r"(?<=//)[^/@\s]*@")
 SECRET_HEADERS = {
     "authorization", "proxy-authorization", "cookie", "set-cookie",
     "x-api-key", "x-auth-token", "x-access-token", "x-csrf-token",
@@ -250,15 +254,25 @@ def env_name(scheme: str, suffix: str) -> str:
     return f"APITEST_{base}_{suffix}"
 
 
+def is_secret_name(name: Any) -> bool:
+    return isinstance(name, str) and bool(SECRET_KEY_RE.search(name))
+
+
 def redact_example(value: Any, key: str = "") -> Any:
-    """Replace values of secret-looking keys in example payloads."""
+    """Replace values of secret-looking keys in example payloads (any non-container value)."""
     if isinstance(value, dict):
         return {k: redact_example(v, k) for k, v in value.items()}
     if isinstance(value, list):
         return [redact_example(v, key) for v in value]
-    if key and SECRET_KEY_RE.search(key) and isinstance(value, (str, int)) and value != "":
+    if key and is_secret_name(key) and value not in ("", None):
         return "<redacted>"
     return value
+
+
+def strip_userinfo(url: str) -> tuple[str, bool]:
+    """Remove user:pass@ from a URL string. Returns (clean_url, was_stripped)."""
+    clean = USERINFO_RE.sub("", url, count=1)
+    return clean, clean != url
 
 
 def slug(method: str, path: str) -> str:

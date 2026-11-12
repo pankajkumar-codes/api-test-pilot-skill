@@ -15,7 +15,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
-    HTTP_METHODS, IntakeError, cli_main, env_name, load_document, slug, unique_ids,
+    HTTP_METHODS, IntakeError, cli_main, env_name, is_secret_name, load_document, redact_example,
+    slug, strip_userinfo, unique_ids,
 )
 
 SCHEMA_KEYS = (
@@ -78,6 +79,10 @@ class Resolver:
             out["type"] = types[0] if len(types) == 1 else types
         if "properties" in node and isinstance(node["properties"], dict):
             out["properties"] = {k: self.schema(v, stack, depth + 1) for k, v in node["properties"].items()}
+            for k, v in out["properties"].items():  # never carry sample/default secrets
+                if is_secret_name(k) and isinstance(v, dict):
+                    for drop in ("example", "default", "enum"):
+                        v.pop(drop, None)
             out.setdefault("type", "object")
         if "items" in node:
             out["items"] = self.schema(node["items"], stack, depth + 1)
@@ -118,7 +123,10 @@ def _param(r: Resolver, p: Any, swagger2: bool) -> dict | None:
         "required": bool(p.get("required", p["in"] == "path")),
         "schema": sch,
     }
-    if "example" in p:
+    if is_secret_name(p["name"]):
+        for drop in ("example", "default", "enum"):
+            sch.pop(drop, None) if isinstance(sch, dict) else None
+    elif "example" in p:
         out["example"] = p["example"]
     if p.get("deprecated"):
         out["deprecated"] = True
@@ -193,6 +201,13 @@ def parse(doc: Any, filename: str = "") -> dict:
         servers = [f"{schemes[0]}://{doc['host']}{doc.get('basePath', '')}"] if doc.get("host") else []
     else:
         servers = [s.get("url", "") for s in doc.get("servers", []) if isinstance(s, dict)]
+    clean = []
+    for u in servers:
+        u2, stripped = strip_userinfo(u)
+        if stripped:
+            warnings.append("Credentials embedded in a server URL were stripped; use env vars for auth.")
+        clean.append(u2)
+    servers = clean
     if not servers:
         warnings.append("No servers/host in spec: ask the user for the base URL.")
 
@@ -239,7 +254,6 @@ def parse(doc: Any, filename: str = "") -> dict:
                 ctype, sch, ex = _content_schema(r, rb.get("content"))
                 body = {"content_type": ctype, "required": bool(rb.get("required")), "schema": sch or {}}
                 if ex is not None:
-                    from _common import redact_example
                     body["example"] = redact_example(ex)
                 if rb.get("content") and len(rb["content"]) > 1:
                     body["other_content_types"] = [c for c in rb["content"] if c != ctype]

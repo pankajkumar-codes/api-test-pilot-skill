@@ -46,6 +46,8 @@ claude
 ```
 Then: "Read CLAUDE.md and PLAN.md, resolve the open decisions in DECISIONS.md with me, then start Phase 1."
 
+Note: `intake.json` (parser output) describes your API; it is git-ignored, do not commit it.
+
 ## Develop
 ```bash
 pip install -r requirements-dev.txt

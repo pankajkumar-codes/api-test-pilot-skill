@@ -13,6 +13,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] scripts/parse_openapi.py: endpoints, methods, params, schemas, auth → JSON (+ tests/)
 - [x] Support Postman collection and curl as secondary inputs (parse_postman.py, parse_curl.py, intake.py)
 - [x] templates/test-plan.md
+- [ ] Phase 1 eval: run intake.py on the Petstore spec (eval-apis.md); pending, needs network access. Fixture tests pass.
 
 ## Phase 2 — Functional modules
 - [ ] references/functional.md: positive, negative, edge

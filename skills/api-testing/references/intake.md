@@ -25,10 +25,12 @@ tells the user to install PyYAML or convert to JSON). Parsers are offline: remot
 ```
 
 ## Rules
-- **No secrets in output.** Auth values, `Authorization`/cookie/API-key headers, `-u user:pass` and
-  secret-looking body fields (`password`, `token`, ...) are dropped or replaced with `<redacted>`.
+- **No secrets in output.** Auth values, `Authorization`/cookie/API-key headers, `-u user:pass`,
+  `--oauth2-bearer`, URL userinfo (`user:pass@host`) and values of secret-looking names (body fields,
+  query params, header/param examples; one shared regex `SECRET_KEY_RE` in `_common.py`) are dropped or
+  replaced with `<redacted>`. Regression tests use canary strings across all three parsers.
   Credentials are referenced by env-var name (`APITEST_<SCHEME>_TOKEN|USER|PASS|KEY`).
-- **Schemas** are simplified: `$ref`s resolved, `allOf` merged, circular refs become `{"$circular": "Name"}`,
+- **Schemas** are simplified: `$ref`s resolved (examples/defaults of secret-named properties dropped), `allOf` merged, circular refs become `{"$circular": "Name"}`,
   external refs `{"$unresolved": ref}` plus a warning. Depth limit 12.
 - **Auth** is effective per endpoint: operation `security` overrides global; `security: []` = public.
 - **Postman**: folders become `tags`; saved responses give expected statuses; `{{var}}` stays a variable.

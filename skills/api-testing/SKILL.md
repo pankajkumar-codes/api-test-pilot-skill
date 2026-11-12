@@ -15,10 +15,11 @@ base URL, auth method, environment (local/staging/prod).
 - Surface the parser `warnings` to the user (missing base URL, no response schemas, etc.) and ask for what is missing.
 - Credentials come from environment variables only (the parser lists the names, e.g. `APITEST_BEARERAUTH_TOKEN`).
   Never ask for, print or log secret values.
+- `intake.json` describes the user's API; keep it out of version control (it is git-ignored by default).
 
 ## 2. Plan
 Fill `templates/test-plan.md` from `intake.json`: endpoints in scope and the test types that apply
-(see `TAXONOMY.md` types). Show the plan and get a go-ahead before generating anything.
+(type list: `references/test-types.md`). Show the plan and get a go-ahead before generating anything.
 
 ## 3. Safety gate
 Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the target is
@@ -35,6 +36,7 @@ Summarize per endpoint, rank findings by severity, include a reproducible comman
 (`templates/report.md`).
 
 ## Reference files (load on demand)
+- `references/test-types.md` — the 18 test types and what each checks
 - `references/intake.md` — normalized intake JSON, parser behavior and limits
 - `references/functional.md` — positive, negative, edge
 - `references/graphql.md` — GraphQL-specific functional and security checks

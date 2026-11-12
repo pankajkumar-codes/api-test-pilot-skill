@@ -18,12 +18,23 @@ from urllib.parse import parse_qsl, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
-    SECRET_HEADERS, IntakeError, cli_main, env_name, redact_example, slug, unique_ids,
+    SECRET_HEADERS, IntakeError, cli_main, env_name, is_secret_name, redact_example, slug,
+    strip_userinfo, unique_ids,
 )
 
 DATA_FLAGS = {"-d", "--data", "--data-raw", "--data-binary", "--data-ascii", "--data-urlencode"}
-SKIP_WITH_ARG = {"-o", "--output", "-m", "--max-time", "--connect-timeout", "-A", "--user-agent",
-                 "-e", "--referer", "--proxy", "-x", "--cacert", "--cert", "--retry", "-w", "--write-out"}
+# Flags that take one argument we must not mistake for the URL (or record). Secret-bearing ones are
+# consumed and discarded. Unknown long flags are handled by the URL rule below (only scheme:// tokens win).
+SKIP_WITH_ARG = {
+    "-o", "--output", "-m", "--max-time", "--connect-timeout", "-A", "--user-agent", "-e", "--referer",
+    "--proxy", "-x", "--cacert", "--cert", "-E", "--key", "--retry", "--retry-delay", "--retry-max-time",
+    "-w", "--write-out", "-c", "--cookie-jar", "--max-redirs", "-K", "--config", "--resolve", "--proxy-user",
+    "-U", "-T", "--upload-file", "--limit-rate", "-y", "--speed-time", "-Y", "--speed-limit", "--interface",
+    "--dns-servers", "--capath", "--cert-type", "--key-type", "--pass", "--netrc-file", "--aws-sigv4",
+    "--oauth2-bearer", "--proxy-header", "--expect100-timeout", "--unix-socket", "-z", "--time-cond",
+    "--connect-to", "--local-port", "-r", "--range", "--max-filesize", "-P", "--ftp-port", "--tls-max",
+    "--ciphers", "--pinnedpubkey", "--cookie-jar", "--trace", "--trace-ascii", "--stderr", "--dump-header", "-D",
+}
 UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
 
@@ -52,8 +63,10 @@ def parse_command(cmd: str) -> dict:
     headers: list[tuple[str, str]] = []
     data: list[str] = []
     user = None
+    bearer = False
     form = False
     get_mode = False
+    positional: list[str] = []
     i = 1
     while i < len(toks):
         t = toks[i]
@@ -75,6 +88,8 @@ def parse_command(cmd: str) -> dict:
             data.append(arg)
             form = True
             i += 2
+        elif t == "--oauth2-bearer":
+            bearer, i = True, i + 2  # token discarded; modeled as bearer auth via env var
         elif t in ("-u", "--user"):
             user, i = arg, i + 2
         elif t in ("-b", "--cookie"):
@@ -90,15 +105,18 @@ def parse_command(cmd: str) -> dict:
         elif t.startswith("-"):
             i += 1  # boolean flags: -s -k -L -v -i ...
         else:
-            url = url or t
+            positional.append(t)
             i += 1
+    if not url:  # only a token that looks like a URL can be the URL; stray arguments never win
+        url = next((x for x in positional if re.match(r"^[a-z][a-z0-9+.-]*://", x, re.I)), None) or \
+            next((x for x in positional if re.match(r"^(localhost|[\w.-]+\.[a-z]{2,}|\d{1,3}(\.\d{1,3}){3})(:\d+)?(/|$)", x, re.I)), None)
     if not url:
         raise IntakeError(f"curl command without a URL: {cmd[:60]}")
     if not re.match(r"^[a-z]+://", url):
         url = "http://" + url
     if method is None:
         method = "POST" if data and not get_mode else "GET"
-    return {"method": method, "url": url, "headers": headers, "data": data, "user": user, "form": form, "get": get_mode}
+    return {"method": method, "url": url, "headers": headers, "data": data, "user": user, "bearer": bearer, "form": form, "get": get_mode}
 
 
 def _templatize(path: str) -> tuple[str, list[dict]]:
@@ -125,10 +143,17 @@ def parse_text(text: str, filename: str = "") -> dict:
     schemes: dict[str, dict] = {}
     servers: list[str] = []
     endpoints: dict[tuple, dict] = {}
+    cred_seen = False
 
     for cmd in cmds:
         c = parse_command(cmd)
-        u = urlsplit(c["url"])
+        clean_url, had_userinfo = strip_userinfo(c["url"])
+        if had_userinfo:
+            warnings.append("Credentials embedded in a URL were stripped; use env vars for auth.")
+            cred_seen = True
+            schemes.setdefault("basicAuth", {"type": "http", "scheme": "basic",
+                                             "env": [env_name("basicAuth", "USER"), env_name("basicAuth", "PASS")]})
+        u = urlsplit(clean_url)
         origin = f"{u.scheme}://{u.netloc}"
         if origin not in servers:
             servers.append(origin)
@@ -153,7 +178,7 @@ def parse_text(text: str, filename: str = "") -> dict:
                         warnings.append(f"{c['method']} {path}: body is a file reference ({raw[:40]}); not read")
         for k, v in parse_qsl(query_src, keep_blank_values=True):
             params.append({"name": k, "in": "query", "required": False, "schema": {},
-                           **({"example": "<redacted>"} if re.search(r"token|key|secret|pass", k, re.I) else {"example": v})})
+                           "example": "<redacted>" if is_secret_name(k) else v})
 
         security: list[list[str]] = []
         for k, v in c["headers"]:
@@ -176,12 +201,15 @@ def parse_text(text: str, filename: str = "") -> dict:
                     security = [["apiKeyAuth"]]
             elif kl not in ("content-type", "accept", "user-agent", "content-length", "host"):
                 params.append({"name": k, "in": "header", "required": False, "schema": {}})
-        if c["user"]:
+        if c["user"] or had_userinfo:
             schemes.setdefault("basicAuth", {"type": "http", "scheme": "basic",
                                              "env": [env_name("basicAuth", "USER"), env_name("basicAuth", "PASS")]})
             security = [["basicAuth"]]
-        if any(s in cmd for s in ("sk_live", "AKIA")):
-            warnings.append("A credential-looking literal was found in the input and was NOT copied to the output. Rotate it if real.")
+        if c["bearer"]:
+            schemes.setdefault("bearerAuth", {"type": "http", "scheme": "bearer", "env": [env_name("bearerAuth", "TOKEN")]})
+            security = [["bearerAuth"]]
+        if security or c["user"] or c["bearer"]:
+            cred_seen = True
 
         key = (c["method"], path)
         ep = {
@@ -199,6 +227,8 @@ def parse_text(text: str, filename: str = "") -> dict:
         else:
             endpoints[key] = ep
 
+    if cred_seen:
+        warnings.append("Credentials found in the input were NOT copied to the output. Rotate them if they are real secrets.")
     warnings.append("curl gives no response schemas or status expectations; the plan must derive them from the user.")
     eps = list(endpoints.values())
     unique_ids(eps, warnings)
