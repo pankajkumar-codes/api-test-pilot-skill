@@ -40,7 +40,8 @@ Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 ## Requirements
 
 - Python 3.11 or newer. Intake, generators and the report script use only the standard library (PyYAML is optional).
-- `pytest` and `requests` to run the generated suites: `pip install pytest requests`.
+- `pytest` and `requests` to run the generated suites: `pip install pytest requests`. Tested with Python 3.11, 3.12 and 3.13,
+  and with the oldest supported versions (pytest 8.0, requests 2.31, PyYAML 6.0) as well as the newest at the time of writing.
 - [k6](https://k6.io/docs/get-started/installation/) only for load, stress, spike and soak runs. Everything else works without it.
 - Generating and reporting work offline. Running tests needs network access to the target API.
 
@@ -168,7 +169,7 @@ $ echo $?
 
 - Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (331 tests plus 18 that skip without k6, about two and a half minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
-  Run on Python 3.11, 3.12 and 3.13 (and in CI on the same three).
+  Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
@@ -194,6 +195,9 @@ tools/                  validate_skill.py, build_skill_zip.py (repository toolin
 examples/               demo API, sample spec, a real sample report
 tests/  evals/  docs/   tests, eval driver and targets, validation record and release docs
 ```
+
+## Security and responsible use
+See [SECURITY.md](SECURITY.md): how to report a vulnerability privately, and the rules for testing only systems you own or may test.
 
 ## License
 [MIT](LICENSE). The vendored OpenAPI documents in `evals/specs/` are test fixtures under their upstream projects' own licenses.

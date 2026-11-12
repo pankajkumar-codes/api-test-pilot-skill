@@ -61,5 +61,13 @@ Preparation is done on a branch; the outward-facing steps need the maintainer (s
 - [ ] Merge, make the repository public, tag v0.1.0 (maintainer)
 - [ ] Submit to Claude and other skill marketplaces (maintainer; copy in docs/LISTING.md)
 
+## Phase 7 — Production-readiness pass (before the public launch)
+- [x] Nits: CHANGELOG reference count, README test timing, `run_evals.py --real` refusal prints one message and exits 2
+- [x] Tests on Python 3.11, 3.12 and 3.13 plus the lowest supported dependency versions; fixed a RecursionError on 3.11
+- [x] Hostile-input pass: over-nested JSON, binary and non-intake files give a clean error (exit 2), not a traceback
+- [x] SECURITY.md, issue and PR templates, GitHub Actions CI (3 Pythons, validator, ruff, optional k6), `ruff.toml`
+- [x] README commands re-run from a clean checkout and the shipped zip in a fresh venv; history scanned for secrets (clean)
+- [ ] CI green on GitHub (first run happens on the pull request)
+
 ## Out of scope for v1
 UI accessibility testing (separate skill), mobile, gRPC (v2), hosted service (revisit only if the skill gains traction).
