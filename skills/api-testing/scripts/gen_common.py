@@ -63,8 +63,14 @@ def has_json_body(ep: dict) -> bool:
     return bool(rb) and (is_json_ct(rb.get("content_type")) or not rb.get("content_type"))
 
 
+ADMIN_TEXT_RE = re.compile(r"\b(only\s+(an\s+)?admin(istrator)?s?|admin(istrator)?s?[\s-]+only|requires?\s+admin(istrator)?)\b", re.I)
+
+
 def is_admin_endpoint(ep: dict) -> bool:
-    return bool(ADMIN_PATH_RE.search(ep["path"])) or "admin" in [t.lower() for t in ep.get("tags", [])]
+    """Admin by path (/admin/...), by tag, or because the summary/description says so ("Only Admins")."""
+    text = f"{ep.get('summary') or ''} {ep.get('description') or ''}"
+    return (bool(ADMIN_PATH_RE.search(ep["path"])) or "admin" in [t.lower() for t in ep.get("tags", [])]
+            or bool(ADMIN_TEXT_RE.search(text)))
 
 
 def admin_line(ep: dict) -> str:
@@ -184,6 +190,12 @@ def sample_body(ep: dict) -> Any:
     rb = ep.get("request_body") or {}
     if s:
         val = sample(s)
+        if ep.get("method") in ("PUT", "PATCH") and isinstance(val, dict):
+            # An update that names its target in the body (PUT /pet) needs an id that exists: use the one the spec
+            # documents as an example (the user seeds or confirms it; a missing record shows as a 404, not a bug).
+            idp = (s.get("properties") or {}).get("id")
+            if "id" not in val and isinstance(idp, dict) and idp.get("example") is not None:
+                val = {**val, "id": sample(idp, "id")}
         if val not in (None, {}) or not rb.get("example"):
             return val
     if rb.get("example") not in (None, "<redacted>"):

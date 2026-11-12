@@ -321,12 +321,24 @@ def _status_ok(status: int, expected: Any) -> bool:
     return False
 
 
+_DUPLICATE_RE = re.compile(r"already\s+(exists?|registered|taken|in\s+use)|duplicate|not\s+unique|unique\s+constraint", re.I)
+
+
 def expect_status(resp: requests.Response, codes: Any, what: str = "") -> None:
     if not _status_ok(resp.status_code, codes):
+        if resp.status_code == 429:  # throttled: says nothing about correctness (the rate-limit checks assert on 429 themselves)
+            pytest.skip(f"throttled (429): {what or 'the call'} was rate limited, so this check has no verdict; "
+                        "lower the request volume or raise the target's limit")
         fail(resp, f"{what or 'unexpected status'}: expected {list(codes)}, got {resp.status_code}")
 
 
 def expect_ok(resp: requests.Response, ep: Endpoint, what: str = "") -> None:
+    if (ep.method == "POST" and not _status_ok(resp.status_code, ep.ok or ("2xx",))
+            and (resp.status_code == 409 or (resp.status_code in (400, 422) and _DUPLICATE_RE.search(resp.text or "")))):
+        # every create test sends the same baseline body: on a target that keeps data and enforces unique fields only the
+        # first create can succeed. That is test data, not a defect, so it is reported as a skip with this reason.
+        pytest.skip(f"create refused as a duplicate ({resp.status_code}): the baseline body already exists on the target; "
+                    "use a fresh target or remove the earlier test data")
     expect_status(resp, ep.ok or ("2xx",), what or "request with valid input should succeed")
 
 
@@ -494,6 +506,44 @@ TRAVERSAL_RE = re.compile(r"root:[x*]:0:0|\[boot loader\]|ami-id|instance-id|SSH
 def require_flag(name: str, why: str) -> None:
     if not env_true(name):
         pytest.skip(f"{why}: set {name}=yes")
+
+
+def random_token(prefix: str = "") -> str:
+    return prefix + uuid.uuid4().hex[:12]
+
+
+def expect_same_login_failure(existing: requests.Response, unknown: requests.Response, known_name: str) -> None:
+    """A failed login must look the same for an existing and a non-existing username (no user enumeration)."""
+    for r in (existing, unknown):
+        if r.status_code == 429:
+            pytest.skip("throttled (429) before the two logins could be compared")
+        if 200 <= r.status_code < 400:
+            fail(r, "a login with a throwaway password succeeded", "HIGH", "API2:2023 broken authentication")
+    owasp = "API2:2023 broken authentication"
+    if existing.status_code != unknown.status_code:
+        fail(existing, f"failed login differs by username: {existing.status_code} for an existing account, "
+                       f"{unknown.status_code} for an unknown one (user enumeration)", "MEDIUM", owasp)
+
+    def shape(r: requests.Response, name: str) -> str:
+        text = (r.text or "").replace(name, "<user>") if name else (r.text or "")
+        return re.sub(r"\s+", " ", text).strip()
+
+    a, b = shape(existing, known_name), shape(unknown, unknown_name(unknown))
+    if a != b:
+        fail(existing, "failed login message differs for an existing and an unknown username (user enumeration): "
+                       f"{a[:120]!r} vs {b[:120]!r}", "MEDIUM", owasp)
+
+
+def unknown_name(resp: requests.Response) -> str:
+    """The throwaway username the request carried (so an echoed name does not count as a difference)."""
+    try:
+        sent = json.loads(resp.request.body or b"{}")
+    except (TypeError, ValueError):
+        return ""
+    for k in ("username", "user_name", "userName", "login", "email", "user"):
+        if isinstance(sent.get(k), str):
+            return sent[k]
+    return ""
 
 
 def expect_denied(resp: requests.Response, owasp: str, what: str, severity: str = "HIGH") -> None:

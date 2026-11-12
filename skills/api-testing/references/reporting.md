@@ -27,6 +27,9 @@ never contacts the target and prints the command that regenerates the report.
   (`curl -sS -i -X METHOD URL [-H 'K: V']... [--data-raw BODY]`), parsed with shlex and never run; the URL's scheme, host and port must
   equal `--base-url` (or `APITEST_BASE_URL` when the report is built), and the command is rebuilt with shell quoting. Anything else is
   dropped and the finding says so. Without a target no curl line is shown; the pytest command still is.
+- Write calls and redaction: a finding whose curl line is a POST, PUT, PATCH or DELETE carries a warning that running it changes data on the
+  target. A curl line with `<redacted>` headers is not runnable until you re-add your own credentials (from your environment; never paste
+  them into a report), and the finding says so.
 - Duplicates: the same classname + test name in one or several JUnit files (reruns, merged runs) counts once; the worst outcome wins.
 - Pytest commands: a test name that was truncated (over 200 characters) or scrubbed is not a valid node id, so the command runs the
   whole test file instead of one test.

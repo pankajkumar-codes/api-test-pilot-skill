@@ -14,10 +14,10 @@ Passive checks (response headers, CORS, sensitive fields in responses) are ordin
 | OWASP API 2023 | Generated checks | Notes |
 |----------------|------------------|-------|
 | API1 BOLA | user A's credentials requested against another user's object ids (`APITEST_VICTIM_<PARAM>`); expects 4xx | GET by default; PUT/PATCH/DELETE need `APITEST_ALLOW_DESTRUCTIVE=yes`; skipped without victim ids |
-| API2 Broken authentication | garbage credentials rejected on every protected endpoint; tampered JWT (bad signature, `alg: none`, stripped signature); expired token (`APITEST_EXPIRED_TOKEN`) | missing credentials are a functional negative test |
+| API2 Broken authentication | garbage credentials rejected on every protected endpoint; tampered JWT (bad signature, `alg: none`, stripped signature); expired token (`APITEST_EXPIRED_TOKEN`); login endpoints (`/login`, `/signin`, `/authenticate`) must answer a failed login the same way for an existing and an unknown username (`APITEST_KNOWN_USERNAME`; two failed logins, so use a test account) | missing credentials are a functional negative test |
 | API3 BOPLA | mass assignment (undeclared `is_admin`, `role`, `owner_id`, `id`, `balance`... must not be stored/returned); excessive data exposure (password/hash/secret/token-like fields in responses) | response scan runs on safe GETs |
 | API4 Resource consumption | page size 1,000,000 must be capped or rejected; rate limiting present (opt-in `APITEST_EXPECT_RATE_LIMIT=yes`) | bounded burst, see `references/resilience.md` |
-| API5 BFLA | admin-looking endpoints (`/admin`, `/internal`, tag `admin`) with ordinary credentials must be refused | needs `APITEST_ASSUME_NON_ADMIN=yes` (you confirm the token is non-admin) |
+| API5 BFLA | admin-looking endpoints (`/admin`, `/internal`, tag `admin`, or a summary/description saying "Only Admins") with ordinary credentials must be refused | needs `APITEST_ASSUME_NON_ADMIN=yes` (you confirm the token is non-admin) |
 | API6 Sensitive business flows | **plan only**: list flows (sign-up, checkout, coupon, SMS) and ask the user which need anti-automation tests | no generic automated check |
 | API7 SSRF | url/uri/callback/webhook/redirect/target parameters given `169.254.169.254`, `127.0.0.1:22`, `file:///etc/passwd`; internal data in the response is HIGH, acceptance is MEDIUM | the probe only sends the URL; it never fetches anything itself |
 | API8 Misconfiguration | `nosniff`, HSTS (https), no version in `Server`/`X-Powered-By`; CORS must not reflect arbitrary origins with credentials; error bodies must not leak stack traces or DB errors | |
@@ -31,7 +31,7 @@ Failures print `[SEVERITY][OWASP id] what happened`, status, redacted body and a
 Severity: HIGH = data/privilege exposure, MEDIUM = missing hardening or crash, LOW = disclosure/hygiene.
 
 ## Environment
-`APITEST_VICTIM_<PARAM>`, `APITEST_EXPIRED_TOKEN`, `APITEST_ASSUME_NON_ADMIN`, `APITEST_EXPECT_RATE_LIMIT`, `APITEST_RATE_BURST`,
+`APITEST_VICTIM_<PARAM>`, `APITEST_EXPIRED_TOKEN`, `APITEST_KNOWN_USERNAME`, `APITEST_ASSUME_NON_ADMIN`, `APITEST_EXPECT_RATE_LIMIT`, `APITEST_RATE_BURST`,
 plus the credentials listed in `conftest.py`. Never print or log secret values; the runtime redacts them in every message.
 
 ## Limits (say so in the report)

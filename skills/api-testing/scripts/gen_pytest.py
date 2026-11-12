@@ -121,6 +121,25 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
 
 
+def pytest_collection_modifyitems(config, items):
+    """Run the tests that delete or overwrite existing data last, so they cannot remove the ids other tests rely on."""
+    import inspect
+
+    def destructive(item):
+        try:
+            return "require_destructive(" in inspect.getsource(item.function)
+        except (OSError, TypeError, AttributeError):
+            return False
+
+    def rank(item):
+        if not destructive(item):
+            return 0
+        # authorization probes first: they must run while the configured account still exists
+        return 1 if item.name.startswith(("test_api1_bola", "test_api5_bfla")) else 2
+
+    items.sort(key=rank)  # stable: everything else keeps its order
+
+
 @pytest.fixture(scope="session")
 def base_url():
     url = os.environ.get("APITEST_BASE_URL") or DEFAULT_BASE_URL
