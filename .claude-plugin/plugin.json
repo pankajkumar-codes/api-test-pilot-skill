@@ -1,0 +1,14 @@
+{
+  "name": "api-test-pilot",
+  "displayName": "API Test Pilot",
+  "version": "0.1.0",
+  "description": "Plan, generate and run API tests from an OpenAPI spec, GraphQL schema, Postman collection or curl examples: functional, contract, security (OWASP API Top 10), load, fuzz and chaos plans.",
+  "author": {
+    "name": "pankajkumar-codes",
+    "url": "https://github.com/pankajkumar-codes"
+  },
+  "homepage": "https://github.com/pankajkumar-codes/api-test-pilot-skill",
+  "repository": "https://github.com/pankajkumar-codes/api-test-pilot-skill",
+  "license": "MIT",
+  "keywords": ["api", "testing", "openapi", "graphql", "pytest", "k6", "security", "owasp", "fuzzing"]
+}

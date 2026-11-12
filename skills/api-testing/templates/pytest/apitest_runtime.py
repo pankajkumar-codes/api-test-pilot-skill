@@ -90,6 +90,21 @@ def target_env() -> str:
     return os.environ.get("APITEST_TARGET_ENV", "").strip().lower()
 
 
+def preflight(base_url: str | None) -> str | None:
+    """None when the run may start, else one clear message. Runs before any test, so a remote target with no
+    APITEST_TARGET_ENV stops the whole run with a non-zero exit instead of erroring (or skipping) test by test."""
+    if not base_url:
+        return "Set APITEST_BASE_URL to the target (the spec declares no usable server URL)."
+    host = target_host(base_url)
+    if host is None:
+        return "APITEST_BASE_URL must be a plain http(s) URL (no backslashes, spaces or ambiguous host)."
+    if not is_local_host(host) and not target_env():
+        return (f"Target {host} is not local, and APITEST_TARGET_ENV is not set. Export APITEST_TARGET_ENV to the environment "
+                "you are testing (dev, staging, ...; 'production' limits the run to read-only calls) before running. Intrusive "
+                "tests additionally need a non-production value and APITEST_AUTHORIZED=yes. Nothing was sent to the target.")
+    return None
+
+
 def intrusive_skip_reason(base_url: str) -> str | None:
     """None when intrusive tests may run, else the reason they must be skipped (safety gate)."""
     env = target_env()

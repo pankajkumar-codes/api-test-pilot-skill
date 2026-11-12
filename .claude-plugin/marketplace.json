@@ -1,0 +1,19 @@
+{
+  "name": "api-test-pilot",
+  "owner": {
+    "name": "pankajkumar-codes",
+    "url": "https://github.com/pankajkumar-codes"
+  },
+  "metadata": {
+    "description": "API Test Pilot: an Agent Skill that plans, generates and runs API tests."
+  },
+  "plugins": [
+    {
+      "name": "api-test-pilot",
+      "source": "./",
+      "description": "Plan, generate and run API tests (functional, contract, security, load, fuzz) from OpenAPI, GraphQL, Postman or curl.",
+      "category": "testing",
+      "tags": ["api", "testing", "openapi", "graphql", "security"]
+    }
+  ]
+}
