@@ -3,7 +3,7 @@
 
 Usage:
   python gen_pytest.py intake.json -o tests_out [--types all|smoke,positive,negative,edge,data-validation,
-                                                  contract,security,integration,resilience]
+                                                  contract,security,integration,resilience,fuzz]
                                     [--base-url http://localhost:8080]
 
 Output directory: conftest.py, apitest_runtime.py, endpoints.py, test_<type>.py files.
@@ -25,6 +25,7 @@ import _common  # noqa: E402
 import gen_common  # noqa: E402
 import gen_contract  # noqa: E402
 import gen_functional  # noqa: E402
+import gen_fuzz  # noqa: E402
 import gen_integration  # noqa: E402
 import gen_resilience  # noqa: E402
 import gen_security  # noqa: E402
@@ -44,10 +45,12 @@ REST_TYPES = {
     "security": ("test_security.py", "Security tests (OWASP API Top 10)", lambda d, m: gen_security.generate(d, m)),
     "integration": ("test_integration.py", "Integration flows", lambda d, m: gen_integration.generate(d, m)),
     "resilience": ("test_resilience.py", "Resilience tests", lambda d, m: gen_resilience.generate(d, m)),
+    "fuzz": ("test_fuzz.py", "Fuzz tests", lambda d, m: gen_fuzz.generate(d, m)),
 }
+OPT_IN_TYPES = {"fuzz"}  # not part of `--types all`: bounded but noisy, needs the intrusive gate (references/fuzzing.md)
 TAXONOMY_NAME = {"smoke": "smoke", "positive": "positive", "negative": "negative", "edge": "edge",
                  "data-validation": "data validation", "contract": "contract", "security": "security",
-                 "integration": "integration", "resilience": "resilience"}
+                 "integration": "integration", "resilience": "resilience", "fuzz": "fuzzing"}
 
 
 # --------------------------------------------------------------------------- shared pieces
@@ -101,6 +104,7 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
   APITEST_ALLOW_DESTRUCTIVE=yes   permit DELETE-style calls against existing data
+  APITEST_FUZZ_SEED / _CASES / _RPS / _MAX_REQUESTS / _MAX_BYTES / _SLOW_MS   fuzz tuning (hard caps apply)
 """
 import os
 
@@ -201,10 +205,10 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
         import gen_graphql
         return gen_graphql.generate(doc, out, types, base_url_override)
     base_url = default_base_url(doc, base_url_override)
-    chosen = list(REST_TYPES) if types == ["all"] else types
+    chosen = [t for t in REST_TYPES if t not in OPT_IN_TYPES] if types == ["all"] else types
     unknown = [t for t in chosen if t not in REST_TYPES]
     if unknown:
-        raise _common.IntakeError(f"Unknown test type(s): {', '.join(unknown)}. Choose from: {', '.join(REST_TYPES)}, all")
+        raise _common.IntakeError(f"Unknown test type(s): {', '.join(unknown)}. Choose from: {', '.join(REST_TYPES)}, all (fuzz is opt-in)")
     out.mkdir(parents=True, exist_ok=True)
     rerun = rerun_command(out, base_url, chosen)
     files: dict[str, str] = {
@@ -212,6 +216,8 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
         "conftest.py": conftest_source(doc, base_url),
         "endpoints.py": endpoints_source(doc),
     }
+    if "fuzz" in chosen:
+        files["fuzz_runtime.py"] = (SKILL_DIR / "templates" / "pytest" / "fuzz_runtime.py").read_text(encoding="utf-8")
     notes: list[str] = []
     for ep in doc["endpoints"]:
         if not supported_body(ep):
@@ -225,7 +231,7 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
         if isinstance(extra, list):
             notes += extra
         if mod.tests:
-            files[fname] = mod.render()
+            files[fname] = mod.render("import fuzz_runtime as fz  # noqa: F401\n" if t == "fuzz" else "")
             counts[t] = mod.tests
     for name, src in files.items():
         check_compiles(name, src)

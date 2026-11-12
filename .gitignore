@@ -9,3 +9,6 @@ reports/
 .DS_Store
 intake.json
 *.intake.json
+results/
+k6_tests/
+fuzz_tests/

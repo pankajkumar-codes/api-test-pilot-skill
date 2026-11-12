@@ -53,14 +53,23 @@ def is_local_host(host: str | None) -> bool:
     """Loopback only: the literal name `localhost`, `*.localhost`, or an IP literal that is loopback.
 
     No string-prefix checks (127.0.0.1.nip.io is a remote DNS name); decimal/hex/octal IP spellings and
-    IPv4-mapped IPv6 are not parsed and therefore count as remote (conservative)."""
-    h = (host or "").lower().strip("[]").rstrip(".")
-    if h == "localhost" or (h.endswith(".localhost") and h.count(".") >= 1 and h != ".localhost"):
-        return True
-    try:
-        return ipaddress.ip_address(h).is_loopback
-    except ValueError:
+    IPv4-mapped IPv6, trailing dots and other IPv6 spellings of loopback count as remote (conservative; same rules as
+    scripts/safety_gate.py, tests keep the two identical)."""
+    h = (host or "").lower().strip("[]")
+    if not h:
         return False
+    if h == "::1":
+        return True
+    m = re.fullmatch(r"(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})\.(0|[1-9][0-9]{0,2})", h)
+    if m:
+        octets = [int(x) for x in m.groups()]
+        return all(o <= 255 for o in octets) and octets[0] == 127
+    if ":" in h:
+        return False  # other IPv6 spellings (including IPv4-mapped) count as remote
+    labels = h.split(".")
+    if not all(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", x) for x in labels):
+        return False
+    return labels == ["localhost"] or (len(labels) >= 2 and labels[-1] == "localhost")
 
 
 def target_host(base_url: str) -> str | None:

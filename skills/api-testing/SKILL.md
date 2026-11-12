@@ -24,6 +24,8 @@ Fill `templates/test-plan.md` from `intake.json`: endpoints in scope and the tes
 ## 3. Safety gate
 Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the target is
 non-production and (b) they own or are authorized to test it. If not confirmed, stop. Do not weaken this.
+The user exports `APITEST_TARGET_ENV` (non-production value) and `APITEST_AUTHORIZED=yes`; never set them yourself
+(loopback targets pass without them; production is always refused). `run_k6.py`, the k6 scripts and the fuzz tests enforce this too.
 
 ## 4. Generate
 Read only the reference files for the chosen test types, then generate runnable pytest:
@@ -32,9 +34,14 @@ It prints the rerun command, the env var names the suite needs and any endpoints
 are `intrusive`: the generated `conftest.py` skips them unless the target is local, or non-production and authorized
 (`APITEST_TARGET_ENV`, `APITEST_AUTHORIZED=yes`); never set those variables yourself, ask the user.
 Spec drift between versions: `python scripts/spec_diff.py old.json new.json`.
+Non-functional (after step 3 only; details in each reference):
+- load/stress/spike/soak: `python scripts/gen_k6.py intake.json -o k6_tests --profiles load` (GET-only, capped, `--quick` first), run with `python scripts/run_k6.py k6_tests/load.js`
+- fuzz: `python scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz` (opt-in, REST only, seeded and rate-limited)
+- chaos: `python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging` (a plan only: nothing is injected in v1)
 
 ## 5. Run
 Execute if the environment allows; otherwise print the exact commands to run. Always print the rerun command.
+If k6 is not installed, say so and print the command; never claim a load run happened when it did not.
 
 ## 6. Report
 Summarize per endpoint, rank findings by severity, include a reproducible command per finding
@@ -50,8 +57,9 @@ Summarize per endpoint, rank findings by severity, include a reproducible comman
 - `references/contract.md` — schema conformance, breaking changes (`spec_diff.py`)
 - `references/security.md` — OWASP API Top 10 checks and the safety gate
 - `references/resilience.md` — idempotency, pagination, timeouts, rate-limit behaviour
-- `references/load.md` — load, stress, spike, soak (k6)
-- `references/chaos.md` — fault-injection plans
+- `references/load.md` — k6 setup, caps and the launcher; load profile
+- `references/stress.md`, `references/spike.md`, `references/soak.md` — the other k6 profiles
+- `references/chaos.md` — fault-injection plans (plans only in v1)
 - `references/fuzzing.md` — malformed-input fuzzing
 
 ## Not covered

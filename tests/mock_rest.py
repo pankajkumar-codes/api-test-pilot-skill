@@ -2,6 +2,7 @@
 
 `bugs` seeds specific flaws so tests can prove the generated suite detects them:
   bola noauth leak contract mass noval crash stacktrace admin headers cors ssrf paging noretry
+  down (every request answers 500)  jsoncrash (malformed JSON -> 500 + traceback)  hang (template-looking names stall 3 s)  crlf (name reflected into a header)
 `rate_limit=N` throttles GET /pets to N requests per second (429 + Retry-After).
 """
 from __future__ import annotations
@@ -82,8 +83,13 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
                 self.err(415, "content type must be application/json")
                 return None
             try:
-                return json.loads(raw)
+                value = json.loads(raw)
+                if value is None:  # found by the fuzzer: a bare `null` body used to leave the connection hanging
+                    self.err(400, "body must not be null")
+                return value
             except ValueError:
+                if "jsoncrash" in state.bugs:
+                    raise RuntimeError("Traceback (most recent call last):\n  File \"app.py\", line 9, in parse")
                 self.err(400, "invalid json")
                 return None
 
@@ -93,6 +99,8 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
             name = b.get("name")
             if not isinstance(name, str):
                 return "name is required"
+            if "hang" in state.bugs and "{{" in name:
+                time.sleep(3)
             if "crash" in state.bugs and "'" in name:
                 raise RuntimeError("SQLSTATE[42000]: Syntax error or access violation near '" + name + "'")
             if "noval" in state.bugs:
@@ -123,6 +131,8 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
             q = {k: v[0] for k, v in parse_qs(parts.query, keep_blank_values=True).items()}
             segs = [s for s in parts.path.split("/") if s]
             m = self.command
+            if "down" in state.bugs:
+                return self.err(500, "boom")
             if segs == ["health"] and m == "GET":
                 return self.reply(200, {"status": "ok"})
             uid = self.user()
@@ -147,7 +157,10 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
                             pet["owner_id"] = b.get("owner_id", uid)
                             pet["is_admin"] = b.get("is_admin")
                         state.pets[pid] = pet
-                    return self.reply(201, self.render_pet(pet), {"Location": f"/pets/{pid}"})
+                    extra = {"Location": f"/pets/{pid}"}
+                    if "crlf" in state.bugs:
+                        extra["X-Echo"] = b["name"]  # raw reflection: CR/LF in the name splits the header block
+                    return self.reply(201, self.render_pet(pet), extra)
             if len(segs) >= 2 and segs[0] == "pets":
                 try:
                     pid = int(segs[1])
@@ -248,6 +261,7 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
         do_GET = do_POST = do_PUT = do_DELETE = do_PATCH = dispatch
 
     srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    srv.handle_error = lambda *a: None  # clients that time out or hang up are expected in fuzz/load tests
     srv.state = state  # type: ignore[attr-defined]
     return srv
 
