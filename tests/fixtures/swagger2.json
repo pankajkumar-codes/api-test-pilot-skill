@@ -1,0 +1,5 @@
+{"swagger":"2.0","info":{"title":"Old API","version":"1"},"host":"api.example.test","basePath":"/v2","schemes":["https"],
+ "securityDefinitions":{"basic":{"type":"basic"}},"security":[{"basic":[]}],
+ "paths":{"/items":{"post":{"consumes":["application/json"],"parameters":[{"in":"body","name":"body","required":true,"schema":{"type":"object","required":["n"],"properties":{"n":{"type":"string"}}}}],
+   "responses":{"200":{"description":"ok","schema":{"type":"object","properties":{"id":{"type":"integer"}}}}}},
+  "get":{"parameters":[{"name":"q","in":"query","type":"string","required":true}],"responses":{"200":{"description":"ok"}}}}}}

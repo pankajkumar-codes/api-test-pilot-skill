@@ -5,19 +5,39 @@ description: Plan, generate and run API tests from an OpenAPI spec, GraphQL sche
 
 # API Testing
 
-## Workflow
-1. **Intake** — get the spec (OpenAPI, GraphQL introspection/SDL, Postman or curl), base URL, auth method, and environment.
-   Credentials come from environment variables, never from chat or logs.
-2. **Plan** — list endpoints and propose which test types apply. Show the plan and get a go-ahead
-   (use `templates/test-plan.md`).
-3. **Safety gate** — for load, stress, spike, soak, chaos or fuzz: confirm the target is
-   non-production and that the user owns or is authorized to test it. If not confirmed, stop.
-4. **Generate** — read only the reference files for the chosen test types and produce runnable tests.
-5. **Run** — execute if the environment allows; otherwise give exact commands to run.
-6. **Report** — summarize per endpoint, rank findings by severity, include a reproducible command each
-   (use `templates/report.md`).
+Router only. Follow the steps in order; load a reference file only when its step needs it.
+
+## 1. Intake
+Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands; GraphQL arrives in Phase 2),
+base URL, auth method, environment (local/staging/prod).
+- Normalize the input: `python scripts/intake.py <file> -o intake.json --summary`
+  (auto-detects the type; output shape and edge cases in `references/intake.md`).
+- Surface the parser `warnings` to the user (missing base URL, no response schemas, etc.) and ask for what is missing.
+- Credentials come from environment variables only (the parser lists the names, e.g. `APITEST_BEARERAUTH_TOKEN`).
+  Never ask for, print or log secret values.
+- `intake.json` describes the user's API; keep it out of version control (it is git-ignored by default).
+
+## 2. Plan
+Fill `templates/test-plan.md` from `intake.json`: endpoints in scope and the test types that apply
+(type list: `references/test-types.md`). Show the plan and get a go-ahead before generating anything.
+
+## 3. Safety gate
+Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the target is
+non-production and (b) they own or are authorized to test it. If not confirmed, stop. Do not weaken this.
+
+## 4. Generate
+Read only the reference files for the chosen test types and produce runnable tests.
+
+## 5. Run
+Execute if the environment allows; otherwise print the exact commands to run. Always print the rerun command.
+
+## 6. Report
+Summarize per endpoint, rank findings by severity, include a reproducible command per finding
+(`templates/report.md`).
 
 ## Reference files (load on demand)
+- `references/test-types.md` — the 18 test types and what each checks
+- `references/intake.md` — normalized intake JSON, parser behavior and limits
 - `references/functional.md` — positive, negative, edge
 - `references/graphql.md` — GraphQL-specific functional and security checks
 - `references/integration.md` — multi-endpoint flows

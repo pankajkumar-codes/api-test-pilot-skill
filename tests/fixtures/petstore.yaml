@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: Mini Petstore
+  version: "1.2.0"
+servers:
+  - url: http://localhost:8080/v1
+security:
+  - bearerAuth: []
+paths:
+  /pets:
+    parameters:
+      - $ref: '#/components/parameters/Trace'
+    get:
+      operationId: listPets
+      summary: List pets   # trailing comment
+      tags: [pets]
+      parameters:
+        - name: limit
+          in: query
+          schema: {type: integer, minimum: 1, maximum: 100}
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [available, sold]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+    post:
+      operationId: createPet
+      tags: [pets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewPet'
+            example:
+              name: Rex
+              password: hunter2
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        '400': {description: bad request}
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        '404': {description: not found}
+    delete:
+      summary: Delete a pet
+      parameters:
+        - {name: petId, in: path, required: true, schema: {type: integer}}
+      responses:
+        '204': {description: gone}
+  /health:
+    get:
+      operationId: health
+      security: []
+      responses:
+        '200': {description: ok}
+  /admin/tree:
+    get:
+      operationId: tree
+      security:
+        - apiKey: []
+        - oauth: [read]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Node'}
+components:
+  parameters:
+    Trace:
+      name: X-Trace-Id
+      in: header
+      schema: {type: string}
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.test/token
+          scopes:
+            read: read things
+  schemas:
+    NewPet:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 50}
+        tag: {type: string, nullable: true}
+    Pet:
+      allOf:
+        - $ref: '#/components/schemas/NewPet'
+        - type: object
+          required: [id]
+          properties:
+            id: {type: integer, format: int64}
+    Node:
+      type: object
+      properties:
+        value: {type: string}
+        child:
+          $ref: '#/components/schemas/Node'
