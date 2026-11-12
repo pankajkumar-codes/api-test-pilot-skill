@@ -1,0 +1,41 @@
+"""Mock schema used to validate the GraphQL generators."""
+schema { query: Query mutation: Mutation }
+
+directive @auth(requires: String = "USER") on FIELD_DEFINITION
+
+type Query {
+  "Fetch one pet"
+  pet(id: ID!): Pet
+  pets(first: Int, after: String, search: String): [Pet!]!
+  me: User
+  health: String
+}
+
+type Mutation {
+  createPet(input: NewPetInput!): Pet!
+  deletePet(id: ID!): Boolean!
+}
+
+type Pet {
+  id: ID!
+  name: String!
+  tag: String
+  species: Species
+  owner: User
+  friends: [Pet!]
+}
+
+type User {
+  id: ID!
+  name: String!
+  email: String
+  passwordHash: String
+}
+
+enum Species { DOG CAT BIRD }
+
+input NewPetInput {
+  name: String!
+  tag: String
+  species: Species = DOG
+}

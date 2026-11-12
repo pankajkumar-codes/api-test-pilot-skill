@@ -15,20 +15,20 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] templates/test-plan.md
 - [ ] Phase 1 eval: run intake.py on the Petstore spec (eval-apis.md); pending, needs network access. Fixture tests pass.
 
-## Phase 2 — Functional modules
-- [ ] references/functional.md: positive, negative, edge
-- [ ] references/integration.md: multi-endpoint flows (create → read → update → delete)
-- [ ] references/contract.md: response vs schema, breaking-change detection
-- [ ] references/security.md: authN/authZ, BOLA/IDOR, injection, mass assignment (OWASP API Top 10)
-- [ ] references/data-validation.md and resilience.md (idempotency, retries, pagination, rate limits)
-- [ ] Generators that emit runnable pytest files
-- [ ] GraphQL support (see below)
+## Phase 2 — Functional modules (built; real eval-apis runs pending, see docs/evals.md)
+- [x] references/functional.md: positive, negative, edge
+- [x] references/integration.md: multi-endpoint flows (create → read → update → delete)
+- [x] references/contract.md: response vs schema, breaking-change detection (spec_diff.py)
+- [x] references/security.md: authN/authZ, BOLA/IDOR, injection, mass assignment (OWASP API Top 10)
+- [x] references/data-validation.md and resilience.md (idempotency, retries, pagination, rate limits)
+- [x] Generators that emit runnable pytest files (gen_pytest.py; validated against local mock servers, see docs/evals.md)
+- [x] GraphQL support (see below)
 
 ### GraphQL (Phase 2)
-- [ ] scripts/parse_graphql.py: introspection query or SDL → queries, mutations, types, args (JSON)
-- [ ] references/graphql.md: positive/negative/edge adapted to GraphQL (errors arrive as 200 + `errors` array, so assert on the body, not just status)
-- [ ] GraphQL security checks: query depth/complexity limits, introspection exposure in prod, batching/alias abuse, field-level authorization, injection in variables
-- [ ] Reuse shared modules where possible: auth, load (k6 supports GraphQL over HTTP), reporting
+- [x] scripts/parse_graphql.py: introspection query or SDL → queries, mutations, types, args (JSON)
+- [x] references/graphql.md: positive/negative/edge adapted to GraphQL (errors arrive as 200 + `errors` array, so assert on the body, not just status)
+- [x] GraphQL security checks: query depth/complexity limits, introspection exposure in prod, batching/alias abuse, field-level authorization, injection in variables
+- [~] Reuse shared modules where possible: auth, redaction, safety gate and runtime reused (done); load (k6) and reporting reuse follow in Phases 3 and 4 via the shared intake endpoint shape
 - [ ] Add a GraphQL API to eval-apis.md and validate (Phase 5)
 
 ## Phase 3 — Non-functional modules

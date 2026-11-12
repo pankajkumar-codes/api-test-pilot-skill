@@ -3,7 +3,7 @@
 - Date / author:
 - Spec source: {file}, type {openapi|postman|curl}, parsed with `scripts/intake.py`
 - Base URL / environment: {url} ({local|staging|other})
-- Protocol: REST | GraphQL (Phase 2)
+- Protocol: REST | GraphQL
 
 ## Authentication
 | Scheme | Env var(s) (names only, never values) | Notes |

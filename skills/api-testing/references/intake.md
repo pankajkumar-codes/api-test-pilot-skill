@@ -8,7 +8,7 @@ tells the user to install PyYAML or convert to JSON). Parsers are offline: remot
 
 ```
 {
-  "source":  {"type": "openapi|postman|curl", "version": "3.0.3", "file": "spec.yaml"},
+  "source":  {"type": "openapi|postman|curl|graphql", "version": "3.0.3", "file": "spec.yaml"},
   "info":    {"title": "...", "version": "..."},
   "servers": ["http://localhost:8080/v1"],
   "security_schemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "env": ["APITEST_BEARERAUTH_TOKEN"]}},
@@ -37,7 +37,9 @@ tells the user to install PyYAML or convert to JSON). Parsers are offline: remot
   Collection v2.0/2.1 only.
 - **curl**: only `curl` lines are read; numeric/UUID path segments become `{id}` params; no response
   expectations exist, so ask the user what "correct" means.
-- Unsupported (warn the user): GraphQL (Phase 2), gRPC (v2), OpenAPI callbacks/webhooks, multi-file specs
+- **GraphQL** (SDL or introspection JSON, `parse_graphql.py`): same top-level keys; the single endpoint is `POST /graphql`; an extra
+  `graphql` block lists operations and types. Details in `references/graphql.md`.
+- Unsupported (warn the user): gRPC (v2), OpenAPI callbacks/webhooks, multi-file specs
   (bundle first with `redocly bundle` or similar).
 
 ## Ask the user when

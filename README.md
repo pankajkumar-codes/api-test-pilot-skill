@@ -3,13 +3,15 @@
 An Agent Skill that plans, generates and runs API tests: functional, security,
 contract, performance and resilience.
 
-> Status: Phase 1 done (intake parsers + skill router). Generators land in Phase 2. See [PLAN.md](PLAN.md) for progress.
+> Status: Phase 2 built (pytest generators for REST and GraphQL: functional, data validation, contract, security, integration, resilience). Non-functional modules (k6) land in Phase 3. See [PLAN.md](PLAN.md) for progress.
 
 ## Layout
 ```
 skills/api-testing/     the skill (SKILL.md + references, scripts, templates)
-  scripts/              intake parsers: OpenAPI, Postman, curl (stdlib, offline)
-tests/                  tests for the scripts (pytest)
+  scripts/              intake parsers (OpenAPI, Postman, curl, GraphQL), pytest generators, spec_diff (stdlib, offline)
+  templates/pytest/     runtime helpers copied next to every generated suite
+tests/                  tests for the scripts; generated suites run against mock servers
+docs/evals.md           validation record
 PLAN.md                 phased build plan
 TAXONOMY.md             test types covered
 DECISIONS.md            scope and stack decisions
@@ -48,10 +50,20 @@ Then: "Read CLAUDE.md and PLAN.md, resolve the open decisions in DECISIONS.md wi
 
 Note: `intake.json` (parser output) describes your API; it is git-ignored, do not commit it.
 
+## Generate tests (Phase 2)
+```bash
+python skills/api-testing/scripts/intake.py openapi.yaml -o intake.json        # or schema.graphql --url http://localhost:4000/graphql
+python skills/api-testing/scripts/gen_pytest.py intake.json -o api_tests --types all
+APITEST_BASE_URL=http://localhost:8080 APITEST_BEARERAUTH_TOKEN=... python -m pytest api_tests -v -ra
+python skills/api-testing/scripts/spec_diff.py old.json new.json              # breaking-change report
+```
+Generated suites need `pytest` and `requests`. Active security probes only run against a local or confirmed
+non-production target you are authorized to test (see `skills/api-testing/references/security.md`).
+
 ## Develop
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest tests
+python -m pytest tests          # ~50 s: includes generated suites run against local mock servers
 python skills/api-testing/scripts/intake.py path/to/openapi.yaml --summary
 ```
 
