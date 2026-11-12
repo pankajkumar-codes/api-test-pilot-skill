@@ -32,6 +32,19 @@ class IntakeError(Exception):
     """User-facing parse error (printed without a traceback by the CLIs)."""
 
 
+def load_intake_json(path: str) -> dict:
+    """Read an intake.json written by intake.py; raise IntakeError (never a traceback) for anything else."""
+    try:
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise IntakeError(f"Cannot read {path}: {exc.strerror or exc}") from exc
+    except (ValueError, RecursionError) as exc:  # includes UnicodeDecodeError and over-nested JSON
+        raise IntakeError(f"{path} is not valid intake JSON ({type(exc).__name__}); create it with intake.py") from exc
+    if not isinstance(doc, dict) or not isinstance(doc.get("endpoints"), list):
+        raise IntakeError(f"{path} has no 'endpoints' list; it must be the output of intake.py")
+    return doc
+
+
 # --------------------------------------------------------------------------- loading
 def load_document(path: str | Path) -> Any:
     p = Path(path)

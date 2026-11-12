@@ -18,8 +18,8 @@ Thanks for helping. This repository is an Agent Skill, so most changes touch mar
 
 ## Set up and check
 ```bash
-pip install -r requirements-dev.txt
-python -m pytest tests                    # about a minute; with k6 on PATH it also runs the generated k6 scripts
+pip install -r requirements-dev.txt -r evals/requirements.txt   # evals/requirements.txt (fastapi, uvicorn) is only for the seeded eval target
+python -m pytest tests                    # about 2-3 minutes; with k6 on PATH it also runs the generated k6 scripts
 python tools/validate_skill.py            # frontmatter, folder layout, plugin files, version consistency
 python evals/run_evals.py --target all    # mock-based evals, offline
 ```

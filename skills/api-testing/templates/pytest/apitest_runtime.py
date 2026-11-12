@@ -11,7 +11,6 @@ Rules enforced here (not in the generated tests):
 from __future__ import annotations
 
 import base64
-import ipaddress
 import json
 import os
 import re
@@ -154,7 +153,7 @@ def curl_of(resp: requests.Response) -> str:
         text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
         try:
             text = json.dumps(redact(json.loads(text)))
-        except ValueError:
+        except (ValueError, RecursionError):  # not JSON, or nested deeper than the interpreter allows (hostile/fuzz input)
             pass
         parts += ["--data-raw", shlex.quote(text[:600] + ("..." if len(text) > 600 else ""))]
     return " ".join(parts)
@@ -165,7 +164,7 @@ def describe(resp: requests.Response) -> str:
     body = resp.text[:300].replace("\n", " ")
     try:
         body = json.dumps(redact(resp.json()))[:300]
-    except ValueError:
+    except (ValueError, RecursionError):
         pass
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
@@ -295,7 +294,7 @@ class Endpoint:
 def json_of(resp: requests.Response) -> Any:
     try:
         return resp.json()
-    except ValueError:
+    except (ValueError, RecursionError):  # a response nested past the recursion limit is treated as "not JSON"
         return UNSET
 
 

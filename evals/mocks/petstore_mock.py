@@ -93,7 +93,7 @@ def make_server(bugs: set[str] | None = None) -> ThreadingHTTPServer:
             raw = self.rfile.read(n) if n else b""
             try:
                 return json.loads(raw) if raw else None
-            except ValueError:
+            except (ValueError, RecursionError):
                 return "__invalid__"
 
         def route(self):

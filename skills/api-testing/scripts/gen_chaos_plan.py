@@ -17,7 +17,6 @@ and by AI assistants.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -214,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-endpoints", type=int, default=8)
     args = ap.parse_args(argv)
     try:
-        doc = json.loads(Path(args.intake).read_text(encoding="utf-8"))
+        doc = _common.load_intake_json(args.intake)
         text = generate(doc, env=args.env, dependencies=args.dependency,
                         only=[e.strip() for e in args.endpoints.split(",") if e.strip()] if args.endpoints else None,
                         max_endpoints=args.max_endpoints)

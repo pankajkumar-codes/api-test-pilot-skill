@@ -6,7 +6,7 @@
 
 ```
 python evals/run_evals.py --list                       # targets, seeded flaws, real-target commands
-python evals/run_evals.py --target all --markdown      # mock mode, offline, prints the result tables (about a minute)
+python evals/run_evals.py --target all --markdown      # mock mode, offline, prints the result tables (about two minutes)
 python evals/run_evals.py --target petstore --variant clean --variant noauth
 ```
 

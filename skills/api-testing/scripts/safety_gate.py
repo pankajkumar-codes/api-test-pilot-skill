@@ -13,7 +13,6 @@ Never set these variables on the user's behalf; ask the user to confirm and expo
 """
 from __future__ import annotations
 
-import ipaddress
 import os
 import re
 import urllib.parse

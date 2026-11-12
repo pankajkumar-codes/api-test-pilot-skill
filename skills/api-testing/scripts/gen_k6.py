@@ -148,7 +148,7 @@ def validate_plan(profile: str, stages: list[dict], *, max_vus: int, rate: int, 
     peak = max(s["target"] for s in stages)
     if peak > HARD_MAX_RPS:
         raise PlanError(f"peak {peak} req/s exceeds the hard cap of {HARD_MAX_RPS}; lower --rate"
-                        + (f" or --steps/--spike-multiplier" if profile in ("stress", "spike") else ""))
+                        + (" or --steps/--spike-multiplier" if profile in ("stress", "spike") else ""))
     if len(stages) > MAX_LABELS:
         raise PlanError(f"{len(stages)} stages exceed the limit of {MAX_LABELS}; shorten --duration")
     prev = 0
@@ -474,7 +474,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--include-writes", action="store_true", help="also generate POST/PUT/PATCH (needs APITEST_ALLOW_WRITES=yes at run time)")
     args = ap.parse_args(argv)
     try:
-        doc = json.loads(Path(args.intake).read_text(encoding="utf-8"))
+        doc = _common.load_intake_json(args.intake)
         result = generate(
             doc, Path(args.out), [p.strip() for p in args.profiles.split(",") if p.strip()], base_url=args.base_url,
             rate=args.rate, max_vus=args.max_vus, hold=parse_duration(args.duration) if args.duration else None,

@@ -56,6 +56,12 @@ def main(argv: list[str] | None = None) -> int:
     except IntakeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    except UnicodeDecodeError:
+        print("error: the input is not a UTF-8 text file", file=sys.stderr)
+        return 2
+    except RecursionError:
+        print("error: the input is nested too deeply to parse safely", file=sys.stderr)
+        return 2
     if kind == "graphql" and args.summary:
         print(parse_graphql.summarize_graphql(doc))
         if args.output:

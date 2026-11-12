@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 First release candidate, built in phases (see PLAN.md).
 
 ### Added
-- Skill `api-testing`: `SKILL.md` router plus 15 reference files loaded on demand.
+- Skill `api-testing`: `SKILL.md` router plus 16 reference files loaded on demand.
 - Intake parsers: OpenAPI 3.x and Swagger 2, Postman collections, curl commands, GraphQL SDL and introspection JSON, all
   normalized to one intake JSON (`intake.py`).
 - Generators for pytest suites: smoke, positive, negative, edge, data-validation, contract, integration, resilience and
@@ -21,7 +21,16 @@ First release candidate, built in phases (see PLAN.md).
 - Eval driver, mock targets and a real local seeded target (`evals/`); results in `docs/evals.md`.
 - Packaging: Claude Code plugin and marketplace manifests, `tools/validate_skill.py`, `tools/build_skill_zip.py`,
   LICENSE (MIT), CONTRIBUTING, release checklist and marketplace listing copy (`docs/`).
+- Repository hygiene: SECURITY.md (reporting and responsible use), issue and pull request templates, GitHub Actions CI
+  (tests on Python 3.11 to 3.13, validator, ruff, optional k6 job), `ruff.toml`.
 - `examples/`: a demo API with seedable flaws, a sample spec and a real generated report.
+
+### Fixed
+- Deeply nested JSON (a hostile spec, a fuzz body or a server response) no longer crashes redaction, repro lines or
+  response parsing: `RecursionError` is handled like "not JSON" (this made five fuzz tests fail on Python 3.11); `intake.py`
+  reports an over-nested input with exit code 2.
+- `evals/run_evals.py --real` against a remote target without `APITEST_TARGET_ENV` prints one clear message and exits 2
+  instead of a traceback.
 
 ### Changed
 - A remote target without `APITEST_TARGET_ENV` now stops the whole pytest run with exit code 4 and one clear message,

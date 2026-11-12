@@ -127,7 +127,7 @@ have no failing test, apart from listed known limitations. The expected-test lis
 mocks, so a "found" here means the check works on that flaw, not that it would find the same flaw in software we did not write.
 
 ### Results
-**Total: 26 of 27 seeded flaws found, 1 documented gap. 4 clean variants: 3 with zero failures, 1 with one listed limitation.** Whole run: about one minute.
+**Total: 26 of 27 seeded flaws found, 1 documented gap. 4 clean variants: 3 with zero failures, 1 with one listed limitation.** Whole run: about two minutes on 4 cores.
 (Full run through `python evals/run_evals.py --target all --markdown`; the tables below are its output.)
 
 #### Swagger Petstore 3 (mock of the documented behaviour) (mock-based, real target not run)

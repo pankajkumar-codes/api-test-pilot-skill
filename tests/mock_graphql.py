@@ -300,7 +300,7 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
             uid = TOKENS.get(h[7:]) if h.startswith("Bearer ") else None
             try:
                 body = json.loads(raw)
-            except ValueError:
+            except (ValueError, RecursionError):
                 return self.send(400, {"errors": [{"message": "POST body sent invalid JSON."}]})
             try:
                 if isinstance(body, list):

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-dev.txt
+            evals/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt -r evals/requirements.txt
+      - name: Validate the skill folder and plugin files
+        run: python tools/validate_skill.py
+      - name: Run tests (the k6 tests skip when k6 is absent)
+        run: python -m pytest tests -q -p no:cacheprovider
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install ruff
+      - run: ruff check .
+
+  k6:
+    # Optional: executes the generated k6 scripts too. Not required for a green build.
+    name: Tests with k6 (optional)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: grafana/setup-k6-action@v1
+      - run: python -m pip install -r requirements-dev.txt -r evals/requirements.txt
+      - run: python -m pytest tests -q -p no:cacheprovider
