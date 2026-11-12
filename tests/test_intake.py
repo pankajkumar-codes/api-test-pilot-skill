@@ -286,3 +286,14 @@ def test_redact_example_any_scalar_and_shared_regex():
         assert _common.is_secret_name(name)
     assert not _common.is_secret_name("page")
     assert not hasattr(parse_curl, "SECRET_KEY_RE")  # parsers share _common's single regex
+
+
+def test_openapi_param_and_schema_secret_values_dropped():
+    doc = {"openapi": "3.0.0", "info": {}, "servers": [{"url": "http://h"}],
+           "paths": {"/x": {"get": {
+               "parameters": [{"name": "X-Api-Key", "in": "header", "example": "CANARYEX", "schema": {"type": "string", "default": "CANARYEX"}}],
+               "requestBody": {"content": {"application/json": {"schema": {"type": "object", "properties": {
+                   "a": {"type": "string", "format": "password", "example": "CANARYEX"},
+                   "b": {"type": "string", "writeOnly": True, "default": "CANARYEX"}}}}}},
+               "responses": {"200": {"description": "ok"}}}}}}
+    _no_canaries(parse_openapi.parse(doc))

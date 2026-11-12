@@ -72,6 +72,9 @@ class Resolver:
                 out.setdefault("$name", ref.rsplit("/", 1)[-1])
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
+        if out.get("format") == "password" or out.get("writeOnly"):  # sample values may be real secrets
+            for drop in ("example", "default", "enum"):
+                out.pop(drop, None)
         if isinstance(out.get("type"), list):  # OpenAPI 3.1: ["string", "null"]
             types = [t for t in out["type"] if t != "null"]
             if len(types) != len(out["type"]):
