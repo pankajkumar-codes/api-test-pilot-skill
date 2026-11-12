@@ -1,0 +1,222 @@
+openapi: 3.0.3
+info:
+  title: Mock Pets API
+  version: "1.0.0"
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: health
+      security: []
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: {type: string}
+  /pets:
+    get:
+      operationId: listPets
+      tags: [pets]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0}}
+        - {name: status, in: query, schema: {type: string, enum: [available, sold]}}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Pet'}
+        "401": {$ref: '#/components/responses/Unauthorized'}
+    post:
+      operationId: createPet
+      tags: [pets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NewPet'}
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        "400": {$ref: '#/components/responses/BadRequest'}
+        "401": {$ref: '#/components/responses/Unauthorized'}
+  /pets/{petId}:
+    parameters:
+      - {name: petId, in: path, required: true, schema: {type: integer}}
+    get:
+      operationId: getPet
+      tags: [pets]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        "401": {$ref: '#/components/responses/Unauthorized'}
+        "404": {$ref: '#/components/responses/NotFound'}
+    put:
+      operationId: updatePet
+      tags: [pets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/NewPet'}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Pet'}
+        "400": {$ref: '#/components/responses/BadRequest'}
+        "404": {$ref: '#/components/responses/NotFound'}
+    delete:
+      operationId: deletePet
+      tags: [pets]
+      responses:
+        "204": {description: gone}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /pets/{petId}/toys:
+    parameters:
+      - {name: petId, in: path, required: true, schema: {type: integer}}
+    get:
+      operationId: listToys
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/Toy'}
+    post:
+      operationId: createToy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [label]
+              properties:
+                label: {type: string, minLength: 1, maxLength: 30}
+      responses:
+        "201":
+          description: created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Toy'}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /pets/{petId}/toys/{toyId}:
+    parameters:
+      - {name: petId, in: path, required: true, schema: {type: integer}}
+      - {name: toyId, in: path, required: true, schema: {type: integer}}
+    get:
+      operationId: getToy
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Toy'}
+        "404": {$ref: '#/components/responses/NotFound'}
+    delete:
+      operationId: deleteToy
+      responses:
+        "204": {description: gone}
+        "404": {$ref: '#/components/responses/NotFound'}
+  /admin/stats:
+    get:
+      operationId: adminStats
+      tags: [admin]
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pets]
+                properties:
+                  pets: {type: integer}
+        "403": {$ref: '#/components/responses/NotFound'}
+  /preview:
+    get:
+      operationId: preview
+      parameters:
+        - {name: url, in: query, required: true, schema: {type: string, format: uri}}
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  preview: {type: string}
+        "400": {$ref: '#/components/responses/BadRequest'}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer, bearerFormat: JWT}
+  responses:
+    BadRequest:
+      description: bad request
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    Unauthorized:
+      description: unauthorized
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+    NotFound:
+      description: not found
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: {type: integer}
+        message: {type: string}
+    NewPet:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 50}
+        tag: {type: string, nullable: true, maxLength: 20}
+        age: {type: integer, minimum: 0, maximum: 30}
+        contact: {type: string, format: email}
+    Pet:
+      type: object
+      required: [id, name]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        tag: {type: string, nullable: true}
+        age: {type: integer}
+        contact: {type: string}
+        owner_id: {type: integer}
+    Toy:
+      type: object
+      required: [id, label]
+      properties:
+        id: {type: integer}
+        label: {type: string}
+        pet_id: {type: integer}

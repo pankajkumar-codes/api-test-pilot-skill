@@ -1,6 +1,12 @@
 ---
 name: api-testing
 description: Plan, generate and run API tests from an OpenAPI spec, GraphQL schema, Postman collection or curl examples. Covers functional (positive, negative, edge, integration), contract, security, load/stress/soak and chaos testing. Use when the user wants to test, audit or load-test an HTTP API.
+license: MIT
+compatibility: Needs Python 3.11+ and, for generated suites, the pytest and requests packages. k6 is optional (load, stress, spike and soak runs only). No network access is needed to plan or generate; running tests needs access to the target API.
+metadata:
+  author: pankajkumar-codes
+  version: "0.1.0"
+  repository: https://github.com/pankajkumar-codes/api-test-pilot-skill
 ---
 
 # API Testing

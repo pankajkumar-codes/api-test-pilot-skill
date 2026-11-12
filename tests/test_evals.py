@@ -52,7 +52,7 @@ def petstore_suite(tmp_path_factory):
 
 def test_destructive_tests_run_last_and_authz_probes_before_other_destructive_ones(petstore_suite):
     conf = (petstore_suite / "conftest.py").read_text()
-    assert "pytest_collection_modifyitems" in conf and "require_destructive(" in conf and "test_api5_bfla" in conf
+    assert "pytest_collection_modifyitems" in conf and 'get_closest_marker("destructive")' in conf and "test_api5_bfla" in conf
 
 
 def test_vampi_suite_has_login_enumeration_and_path_sqli_checks(tmp_path):

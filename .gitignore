@@ -13,3 +13,4 @@ results/
 k6_tests/
 fuzz_tests/
 evals/out/
+dist/

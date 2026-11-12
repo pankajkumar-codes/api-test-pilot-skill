@@ -119,25 +119,40 @@ SCHEMES = {py(schemes)}
 def pytest_configure(config):
     config.addinivalue_line("markers", "smoke: quick reachability checks")
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
+    config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
+
+
+def pytest_sessionstart(session):
+    """Refuse to start (exit code 4, one clear message) instead of erroring every test one by one."""
+    if session.config.option.collectonly:
+        return
+    problem = rt.preflight(os.environ.get("APITEST_BASE_URL") or DEFAULT_BASE_URL)
+    if problem:
+        raise pytest.UsageError(problem)
 
 
 def pytest_collection_modifyitems(config, items):
     """Run the tests that delete or overwrite existing data last, so they cannot remove the ids other tests rely on."""
-    import inspect
-
-    def destructive(item):
-        try:
-            return "require_destructive(" in inspect.getsource(item.function)
-        except (OSError, TypeError, AttributeError):
-            return False
-
     def rank(item):
-        if not destructive(item):
+        if not item.get_closest_marker("destructive"):
             return 0
         # authorization probes first: they must run while the configured account still exists
         return 1 if item.name.startswith(("test_api1_bola", "test_api5_bfla")) else 2
 
-    items.sort(key=rank)  # stable: everything else keeps its order
+    items.sort(key=rank)  # stable: everything else keeps its order. Under pytest-xdist each worker orders its own share, so
+    # run destructive suites with `-p no:xdist` (or `-n 0`) if the order matters to you.
+
+
+def pytest_terminal_summary(terminalreporter):
+    """A run where most tests skip proves little: say so, with the usual causes."""
+    stats = terminalreporter.stats
+    skipped = len(stats.get("skipped", []))
+    total = skipped + sum(len(stats.get(k, [])) for k in ("passed", "failed", "error"))
+    if total and skipped * 2 > total:
+        terminalreporter.section("WARNING: most tests were skipped", sep="!")
+        terminalreporter.write_line(
+            f"{{skipped}} of {{total}} tests skipped. A green result covers only the tests that ran. See the reasons with `-rs`; the usual "
+            "causes are missing credentials (APITEST_*), missing ids (APITEST_PATH_*), or the safety gate (APITEST_TARGET_ENV, APITEST_AUTHORIZED=yes).")
 
 
 @pytest.fixture(scope="session")

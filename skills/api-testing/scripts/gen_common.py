@@ -269,6 +269,8 @@ class Module:
         return name
 
     def add(self, src: str, is_test: bool = True) -> None:
+        if is_test and "require_destructive()" in src:  # generated code, never spec text: mark it so conftest can order these last
+            src = "@pytest.mark.destructive\n" + src
         self.blocks.append(src.rstrip() + "\n")
         self.tests += is_test
 

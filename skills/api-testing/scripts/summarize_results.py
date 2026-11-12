@@ -623,6 +623,9 @@ def render_summary(r: Report) -> tuple[str, str]:
         verdict = "**Result: PASS** — no failing tests or crossed thresholds in the supplied results (see limitations for what was not run)."
     if r.cases:
         verdict += f" {tot['passed']} passed, {tot['failed']} failed, {tot['skipped']} skipped, {tot['error']} errored of {len(r.cases)} tests."
+        if tot["skipped"] * 2 > len(r.cases):
+            verdict += (f" **Warning: {tot['skipped']} of {len(r.cases)} tests were skipped (over half).** Read this result as covering only "
+                        "the tests that ran; the skip reasons (missing credentials, ids, gate variables) say what to configure.")
     parts = []
     if by:
         rows = [[esc(t), str(v["passed"]), str(v["failed"]), str(v["skipped"]), str(v["error"]), str(sum(v.values()))] for t, v in sorted(by.items())]

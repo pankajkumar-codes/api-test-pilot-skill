@@ -51,11 +51,15 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [ ] Person runs the real Petstore, VAmPI (vulnerable and `vulnerable=0`) and DVGA evals on their machine and fills the "found" column (`evals/README.md`)
 
 ## Phase 6 — Package and publish
-- [ ] README with install, usage, examples, screenshots
-- [ ] LICENSE, CONTRIBUTING, CHANGELOG
-- [ ] Validate SKILL.md frontmatter and folder layout
-- [ ] Push to GitHub, tag v0.1.0
-- [ ] Submit to Claude and other skill marketplaces
+Preparation is done on a branch; the outward-facing steps need the maintainer (see docs/RELEASE.md).
+- [x] README with install, usage, safety, requirements and examples (real terminal output and a real generated report; no screenshots because the skill has no UI)
+- [x] LICENSE (MIT), CONTRIBUTING, CHANGELOG
+- [x] Validate SKILL.md frontmatter and folder layout (`tools/validate_skill.py`, tests in `tests/test_packaging.py`; also checks plugin files and version consistency)
+- [x] Packaging: Claude Code plugin + marketplace manifests (`claude plugin validate` passes; local install tried), `tools/build_skill_zip.py` for the Claude app upload
+- [x] docs/RELEASE.md checklist and docs/LISTING.md marketplace copy
+- [x] Phase 5 leftovers: remote target without APITEST_TARGET_ENV stops the run (exit 4) with a test; `destructive` marker; xdist note; warning when most tests skip
+- [ ] Merge, make the repository public, tag v0.1.0 (maintainer)
+- [ ] Submit to Claude and other skill marketplaces (maintainer; copy in docs/LISTING.md)
 
 ## Out of scope for v1
 UI accessibility testing (separate skill), mobile, gRPC (v2), hosted service (revisit only if the skill gains traction).
