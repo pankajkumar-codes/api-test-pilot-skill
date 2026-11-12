@@ -4,7 +4,7 @@
 
 ## Safety gate (non-negotiable)
 Every active probe is marked `@pytest.mark.intrusive` and skipped by `conftest.py` unless:
-- the target host is local (`localhost`, `127.*`, `::1`, `0.0.0.0`, `*.localhost`; `.local`/`.internal` names are NOT treated as local), **or**
+- the target host is local (`localhost`, `127.*`, `::1`, `*.localhost`; `.local`/`.internal` names are NOT treated as local), **or**
 - `APITEST_TARGET_ENV` is a non-production value (`dev`, `staging`, `qa`, `test`, `sandbox`, `local`) **and** `APITEST_AUTHORIZED=yes`.
 `APITEST_TARGET_ENV=production|prod|live` blocks intrusive tests even on a local host, and in that mode only read-only calls (GET/HEAD/OPTIONS, no GraphQL mutations) are sent at all. Before generating or running, ask the
 user to confirm (a) non-production and (b) authorization, and record the answer in the plan. Never set these variables for them.

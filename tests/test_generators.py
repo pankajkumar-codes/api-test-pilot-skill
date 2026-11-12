@@ -622,7 +622,7 @@ def test_corporate_local_names_do_not_pass_the_gate(rest_suite, monkeypatch):
     rt = load_runtime(rest_suite)
     monkeypatch.delenv("APITEST_TARGET_ENV", raising=False)
     monkeypatch.delenv("APITEST_AUTHORIZED", raising=False)
-    for host in ("billing.prod.corp.local", "db.internal", "api.example.test", "10.0.0.5", "intranet"):
+    for host in ("billing.prod.corp.local", "payments.local", "0.0.0.0", "db.internal", "api.example.test", "10.0.0.5", "intranet"):
         assert rt.intrusive_skip_reason(f"https://{host}") is not None, host
     assert rt.intrusive_skip_reason("http://app.localhost:3000") is None
     assert not rt.is_local_host("billing.prod.corp.local")

@@ -50,7 +50,7 @@ def env_true(name: str) -> bool:
 
 def is_local_host(host: str | None) -> bool:
     h = (host or "").lower().strip("[]")
-    return h in ("localhost", "::1", "0.0.0.0") or h.startswith("127.") or h.endswith(LOCAL_SUFFIXES)
+    return h in ("localhost", "::1") or h.startswith("127.") or h.endswith(LOCAL_SUFFIXES)
 
 
 def target_env() -> str:
