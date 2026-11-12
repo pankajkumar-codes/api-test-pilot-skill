@@ -1,13 +1,15 @@
-# api-testing-skill
+# api-test-pilot
 
 An Agent Skill that plans, generates and runs API tests: functional, security,
 contract, performance and resilience.
 
-> Status: scaffold. See [PLAN.md](PLAN.md) for progress.
+> Status: Phase 1 done (intake parsers + skill router). Generators land in Phase 2. See [PLAN.md](PLAN.md) for progress.
 
 ## Layout
 ```
 skills/api-testing/     the skill (SKILL.md + references, scripts, templates)
+  scripts/              intake parsers: OpenAPI, Postman, curl (stdlib, offline)
+tests/                  tests for the scripts (pytest)
 PLAN.md                 phased build plan
 TAXONOMY.md             test types covered
 DECISIONS.md            scope and stack decisions
@@ -38,11 +40,18 @@ Python 3.11+; k6 for load tests.
 
 ## Start building in Claude Code
 ```bash
-cd api-testing-skill
+cd api-test-pilot
 git init
 claude
 ```
 Then: "Read CLAUDE.md and PLAN.md, resolve the open decisions in DECISIONS.md with me, then start Phase 1."
 
+## Develop
+```bash
+pip install -r requirements-dev.txt
+python -m pytest tests
+python skills/api-testing/scripts/intake.py path/to/openapi.yaml --summary
+```
+
 ## License
-TBD (see DECISIONS.md).
+MIT (see DECISIONS.md). Add the LICENSE file in Phase 6.

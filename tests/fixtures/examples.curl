@@ -1,0 +1,7 @@
+# list
+curl -s -H "Authorization: Bearer sk_live_ABCDEF" \
+  "http://localhost:8080/v1/pets?limit=5"
+curl -X POST http://localhost:8080/v1/pets -H 'Content-Type: application/json' \
+  -d '{"name":"Rex","token":"abc"}'
+curl -u admin:hunter2 http://localhost:8080/v1/pets/42
+curl -X DELETE http://localhost:8080/v1/pets/43 -H 'X-API-Key: zzz'

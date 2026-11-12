@@ -1,0 +1,2 @@
+pytest>=8
+pyyaml>=6   # optional: the parsers fall back to a built-in YAML subset reader without it

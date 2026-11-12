@@ -1,0 +1,9 @@
+{"info":{"name":"Shop","schema":"https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+ "auth":{"type":"bearer","bearer":[{"key":"token","value":"SUPERSECRETTOKEN123","type":"string"}]},
+ "variable":[{"key":"baseUrl","value":"http://localhost:3000"}],
+ "item":[{"name":"orders","item":[
+  {"name":"Create order","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"},{"key":"X-API-Key","value":"LEAKME"}],
+   "body":{"mode":"raw","raw":"{\"sku\":\"A1\",\"password\":\"p@ss\"}","options":{"raw":{"language":"json"}}},
+   "url":{"raw":"{{baseUrl}}/orders?dry=1","host":["{{baseUrl}}"],"path":["orders"],"query":[{"key":"dry","value":"1"}]}},
+   "response":[{"name":"created","code":201}]},
+  {"name":"Get order","request":{"method":"GET","auth":{"type":"noauth"},"url":"{{baseUrl}}/orders/:orderId"}}]}]}

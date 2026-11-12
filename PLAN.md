@@ -3,16 +3,16 @@
 Status legend: [ ] todo · [~] in progress · [x] done
 
 ## Phase 0 — Scope and stack
-- [ ] Confirm v1 scope: REST + OpenAPI 3.x, plus GraphQL (added in Phase 2). gRPC and hosted service later
-- [ ] Choose output stack (default: pytest + requests/httpx for functional, k6 for load)
-- [ ] Choose license and skill name for marketplaces
-- [ ] Record choices in DECISIONS.md
+- [x] Confirm v1 scope: REST + OpenAPI 3.x, plus GraphQL (added in Phase 2). gRPC and hosted service later
+- [x] Choose output stack (default: pytest + requests/httpx for functional, k6 for load)
+- [x] Choose license and skill name for marketplaces
+- [x] Record choices in DECISIONS.md
 
 ## Phase 1 — Skeleton and intake
-- [ ] SKILL.md router: intake → plan → generate → run → report
-- [ ] scripts/parse_openapi.py: endpoints, methods, params, schemas, auth → JSON
-- [ ] Support Postman collection and curl as secondary inputs
-- [ ] templates/test-plan.md
+- [x] SKILL.md router: intake → plan → generate → run → report
+- [x] scripts/parse_openapi.py: endpoints, methods, params, schemas, auth → JSON (+ tests/)
+- [x] Support Postman collection and curl as secondary inputs (parse_postman.py, parse_curl.py, intake.py)
+- [x] templates/test-plan.md
 
 ## Phase 2 — Functional modules
 - [ ] references/functional.md: positive, negative, edge
