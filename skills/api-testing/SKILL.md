@@ -8,10 +8,10 @@ description: Plan, generate and run API tests from an OpenAPI spec, GraphQL sche
 Router only. Follow the steps in order; load a reference file only when its step needs it.
 
 ## 1. Intake
-Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands; GraphQL arrives in Phase 2),
+Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands, GraphQL SDL or introspection JSON),
 base URL, auth method, environment (local/staging/prod).
 - Normalize the input: `python scripts/intake.py <file> -o intake.json --summary`
-  (auto-detects the type; output shape and edge cases in `references/intake.md`).
+  (auto-detects the type; for GraphQL add `--url <endpoint>`; shape and edge cases in `references/intake.md`).
 - Surface the parser `warnings` to the user (missing base URL, no response schemas, etc.) and ask for what is missing.
 - Credentials come from environment variables only (the parser lists the names, e.g. `APITEST_BEARERAUTH_TOKEN`).
   Never ask for, print or log secret values.
@@ -26,7 +26,12 @@ Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the ta
 non-production and (b) they own or are authorized to test it. If not confirmed, stop. Do not weaken this.
 
 ## 4. Generate
-Read only the reference files for the chosen test types and produce runnable tests.
+Read only the reference files for the chosen test types, then generate runnable pytest:
+`python scripts/gen_pytest.py intake.json -o api_tests --types all` (REST and GraphQL; `--types smoke,positive,...` to pick).
+It prints the rerun command, the env var names the suite needs and any endpoints it could not cover. Active security probes
+are `intrusive`: the generated `conftest.py` skips them unless the target is local, or non-production and authorized
+(`APITEST_TARGET_ENV`, `APITEST_AUTHORIZED=yes`); never set those variables yourself, ask the user.
+Spec drift between versions: `python scripts/spec_diff.py old.json new.json`.
 
 ## 5. Run
 Execute if the environment allows; otherwise print the exact commands to run. Always print the rerun command.
@@ -38,11 +43,13 @@ Summarize per endpoint, rank findings by severity, include a reproducible comman
 ## Reference files (load on demand)
 - `references/test-types.md` — the 18 test types and what each checks
 - `references/intake.md` — normalized intake JSON, parser behavior and limits
-- `references/functional.md` — positive, negative, edge
-- `references/graphql.md` — GraphQL-specific functional and security checks
-- `references/integration.md` — multi-endpoint flows
-- `references/contract.md` — schema conformance, breaking changes
-- `references/security.md` — OWASP API Top 10 checks
+- `references/functional.md` — smoke, positive, negative, edge
+- `references/data-validation.md` — types, formats, enums, lengths, ranges, required fields
+- `references/graphql.md` — GraphQL intake, functional and security checks
+- `references/integration.md` — multi-endpoint flows (create, read, update, delete)
+- `references/contract.md` — schema conformance, breaking changes (`spec_diff.py`)
+- `references/security.md` — OWASP API Top 10 checks and the safety gate
+- `references/resilience.md` — idempotency, pagination, timeouts, rate-limit behaviour
 - `references/load.md` — load, stress, spike, soak (k6)
 - `references/chaos.md` — fault-injection plans
 - `references/fuzzing.md` — malformed-input fuzzing
