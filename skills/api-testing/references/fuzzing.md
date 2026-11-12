@@ -31,6 +31,7 @@ CRLF reflected into a header (HIGH), slow answers over `APITEST_FUZZ_SLOW_MS` (M
 | `APITEST_FUZZ_MAX_REQUESTS` per run | 2000 | 5000 |
 | `APITEST_FUZZ_MAX_BYTES` per payload | 65536 | 1 MiB |
 | `APITEST_FUZZ_SEED` | 1337 (fixed) | n/a |
+The request budget is per process: parallel runs (pytest-xdist) multiply it, so run fuzz tests serially. Non-finite values (`nan`, `inf`) fall back to the default.
 Writes (POST/PUT/PATCH) run on any gated target; DELETE also needs `APITEST_ALLOW_DESTRUCTIVE=yes`. The fixed seed makes a rerun send the same requests;
 vary the seed for more coverage. Findings are deduplicated per kind, status and case class.
 

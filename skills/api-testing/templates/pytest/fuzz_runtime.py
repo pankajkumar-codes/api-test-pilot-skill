@@ -21,6 +21,7 @@ Reproducible: the default seed is fixed (APITEST_FUZZ_SEED), so a rerun sends th
 from __future__ import annotations
 
 import itertools
+import math
 import os
 import random
 import time
@@ -92,9 +93,11 @@ def _env_number(name: str, default: float, lo: float, hi: float, cast=float):
     if not raw:
         return cast(default)
     try:
-        value = cast(raw)
+        value = float(raw)
     except ValueError:
         raise pytest.UsageError(f"{name} must be a number, got {raw!r}") from None
+    if not math.isfinite(value):  # nan/inf would defeat min/max clamping (nan disables the rate cap): use the safe default
+        return cast(default)
     return cast(min(max(value, lo), hi))  # above the hard cap is clamped, never honoured
 
 

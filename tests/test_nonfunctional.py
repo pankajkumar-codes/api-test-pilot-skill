@@ -117,8 +117,7 @@ def test_js_gate_matches_python_gate_exactly():
         assert got == want, (url, env)
 
 
-STRICTER_SPELLINGS = {"http://[0:0:0:0:0:0:0:1]", "http://localhost./x", "http://..localhost", "http://-a.localhost",
-                       "http://[::ffff:127.0.0.1]"}
+STRICTER_SPELLINGS = set()  # loopback spellings are identical in both gates; only malformed URLs may differ
 
 
 def _load_runtime(tmp_path):
@@ -127,6 +126,27 @@ def _load_runtime(tmp_path):
     sys.modules["gate_rt"] = mod
     spec.loader.exec_module(mod)
     return mod
+
+
+def test_nan_and_inf_never_defeat_the_fuzz_caps(tmp_path, monkeypatch):
+    out = tmp_path / "f"
+    gen_pytest.generate(parse_openapi.build(str(FIXTURES / "mockapi.yaml")), out, ["fuzz"])
+    sys.path.insert(0, str(out))
+    try:
+        for mod in ("apitest_runtime", "fuzz_runtime"):
+            sys.modules.pop(mod, None)
+        import fuzz_runtime as fz
+        for bad in ("nan", "NaN", "inf", "-inf", "Infinity"):
+            for var in ("APITEST_FUZZ_RPS", "APITEST_FUZZ_CASES", "APITEST_FUZZ_MAX_REQUESTS", "APITEST_FUZZ_MAX_BYTES",
+                        "APITEST_FUZZ_SLOW_MS", "APITEST_FUZZ_NESTING", "APITEST_FUZZ_SEED"):
+                monkeypatch.setenv(var, bad)
+            cfg = fz.config()
+            assert cfg.rps == 5.0 and cfg.cases == 40 and cfg.budget == 2000 and cfg.max_bytes == 65536
+            assert 0 < 1 / cfg.rps <= 10
+    finally:
+        sys.path.remove(str(out))
+        for mod in ("apitest_runtime", "fuzz_runtime"):
+            sys.modules.pop(mod, None)
 
 
 def test_python_gate_is_never_looser_than_the_pytest_runtime_gate(tmp_path, monkeypatch):
@@ -214,7 +234,7 @@ def test_ramp_limit_rejects_a_steep_hand_built_plan():
 
 def test_duration_parsing():
     assert gen_k6.parse_duration("90s") == 90 and gen_k6.parse_duration("10m") == 600 and gen_k6.parse_duration("2h") == 7200
-    for bad in ("", "10", "1d", "-5m", "1e3s", "5 m x"):
+    for bad in ("", "10", "1d", "-5m", "1e3s", "5 m x", "0s", "0m"):
         with pytest.raises(IntakeError):
             gen_k6.parse_duration(bad)
 

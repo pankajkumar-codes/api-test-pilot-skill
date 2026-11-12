@@ -69,7 +69,10 @@ def parse_duration(text: str) -> int:
     m = DURATION_RE.match(text.strip().lower())
     if not m:
         raise PlanError(f"duration must look like 90s, 10m or 2h, not {text!r}")
-    return int(m.group(1)) * {"s": 1, "m": 60, "h": 3600}[m.group(2)]
+    seconds = int(m.group(1)) * {"s": 1, "m": 60, "h": 3600}[m.group(2)]
+    if seconds < 1:
+        raise PlanError("duration must be at least 1s")
+    return seconds
 
 
 def _ramp_s(frm: int, to: int) -> int:

@@ -61,6 +61,8 @@ SHA-256 checked against the published checksums file). Tests that need k6 skip w
 
 The fuzzer found a real bug in the mock server on its first clean run (a bare JSON `null` body left the connection without a reply); fixed in `tests/mock_rest.py`.
 
+Real k6 behaviour is exercised only by tests that need a k6 binary; CI without k6 skips them, so add a k6 install step to CI to keep them running.
+
 Not verified: k6 against the `eval-apis.md` targets and any real network (Phase 5); k6 other than v1.3.0 on Linux x86-64; runs longer than a few
 minutes (the full-length shapes were checked by construction and by the `--quick` shapes, not run end to end); chaos experiments (v1 produces plans only);
 GraphQL fuzzing (not built); WebSocket/gRPC load.
