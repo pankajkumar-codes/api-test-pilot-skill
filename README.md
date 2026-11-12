@@ -18,8 +18,9 @@ Protocols: REST (OpenAPI 3.x and Swagger 2) and GraphQL. Out of scope for v1: gR
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 
 > **Status: 0.1.0, not yet released.** The code is complete and tested; the release itself (tag, marketplace listings) is
-> still to be done. See [docs/RELEASE.md](docs/RELEASE.md). Two third-party targets (Petstore, VAmPI, DVGA) have not been run
-> for real yet, only against labelled mock stand-ins: read [docs/evals.md](docs/evals.md) before you trust the detection numbers.
+> still to be done. See [docs/RELEASE.md](docs/RELEASE.md). The three third-party targets (Petstore, VAmPI, DVGA) have **not** been run
+> for real, only against labelled mock stand-ins that the same author wrote, so the detection numbers show that the checks work on those
+> seeded flaws and nothing more. Read [docs/evals.md](docs/evals.md) before you trust them.
 
 ## Safety first
 
@@ -39,7 +40,8 @@ Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 ## Requirements
 
 - Python 3.11 or newer. Intake, generators and the report script use only the standard library (PyYAML is optional).
-- `pytest` and `requests` to run the generated suites: `pip install pytest requests`.
+- `pytest` and `requests` to run the generated suites: `pip install pytest requests`. Tested with Python 3.11, 3.12 and 3.13,
+  and with the oldest supported versions (pytest 8.0, requests 2.31, PyYAML 6.0) as well as the newest at the time of writing.
 - [k6](https://k6.io/docs/get-started/installation/) only for load, stress, spike and soak runs. Everything else works without it.
 - Generating and reporting work offline. Running tests needs network access to the target API.
 
@@ -165,8 +167,9 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (several hundred tests, about a minute;
-  with k6 on the path, about five more minutes because the generated k6 scripts are executed too).
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (337 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about two and a half minutes
+  on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
+  Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
@@ -174,7 +177,7 @@ $ echo $?
 ## Develop
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -r requirements-dev.txt -r evals/requirements.txt   # evals/requirements.txt (fastapi, uvicorn) is only for the seeded eval target
 python -m pytest tests                     # add k6 (K6_BIN or PATH) to also execute the generated k6 scripts
 python tools/validate_skill.py             # SKILL.md frontmatter, folder layout, plugin files, version consistency
 python evals/run_evals.py --target all --markdown
@@ -192,6 +195,9 @@ tools/                  validate_skill.py, build_skill_zip.py (repository toolin
 examples/               demo API, sample spec, a real sample report
 tests/  evals/  docs/   tests, eval driver and targets, validation record and release docs
 ```
+
+## Security and responsible use
+See [SECURITY.md](SECURITY.md): how to report a vulnerability privately, and the rules for testing only systems you own or may test.
 
 ## License
 [MIT](LICENSE). The vendored OpenAPI documents in `evals/specs/` are test fixtures under their upstream projects' own licenses.

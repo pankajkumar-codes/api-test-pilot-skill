@@ -20,7 +20,6 @@ sys.path.insert(0, str(ROOT / "evals"))
 sys.path.insert(0, str(ROOT / "evals" / "mocks"))
 import run_evals as ev  # noqa: E402
 import petstore_mock  # noqa: E402
-import vampi_mock  # noqa: E402
 from suite_runner import run_suite  # noqa: E402
 
 SPECS = ROOT / "evals" / "specs"

@@ -74,7 +74,7 @@ def make_server(bugs=ALL_BUGS) -> ThreadingHTTPServer:
             n = int(self.headers.get("Content-Length") or 0)
             try:
                 value = json.loads(self.rfile.read(n)) if n else None
-            except ValueError:
+            except (ValueError, RecursionError):
                 return None
             return value if isinstance(value, dict) else None
 

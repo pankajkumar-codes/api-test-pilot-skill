@@ -21,6 +21,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _common  # noqa: E402
+
 BREAKING, INFO = "breaking", "info"
 
 
@@ -221,8 +224,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fail-on", choices=("breaking", "any", "never"), default="breaking")
     args = ap.parse_args(argv)
     try:
-        old, new = (json.loads(Path(p).read_text(encoding="utf-8")) for p in (args.old, args.new))
-    except (OSError, ValueError) as exc:
+        old, new = (_common.load_intake_json(p) for p in (args.old, args.new))
+    except _common.IntakeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     findings = diff(old, new)

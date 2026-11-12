@@ -14,7 +14,6 @@ Prints the exact command to rerun the suite.
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import shlex
 import sys
@@ -294,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--base-url", help="override the default base URL baked into conftest.py")
     args = ap.parse_args(argv)
     try:
-        doc = json.loads(Path(args.intake).read_text(encoding="utf-8"))
+        doc = _common.load_intake_json(args.intake)
         result = generate(doc, Path(args.out), [t.strip() for t in args.types.split(",") if t.strip()], args.base_url)
     except (OSError, ValueError, _common.IntakeError) as exc:
         print(f"error: {exc}", file=sys.stderr)

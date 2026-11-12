@@ -1,7 +1,6 @@
 """Phase 6 follow-ups from Phase 5: remote target without APITEST_TARGET_ENV, destructive marker, skip warnings."""
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys

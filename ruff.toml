@@ -1,0 +1,10 @@
+# Lint gate used by CI: real errors only (syntax errors, unused imports/names, undefined names).
+target-version = "py311"
+extend-exclude = ["dist", "evals/out"]
+
+[lint]
+select = ["E9", "F"]
+
+[lint.per-file-ignores]
+# The generator substitutes __SECRET_KEY_RE__ before this template is ever imported.
+"skills/api-testing/templates/pytest/apitest_runtime.py" = ["F821"]

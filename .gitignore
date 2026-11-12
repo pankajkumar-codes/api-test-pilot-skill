@@ -14,3 +14,7 @@ k6_tests/
 fuzz_tests/
 evals/out/
 dist/
+.pytest_cache/
+.ruff_cache/
+api_tests/
+*.egg-info/

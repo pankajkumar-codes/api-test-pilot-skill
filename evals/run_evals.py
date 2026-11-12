@@ -29,6 +29,7 @@ import contextlib
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -205,12 +206,18 @@ def read_junit(path: Path) -> dict[str, tuple[str, str]]:
     return out
 
 
+class EvalError(RuntimeError):
+    """A problem the person can fix; reported as one line, exit code 2."""
+
+
 def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: dict, work: Path, real: bool) -> dict:
     cfg = TARGETS[name]
     work.mkdir(parents=True, exist_ok=True)
     intake, suite, junit, report = work / "intake.json", work / "suite", work / "junit.xml", work / "report.md"
     if suite.exists():
-        subprocess.run(["rm", "-rf", str(suite)])
+        shutil.rmtree(suite)
+    for stale in (junit, report):  # a leftover file from an earlier run must never stand in for this run's result
+        stale.unlink(missing_ok=True)
     iargs = [str(SCRIPTS / "intake.py"), str(spec), "-o", str(intake)]
     if cfg["kind"] == "graphql":
         iargs += ["--url", base_url.rstrip("/") + "/graphql" if not base_url.rstrip("/").endswith("graphql") else base_url]
@@ -222,6 +229,8 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     env["APITEST_BASE_URL"] = base_url
     # pytest exits 1 when tests fail; that is a result here, not an error
     pt = sh(["-m", "pytest", str(suite), "-q", "-p", "no:cacheprovider", "--tb=short", f"--junitxml={junit}"], env=env, check=False)
+    if not junit.exists() and pt.returncode == 4 and real:  # preflight refusal (remote target without APITEST_TARGET_ENV)
+        raise EvalError((pt.stderr or pt.stdout).strip().removeprefix("ERROR:").strip())
     if not junit.exists():
         raise RuntimeError("pytest produced no JUnit file: " + (pt.stdout + pt.stderr)[-800:])
     sh([str(SCRIPTS / "summarize_results.py"), "--junit", "junit.xml", "--intake", "intake.json", "--tests-dir", "suite",
@@ -323,11 +332,23 @@ def main() -> int:
     for n in names:
         if n not in TARGETS:
             ap.error(f"unknown target {n}")
+    if any(TARGETS[n]["kind"] == "fastapi" for n in names) and not a.base_url:
+        import importlib.util
+        if not all(importlib.util.find_spec(m) for m in ("fastapi", "uvicorn")):
+            ap.error("the 'seeded' target needs fastapi and uvicorn: pip install -r evals/requirements.txt "
+                     "(or pick other targets with --target petstore|vampi|graphql)")
     results = []
     for n in names:
         variants = a.variant or ["clean", *TARGETS[n]["flaws"]]
         print(f"[{n}]", file=sys.stderr)
-        results.append(run_target(n, variants, a.base_url, a.spec))
+        try:
+            results.append(run_target(n, variants, a.base_url, a.spec))
+        except EvalError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        except RuntimeError as exc:  # a pipeline step failed: show the cause without a traceback
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
     if a.json:
         Path(a.json).write_text(json.dumps(results, indent=2) + "\n")
     if a.markdown:

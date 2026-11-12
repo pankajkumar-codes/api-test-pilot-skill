@@ -24,7 +24,6 @@ import pytest
 
 from conftest import FIXTURES, ROOT
 import gen_chaos_plan
-import gen_common
 import gen_k6
 import gen_pytest
 import parse_graphql
@@ -33,7 +32,7 @@ import safety_gate
 from _common import IntakeError
 from mock_graphql import running as gql_server
 from mock_rest import LAST_LOG, running as rest_server
-from suite_runner import GQL_ENV, REST_ENV, failed, passed, run_suite
+from suite_runner import REST_ENV, failed, passed, run_suite
 from test_generators import _hostile_doc
 
 SCRIPTS = ROOT / "skills" / "api-testing" / "scripts"

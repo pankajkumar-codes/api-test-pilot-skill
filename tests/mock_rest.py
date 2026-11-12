@@ -87,7 +87,7 @@ def make_server(bugs: set[str] | None = None, rate_limit: int | None = None) -> 
                 if value is None:  # found by the fuzzer: a bare `null` body used to leave the connection hanging
                     self.err(400, "body must not be null")
                 return value
-            except ValueError:
+            except (ValueError, RecursionError):
                 if "jsoncrash" in state.bugs:
                     raise RuntimeError("Traceback (most recent call last):\n  File \"app.py\", line 9, in parse")
                 self.err(400, "invalid json")
