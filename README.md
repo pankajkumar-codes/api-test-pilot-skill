@@ -3,7 +3,7 @@
 An Agent Skill that plans, generates and runs API tests: functional, security,
 contract, performance and resilience.
 
-> Status: Phase 2 built (pytest generators for REST and GraphQL: functional, data validation, contract, security, integration, resilience). Non-functional modules (k6) land in Phase 3. See [PLAN.md](PLAN.md) for progress.
+> Status: Phase 3 built (k6 load/stress/spike/soak, fuzzing, chaos plans) on top of the Phase 2 pytest generators. See [PLAN.md](PLAN.md) for progress.
 
 ## Layout
 ```
@@ -60,10 +60,22 @@ python skills/api-testing/scripts/spec_diff.py old.json new.json              # 
 Generated suites need `pytest` and `requests`. Active security probes only run against a local or confirmed
 non-production target you are authorized to test (see `skills/api-testing/references/security.md`).
 
+## Non-functional tests (Phase 3)
+Load, stress, spike, soak, fuzz and chaos need a **non-production target you own or are authorized to test**. Export
+`APITEST_TARGET_ENV=staging` and `APITEST_AUTHORIZED=yes` yourself (not needed for `localhost`); production is always refused.
+```bash
+python skills/api-testing/scripts/gen_k6.py intake.json -o k6_tests --profiles all --quick     # --quick: 10x shorter, checks the plumbing
+python skills/api-testing/scripts/run_k6.py k6_tests/load.js --base-url http://localhost:8080   # needs k6; prints the rerun command
+python skills/api-testing/scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz          # seeded, rate-limited fuzzing (REST)
+python skills/api-testing/scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging  # a plan only: nothing is injected
+```
+k6 scripts are GET-only by default, capped (100 req/s, 200 VUs, 4 h, gentle ramps) and abort when half the requests fail. See
+`skills/api-testing/references/load.md`.
+
 ## Develop
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest tests          # ~50 s: includes generated suites run against local mock servers
+python -m pytest tests          # ~1 min; add k6 (K6_BIN or PATH) to also execute the generated k6 scripts (~5 min more)
 python skills/api-testing/scripts/intake.py path/to/openapi.yaml --summary
 ```
 

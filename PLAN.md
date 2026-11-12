@@ -32,10 +32,11 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [ ] Add a GraphQL API to eval-apis.md and validate (Phase 5)
 
 ## Phase 3 — Non-functional modules
-- [ ] references/load.md, stress.md, spike.md, soak.md → k6 scripts
-- [ ] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down)
-- [ ] references/fuzzing.md
-- [ ] Safety gate wired into every non-functional flow
+- [x] references/load.md, stress.md, spike.md, soak.md → k6 scripts (`gen_k6.py`, `run_k6.py`; REST and GraphQL queries)
+- [x] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down) via `gen_chaos_plan.py`; plans only, nothing injected
+- [x] references/fuzzing.md (`--types fuzz` in `gen_pytest.py`, REST; GraphQL fuzzing deferred)
+- [x] Safety gate wired into every non-functional flow (`safety_gate.py`, k6 script start-up gate, `intrusive` fuzz tests, chaos plan checklist)
+- [~] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
 
 ## Phase 4 — Reporting
 - [ ] templates/report.md: summary, per-endpoint coverage, severity-ranked findings
