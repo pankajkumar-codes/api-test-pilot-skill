@@ -328,7 +328,8 @@ def redact_text(text: str, secrets: "list[str] | tuple[str, ...]" = ()) -> str:
         if is_secret_name(m.group("key")):
             v = _VALUE_RE.match(s, pos)
             if v and REDACTED not in v.group(0):
-                out.append(REDACTED)
+                q = next((x for x in ('\\"', '"', "'") if v.group(0).startswith(x)), "")
+                out.append(q + REDACTED + q)   # keep JSON/shell quoting valid
                 pos = v.end()
 
 

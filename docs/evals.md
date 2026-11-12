@@ -88,7 +88,7 @@ suite, and generated k6 scripts run by **real k6 v1.3.0** (same checksum-verifie
 | Markdown | link/image/HTML injection, fence break-outs, table rows, headings, `{{placeholders}}`, bidi/zero-width/control characters, autolinks | everything outside fenced blocks is escaped; headings are only the template's; placeholders are not re-substituted |
 | Redaction speed | 200 KB pathological inputs (`a=a=a=...`, backslash runs, long values) | linear; a first version was quadratic on `a=a=...` (24 s) and was rewritten |
 
-Real-k6 tests skip with a reason when no k6 binary exists (`K6_BIN` or PATH), as in Phase 3; with k6 present `tests/test_reporting.py` runs 54 tests.
+Real-k6 tests skip with a reason when no k6 binary exists (`K6_BIN` or PATH), as in Phase 3; with k6 present `tests/test_reporting.py` runs 86 tests.
 
 Not verified: k6 versions other than v1.3.0 and platforms other than Linux x86-64 (the `--summary-export` layout is what v1.3.0 writes; later k6 versions may
 change it, and the script fails with a clear error when `metrics` is missing); JUnit from runners other than pytest; GraphQL results beyond what the shared

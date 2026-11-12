@@ -352,6 +352,56 @@ def split_message(raw: str) -> tuple[str | None, str, str, list[str], list[str]]
     return sev, owasp, verdict, detail, repros
 
 
+CURL_HEADER_RE = re.compile(r"^[A-Za-z0-9-]{1,64}: [^\r\n]{0,500}$")
+
+
+def _origin(url: str) -> tuple[str, str, int] | None:
+    """(scheme, lowercase hostname, port) of an http(s) URL, or None. Parsed, never prefix-matched."""
+    if re.search(r"[\s\\\x00-\x1f]", url):
+        return None
+    try:
+        u = urllib.parse.urlsplit(url)
+        port = u.port
+    except ValueError:
+        return None
+    if u.scheme not in ("http", "https") or not u.hostname or u.username is not None or u.password is not None:
+        return None
+    return u.scheme, u.hostname.lower(), port or (443 if u.scheme == "https" else 80)
+
+
+def safe_curl(line: str, expected: str | None) -> str | None:
+    """Accept only the exact shape the runtime writes: `curl -sS -i -X METHOD URL [-H 'K: V']... [--data-raw BODY]`.
+    The line is parsed with shlex (never run), every part is validated, the URL's origin must equal the target's, and the
+    command is REBUILT with shlex.quote, so nothing from the result file can add a pipe, a second command or another host."""
+    if not expected or len(line) > 4000:
+        return None
+    line = _common.redact_text(line, _SECRETS)
+    try:
+        t = shlex.split(line)
+    except ValueError:
+        return None
+    if len(t) < 6 or t[:4] != ["curl", "-sS", "-i", "-X"] or t[4] not in METHODS:
+        return None
+    want, got = _origin(expected), _origin(t[5])
+    if want is None or got is None or want != got:
+        return None
+    rest, headers, body = t[6:], [], None
+    while rest:
+        flag = rest.pop(0)
+        if flag == "-H" and rest and CURL_HEADER_RE.match(rest[0]) and body is None:
+            headers.append(rest.pop(0))
+        elif flag == "--data-raw" and rest and body is None:
+            body = rest.pop(0)
+        else:
+            return None
+    out = ["curl", "-sS", "-i", "-X", t[4], t[5]]
+    for h in headers:
+        out += ["-H", h]
+    if body is not None:
+        out += ["--data-raw", body]
+    return _strip_controls(" ".join(shlex.quote(x) for x in out), False)
+
+
 def base_prefix(base_url: str | None) -> str:
     if base_url:
         return f"APITEST_BASE_URL={shlex.quote(base_url)}"
@@ -377,12 +427,20 @@ class Report:
         self.skips: dict[str, int] = {}
         self.k6: list[dict] = []
         self.inputs: list[tuple[str, str, str]] = []   # (kind, basename, sha256[:12])
+        self._raw: dict[tuple[str, str], dict] = {}
 
     # ---- pytest
     def add_junit(self, path: str) -> None:
         data_cases, digest = parse_junit(path)
         self.inputs.append(("junit", Path(path).name, digest))
-        for c in data_cases:
+        for c in data_cases:   # reruns and merged files: one case per classname+name, the worst outcome wins (later wins ties)
+            key = (c["classname"], c["name"])
+            old = self._raw.get(key)
+            if old is None or RANK[c["status"]] >= RANK[old["status"]]:
+                self._raw[key] = c
+
+    def finalize(self) -> None:
+        for c in self._raw.values():
             ctype, stem = case_type(c["classname"])
             name = plain(c["name"], 200)
             raw = plain(c["text"] or c["message"], 20_000, keep_newlines=True)
@@ -407,22 +465,37 @@ class Report:
                 self.problems[key] = self.problems.get(key, 0) + 1
             elif c["status"] == "failed":
                 self.findings.append(self._pytest_finding(rec, raw, c["name"], request))
+        self._raw = {}
 
     def _pytest_finding(self, rec: dict, raw: str, raw_name: str, request) -> Finding:
         sev, owasp, verdict, detail, repros = split_message(raw)
         rating = "tagged by the test" if sev else "default for this test type"
         sev = sev or DEFAULT_SEVERITY.get(rec["type"], "MEDIUM")
         tests_dir = self.args.tests_dir
-        target = f"{tests_dir}/{rec['stem']}.py::{rec['name']}" if SAFE_STEM_RE.match(rec["stem"]) and "\n" not in rec["name"] else None
-        if target:
-            cmd = f"{base_prefix(self.args.base_url)} python -m pytest {shlex.quote(target)} -v"
+        prefix = base_prefix(self.args.base_url)
+        stem_file = f"{tests_dir}/{rec['stem']}.py"
+        if rec["name"] == raw_name and SAFE_STEM_RE.match(rec["stem"]):
+            cmd = f"{prefix} python -m pytest {shlex.quote(stem_file + '::' + rec['name'])} -v"
+        elif SAFE_STEM_RE.match(rec["stem"]):   # a truncated or scrubbed name is not a valid node id: run the whole file
+            cmd = f"{prefix} python -m pytest {shlex.quote(stem_file)} -v"
         else:
-            cmd = f"{base_prefix(self.args.base_url)} python -m pytest {shlex.quote(tests_dir)} -k {shlex.quote(rec['name'])} -v"
-        commands = [plain(x, 700) for x in repros] + [cmd]
+            cmd = f"{prefix} python -m pytest {shlex.quote(tests_dir)} -v"
+        curls, dropped = [], 0
+        for line in repros:
+            safe = safe_curl(line, self.args.expected_host)
+            if safe:
+                curls.append(safe)
+            else:
+                dropped += 1
+        commands = curls + [cmd]
         lines = detail[:12]
         return Finding(sev, verdict or rec["name"], rec["endpoint"], rec["type"], rating,
                        [plain(ln, 220) for ln in lines], commands, owasp,
-                       GATE_NOTE if rec["type"] in INTRUSIVE_TYPES else "")
+                       " ".join(x for x in (
+                           GATE_NOTE if rec["type"] in INTRUSIVE_TYPES else "",
+                           f"{dropped} curl line(s) from the result file were dropped: not the exact shape the generated runtime writes, or "
+                           f"the host does not match the target ({'--base-url' if self.args.base_url else 'pass --base-url to include them'})."
+                           if dropped else "") if x))
 
     # ---- k6
     def add_k6(self, path: str) -> None:
@@ -536,6 +609,9 @@ def render_summary(r: Report) -> tuple[str, str]:
         verdict = f"**Result: FAIL** — {len(r.findings)} finding(s): {sev_txt}."
     elif tot["error"]:
         verdict = "**Result: INCOMPLETE** — no findings, but some tests errored before running (see Run problems)."
+    elif not (tot["passed"] or any((k["overall"]["requests"] or 0) > 0 for k in r.k6)):
+        verdict = ("**Result: INCONCLUSIVE** — nothing was executed: no passing test and no k6 requests "
+                   f"({tot['skipped']} skipped). This is not a pass.")
     else:
         verdict = "**Result: PASS** — no failing tests or crossed thresholds in the supplied results (see limitations for what was not run)."
     if r.cases:
@@ -697,11 +773,13 @@ def main(argv: list[str] | None = None) -> int:
         if not 1 <= args.max_findings <= 1000:
             raise ReportError("--max-findings must be between 1 and 1000")
         init_secrets()
+        args.expected_host = args.base_url or os.environ.get("APITEST_BASE_URL") or None
         doc = load_json(args.intake, 20 * 1024 * 1024)[0] if args.intake else None
         index = EndpointIndex(doc)
         r = Report(args, index)
         for p in args.junit:
             r.add_junit(p)
+        r.finalize()
         for p in args.k6:
             r.add_k6(p)
         title = args.title or (plain((doc.get("info") or {}).get("title"), 80) if isinstance(doc, dict) and isinstance(doc.get("info"), dict) else "") or "API"

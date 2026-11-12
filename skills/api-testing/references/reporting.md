@@ -23,6 +23,15 @@ never contacts the target and prints the command that regenerates the report.
   the redacted `curl` line the runtime recorded (when there is one) plus the exact `python -m pytest <file>::<test>` command, or the
   `run_k6.py` command for k6 findings. Gated types (security, fuzz, resilience, k6) add the safety-gate note: the user exports
   `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`; the report never sets them.
+- Curl lines: `repro:` lines in a result file are untrusted. Only the exact shape the runtime writes is accepted
+  (`curl -sS -i -X METHOD URL [-H 'K: V']... [--data-raw BODY]`), parsed with shlex and never run; the URL's scheme, host and port must
+  equal `--base-url` (or `APITEST_BASE_URL` when the report is built), and the command is rebuilt with shell quoting. Anything else is
+  dropped and the finding says so. Without a target no curl line is shown; the pytest command still is.
+- Duplicates: the same classname + test name in one or several JUnit files (reruns, merged runs) counts once; the worst outcome wins.
+- Pytest commands: a test name that was truncated (over 200 characters) or scrubbed is not a valid node id, so the command runs the
+  whole test file instead of one test.
+- Result line: FAIL (any finding), INCOMPLETE (errors, no findings), INCONCLUSIVE (nothing executed: empty or all-skipped suite, k6
+  without requests), PASS (at least one executed passing test or a k6 run with requests, and no findings).
 - Run problems: tests that errored before running (fixtures, setup). They are not findings and never count as a pass.
 - Not tested / limitations: skip reasons with counts, intake endpoints with no result, what was not supplied.
 
