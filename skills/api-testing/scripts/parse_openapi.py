@@ -126,9 +126,12 @@ def _param(r: Resolver, p: Any, swagger2: bool) -> dict | None:
         "required": bool(p.get("required", p["in"] == "path")),
         "schema": sch,
     }
-    if is_secret_name(p["name"]):
+    sensitive = is_secret_name(p["name"]) or (
+        isinstance(sch, dict) and (sch.get("format") == "password" or sch.get("writeOnly")))
+    if sensitive:
         for drop in ("example", "default", "enum"):
-            sch.pop(drop, None) if isinstance(sch, dict) else None
+            if isinstance(sch, dict):
+                sch.pop(drop, None)
     elif "example" in p:
         out["example"] = p["example"]
     if p.get("deprecated"):

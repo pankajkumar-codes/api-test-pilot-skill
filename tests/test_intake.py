@@ -297,3 +297,15 @@ def test_openapi_param_and_schema_secret_values_dropped():
                    "b": {"type": "string", "writeOnly": True, "default": "CANARYEX"}}}}}},
                "responses": {"200": {"description": "ok"}}}}}}
     _no_canaries(parse_openapi.parse(doc))
+
+
+def test_openapi_param_level_example_dropped_for_password_format():
+    doc = {"openapi": "3.0.0", "info": {}, "servers": [{"url": "http://h"}],
+           "paths": {"/x": {"get": {
+               "parameters": [
+                   {"name": "pw", "in": "query", "example": "CANARYEX", "schema": {"type": "string", "format": "password"}},
+                   {"name": "w", "in": "query", "example": "CANARYEX", "schema": {"type": "string", "writeOnly": True}}],
+               "responses": {"200": {"description": "ok"}}}}}}
+    d = parse_openapi.parse(doc)
+    _no_canaries(d)
+    assert all("example" not in p for p in d["endpoints"][0]["parameters"])
