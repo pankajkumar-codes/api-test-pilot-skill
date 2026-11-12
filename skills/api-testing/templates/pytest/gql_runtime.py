@@ -16,7 +16,7 @@ import requests
 
 from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call them as gr.<name>)
     DB_ERROR_RE, UNSET, Api, env_true, expect_injection_safe, expect_no_crash, fail, json_of,
-    require_destructive, require_flag,
+    require_destructive, require_flag, skip_writes_on_production,
 )
 
 GQL_SEC = [["bearerAuth"]]
@@ -68,6 +68,8 @@ class Gql(Api):
 
     def post(self, query: str, variables: dict | None = None, operation_name: str | None = None, *,
              auth: str = "default", who: str = "A", headers: dict | None = None, raw: Any = None) -> requests.Response:
+        if re.match(r"\s*mutation\b", query):
+            skip_writes_on_production()
         payload: dict[str, Any] = {"query": query}
         if variables is not None:
             payload["variables"] = variables

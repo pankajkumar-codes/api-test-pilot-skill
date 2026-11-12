@@ -107,7 +107,7 @@ def test_integration_flows_follow_resource_structure(rest_doc):
     mod = Module("t", "integration", "rerun")
     gen_pytest.gen_integration.generate(rest_doc, mod)
     text = "\n".join(mod.blocks)
-    assert text.index('EP["createPet"]') < text.index('EP["createToy"]')
+    assert text.index("EP['createPet']") < text.index("EP['createToy']")
     assert "cleanup.add" in text and "deleted resource is still readable" in text
 
 
@@ -557,3 +557,84 @@ def test_sample_values_respect_constraints_and_redact_secrets():
 def test_py_renders_expressions_and_literals():
     assert gen_common.py({"a": [1, None, True], "b": gen_common.Expr('"x" * 3')}) == "{'a': [1, None, True], 'b': \"x\" * 3}"
     assert gen_common.py((1,)) == "(1,)"
+
+
+# ---------------------------------------------------------------- hostile specs and gate hardening
+def _hostile_doc(marker):
+    pwn = f'__import__("os").system("touch {marker}")'
+    evil = f'x"]; {pwn}; #'
+    nl = f"/a\n{pwn}\n"
+    body = {"type": "object", "required": [evil], "properties": {evil: {"type": "string", "enum": [evil]},
+                                                                  "n": {"type": "integer", "minimum": 1}}}
+    ep = lambda i, method, path, **kw: {  # noqa: E731
+        "id": i, "method": method, "path": path, "summary": evil, "tags": [evil, "admin"], "deprecated": False,
+        "auth_required": True, "security": [[evil]], "parameters": kw.get("parameters", []),
+        "request_body": kw.get("request_body"), "responses": {"200": {"description": evil, "content_type": "application/json", "schema": body},
+                                                              "201": {"description": "c", "content_type": "application/json", "schema": body}}}
+    return {
+        "source": {"type": "openapi", "version": "3.0.0", "file": evil}, "info": {"title": evil, "version": "1"},
+        "servers": [f'http://example.com/"""\n{pwn}\n"""'], "warnings": [],
+        "security_schemes": {evil: {"type": "http", "scheme": "bearer", "env": [f'APITEST_X"""\n{pwn}\n']}},
+        "endpoints": [
+            ep(evil, "GET", nl, parameters=[{"name": evil, "in": "query", "required": False, "schema": {"type": "string"}},
+                                           {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer", "minimum": 1}}]),
+            ep(evil + "2", "POST", "/things", request_body={"content_type": "application/json", "required": True, "schema": body}),
+            ep(evil + "3", "GET", "/things/{" + evil + "}", parameters=[{"name": evil, "in": "path", "required": True, "schema": {"type": "string"}}]),
+            ep(evil + "4", "PUT", "/things/{" + evil + "}", parameters=[{"name": evil, "in": "path", "required": True, "schema": {"type": "string"}}],
+               request_body={"content_type": "application/json", "required": True, "schema": body}),
+            ep(evil + "5", "DELETE", "/things/{" + evil + "}", parameters=[{"name": evil, "in": "path", "required": True, "schema": {"type": "string"}}]),
+        ],
+    }
+
+
+def test_hostile_spec_strings_never_become_code(tmp_path):
+    marker = tmp_path / "PWNED"
+    doc = _hostile_doc(marker)
+    out = tmp_path / "suite"
+    gen_pytest.generate(doc, out, ["all"], f'http://127.0.0.1:1"""\n__import__("os").system("touch {marker}")')
+    for f in out.glob("*.py"):
+        ast.parse(f.read_text())
+        tree = ast.parse(f.read_text())
+        calls = {n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+                 for n in ast.walk(tree) if isinstance(n, ast.Call)}
+        assert "system" not in calls and "__import__" not in calls, f.name
+    with rest_server() as url:  # collection imports every module; the run executes every generated test body
+        results, proc = run_suite(out, url, {"APITEST_BEARERAUTH_TOKEN": "x", "APITEST_PATH_X": "1"}, [])
+    assert not marker.exists(), "a hostile spec string executed code"
+
+
+def test_hostile_graphql_names_and_urls_never_become_code(tmp_path, gql_doc):
+    marker = tmp_path / "PWNED"
+    pwn = f'__import__("os").system("touch {marker}")'
+    doc = copy.deepcopy(gql_doc)
+    doc["endpoints"][0]["path"] = f'/g"\n{pwn}\n'
+    doc["servers"] = [f'http://x/"""\n{pwn}\n']
+    for o in doc["graphql"]["operations"]:
+        o["id"] = o["id"] + f'"]; {pwn}; #'
+    out = tmp_path / "suite"
+    gen_pytest.generate(doc, out, ["all"])
+    with gql_server() as url:
+        run_suite(out, url, GQL_ENV, [])
+    assert not marker.exists()
+
+
+def test_corporate_local_names_do_not_pass_the_gate(rest_suite, monkeypatch):
+    rt = load_runtime(rest_suite)
+    monkeypatch.delenv("APITEST_TARGET_ENV", raising=False)
+    monkeypatch.delenv("APITEST_AUTHORIZED", raising=False)
+    for host in ("billing.prod.corp.local", "db.internal", "api.example.test", "10.0.0.5", "intranet"):
+        assert rt.intrusive_skip_reason(f"https://{host}") is not None, host
+    assert rt.intrusive_skip_reason("http://app.localhost:3000") is None
+    assert not rt.is_local_host("billing.prod.corp.local")
+
+
+def test_production_target_only_receives_read_calls(rest_suite):
+    with rest_server() as url:
+        results, _ = run_suite(rest_suite, url, {**REST_ENV, "APITEST_TARGET_ENV": "production"},
+                               ["-k", "test_createPet_valid_request or test_listPets_valid_request or test_updatePet_valid_request"])
+    assert results["test_positive::test_listPets_valid_request"][0] == "passed"
+    for name in ("test_createPet_valid_request", "test_updatePet_valid_request"):
+        status, msg = results[f"test_positive::{name}"]
+        assert status == "skipped" and "production" in msg
+    from mock_rest import LAST_LOG
+    assert all(m == "GET" for m, _ in LAST_LOG), LAST_LOG

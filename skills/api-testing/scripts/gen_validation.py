@@ -32,7 +32,7 @@ def generate(doc: dict, mod: Module) -> None:
         mod.add(case_table(table, cases), is_test=False)
         mod.add(f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
                 f"def {mod.unique('test_' + ep['id'] + '_rejects_invalid_input')}(api, label, kw):\n"
-                f'    ep = EP["{ep["id"]}"]\n    resp = api.send(ep, **kw)\n'
+                f'    ep = EP[{ep["id"]!r}]\n    resp = api.send(ep, **kw)\n'
                 "    rt.expect_rejected(resp, ep, label)\n")
 
 

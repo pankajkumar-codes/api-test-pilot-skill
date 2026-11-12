@@ -109,16 +109,16 @@ def generate(doc: dict, mod: Module) -> list[str]:
             cep, param = c["create"], c["param"]
             known = {p["name"] for p in path_params(cep)}
             path = "path={k: ids[k] for k in " + py(sorted(known)) + "}" if known else ""
-            L += [f"    # create {c['collection']}", f"    ep = EP[\"{cep['id']}\"]",
+            L += [f"    # create {ascii(c['collection'])[1:-1]}", f"    ep = EP[{cep['id']!r}]",
                   f"    resp = api.send(ep{', ' + path if path else ''})",
                   "    rt.expect_ok(resp, ep)", "    rt.expect_contract(resp, ep)",
                   f"    ids[{param!r}] = rt.extract_id(resp, {param!r})",
                   f"    assert ids[{param!r}] is not None, \"create response has no id (JSON id field or Location header)\""]
             if c.get("delete"):
-                L.append(f"    cleanup.add(lambda p=dict(ids): api.send(EP[\"{c['delete']['id']}\"], path=p))")
+                L.append(f"    cleanup.add(lambda p=dict(ids): api.send(EP[{c['delete']['id']!r}], path=p))")
             if i < len(chain) - 1:
                 L.append("")
-        L += ["    created_body = ep.body", "", "    # read it back", f"    rd = EP[\"{r['read']['id']}\"]",
+        L += ["    created_body = ep.body", "", "    # read it back", f"    rd = EP[{r['read']['id']!r}]",
               "    resp = api.send(rd, path=dict(ids))", "    rt.expect_ok(resp, rd)", "    rt.expect_contract(resp, rd)"]
         keys = _echo_keys(r["create"], r["read"])
         if keys:
@@ -127,19 +127,19 @@ def generate(doc: dict, mod: Module) -> list[str]:
             lst = r["list"]
             known = {p["name"] for p in path_params(lst)}
             path = ", path={k: ids[k] for k in " + py(sorted(known)) + "}" if known else ""
-            L += ["", "    # it appears in the collection", f"    ls = EP[\"{lst['id']}\"]", f"    resp = api.send(ls{path})",
+            L += ["", "    # it appears in the collection", f"    ls = EP[{lst['id']!r}]", f"    resp = api.send(ls{path})",
                   "    rt.expect_ok(resp, ls)", f"    rt.expect_in_list(resp, {r['param']!r}, ids[{r['param']!r}])"]
         upd = r.get("update") or r.get("patch")
         new_body = _updated_body(upd) if upd else None
         if upd and new_body is not None:
             ukeys = _echo_keys(upd, r["read"])
-            L += ["", "    # update, then read the change back", f"    up = EP[\"{upd['id']}\"]",
+            L += ["", "    # update, then read the change back", f"    up = EP[{upd['id']!r}]",
                   f"    resp = api.send(up, path=dict(ids), body={py(new_body)})", "    rt.expect_ok(resp, up)",
                   "    resp = api.send(rd, path=dict(ids))", "    rt.expect_ok(resp, rd)"]
             if ukeys:
                 L.append(f"    rt.expect_echo(resp, {py(new_body)}, {py(ukeys)})")
         if r.get("delete"):
-            L += ["", "    # delete, then it must be gone", f"    dl = EP[\"{r['delete']['id']}\"]",
+            L += ["", "    # delete, then it must be gone", f"    dl = EP[{r['delete']['id']!r}]",
                   "    resp = api.send(dl, path=dict(ids))", "    rt.expect_ok(resp, dl)",
                   "    resp = api.send(rd, path=dict(ids))",
                   '    rt.expect_rejected(resp, rd, "deleted resource is still readable")']

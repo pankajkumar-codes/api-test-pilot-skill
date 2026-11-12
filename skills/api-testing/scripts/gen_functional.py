@@ -10,7 +10,7 @@ SPECIAL = "!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/~`"
 
 
 def _ref(ep: dict) -> str:
-    return f'EP["{ep["id"]}"]'
+    return f"EP[{ep['id']!r}]"
 
 
 def _missing_ids(ep: dict) -> str:

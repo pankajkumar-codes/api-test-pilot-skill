@@ -37,7 +37,7 @@ SECRET_HEADERS = {
 SENSITIVE_FIELD_RE = re.compile(
     r"(^|_)(password|passwd|pwd|password_hash|secret|client_secret|hash|salt|ssn|cvv|private_key|api_key|"
     r"access_token|refresh_token|id_token|session_id|card_number)($|_)")
-LOCAL_SUFFIXES = (".localhost", ".local")
+LOCAL_SUFFIXES = (".localhost",)  # RFC 6761 loopback names only; ".local"/".internal" names can be real corporate hosts
 NON_PROD_ENVS = {"local", "dev", "development", "test", "testing", "staging", "stage", "qa", "sandbox"}
 PROD_ENVS = {"prod", "production", "live"}
 TRUTHY = {"1", "true", "yes", "y", "on"}
@@ -401,6 +401,12 @@ def admin_guard() -> None:
         pytest.skip("administrative endpoint and APITEST_ASSUME_NON_ADMIN is set: ordinary credentials cannot succeed here")
 
 
+def skip_writes_on_production() -> None:
+    """Targets declared as production only receive read-only calls (writes would change real data)."""
+    if target_env() in PROD_ENVS:
+        pytest.skip("APITEST_TARGET_ENV says production: write calls (POST/PUT/PATCH/DELETE) are never sent")
+
+
 def require_destructive() -> None:
     if not env_true("APITEST_ALLOW_DESTRUCTIVE"):
         pytest.skip("destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose")
@@ -653,6 +659,8 @@ class Api:
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
              query: Any = UNSET, headers: dict | None = None, body: Any = UNSET, raw: Any = None,
              content_type: Any = UNSET, timeout: float | None = None, victim: bool = False) -> requests.Response:
+        if ep.method not in ("GET", "HEAD", "OPTIONS"):
+            skip_writes_on_production()
         ids = {}
         for name, meta in ep.path_params.items():
             if path and name in path:

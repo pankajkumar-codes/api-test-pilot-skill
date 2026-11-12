@@ -21,7 +21,7 @@ def _snake(n: str) -> str:
 
 
 def _ref(ep: dict) -> str:
-    return f'EP["{ep["id"]}"]'
+    return f"EP[{ep['id']!r}]"
 
 
 def _find(ep: dict, names: set[str]) -> str | None:

@@ -26,7 +26,7 @@ def _snake(n: str) -> str:
 
 
 def _ref(ep: dict) -> str:
-    return f'EP["{ep["id"]}"]'
+    return f"EP[{ep['id']!r}]"
 
 
 def _simple_get(doc: dict, need_auth: bool | None = None) -> dict | None:
