@@ -11,6 +11,7 @@ Rules enforced here (not in the generated tests):
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import os
 import re
@@ -49,8 +50,31 @@ def env_true(name: str) -> bool:
 
 
 def is_local_host(host: str | None) -> bool:
-    h = (host or "").lower().strip("[]")
-    return h in ("localhost", "::1") or h.startswith("127.") or h.endswith(LOCAL_SUFFIXES)
+    """Loopback only: the literal name `localhost`, `*.localhost`, or an IP literal that is loopback.
+
+    No string-prefix checks (127.0.0.1.nip.io is a remote DNS name); decimal/hex/octal IP spellings and
+    IPv4-mapped IPv6 are not parsed and therefore count as remote (conservative)."""
+    h = (host or "").lower().strip("[]").rstrip(".")
+    if h == "localhost" or (h.endswith(".localhost") and h.count(".") >= 1 and h != ".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(h).is_loopback
+    except ValueError:
+        return False
+
+
+def target_host(base_url: str) -> str | None:
+    """Host of `base_url` as seen by BOTH urllib.parse and urllib3 (what requests uses); None if they disagree
+    or the URL contains characters that make parsers disagree (backslash, whitespace, control characters)."""
+    if re.search(r"[\\\s\x00-\x1f]", base_url) or not base_url.lower().startswith(("http://", "https://")):
+        return None
+    from urllib3.util import parse_url
+    try:
+        a = (urllib.parse.urlparse(base_url).hostname or "").lower()
+        b = (parse_url(base_url).host or "").lower().strip("[]")
+    except Exception:
+        return None
+    return a if a and a == b else None
 
 
 def target_env() -> str:
@@ -62,7 +86,7 @@ def intrusive_skip_reason(base_url: str) -> str | None:
     env = target_env()
     if env in PROD_ENVS:
         return "safety gate: APITEST_TARGET_ENV says production; intrusive tests never run against production"
-    if is_local_host(urllib.parse.urlparse(base_url).hostname):
+    if is_local_host(target_host(base_url)):
         return None
     if env not in NON_PROD_ENVS:
         return ("safety gate: confirm the target is non-production: set APITEST_TARGET_ENV to one of "
@@ -587,7 +611,9 @@ class Api:
         self.schemes = schemes
         self.timeout = timeout or float(os.environ.get("APITEST_TIMEOUT", "15"))
         self.session = requests.Session()
-        self.host = urllib.parse.urlparse(self.base_url).hostname
+        self.host = target_host(self.base_url)
+        if self.host is None:
+            raise pytest.UsageError("APITEST_BASE_URL must be a plain http(s) URL (no backslashes, spaces or ambiguous host).")
         if is_local_host(self.host):
             self.session.trust_env = False  # never route local targets through a proxy
         elif not target_env():

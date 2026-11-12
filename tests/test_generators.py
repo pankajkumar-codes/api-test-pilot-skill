@@ -622,9 +622,16 @@ def test_corporate_local_names_do_not_pass_the_gate(rest_suite, monkeypatch):
     rt = load_runtime(rest_suite)
     monkeypatch.delenv("APITEST_TARGET_ENV", raising=False)
     monkeypatch.delenv("APITEST_AUTHORIZED", raising=False)
-    for host in ("billing.prod.corp.local", "payments.local", "0.0.0.0", "db.internal", "api.example.test", "10.0.0.5", "intranet"):
+    for host in ("127.0.0.1.nip.io", "127.0.0.1.evil.com", "127.example.com", "localhost.evil.com", "2130706433", "0x7f.1",
+                 "billing.prod.corp.local", "payments.local", "0.0.0.0", "db.internal", "api.example.test", "10.0.0.5", "intranet"):
         assert rt.intrusive_skip_reason(f"https://{host}") is not None, host
     assert rt.intrusive_skip_reason("http://app.localhost:3000") is None
+    for ok in ("http://127.0.0.1:8080", "http://127.1.2.3", "http://[::1]:9000/x", "http://localhost/"):
+        assert rt.intrusive_skip_reason(ok) is None, ok
+    for tricky in ("http://127.0.0.1@evil.com/", "http://evil.com\\@127.0.0.1/", "http://127.0.0.1 .evil.com/", "ftp://127.0.0.1/",
+                   "http://evil.com#@127.0.0.1/", "http://127.0.0.1:80@evil.com:80/"):
+        assert rt.intrusive_skip_reason(tricky) is not None, tricky
+        assert rt.target_host(tricky) in (None, "evil.com"), tricky
     assert not rt.is_local_host("billing.prod.corp.local")
 
 
