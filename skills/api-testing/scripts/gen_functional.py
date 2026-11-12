@@ -85,7 +85,7 @@ def negative(doc: dict, mod: Module) -> None:
             else:  # DELETE/PUT may be idempotent or upsert: 404 only when the spec says so
                 check = ('    rt.expect_status(resp, (404,), "unknown id")' if 404 in codes
                          else '    rt.expect_no_crash(resp, "unknown id")')
-            pre = "    rt.require_destructive()\n" if ep["method"] == "DELETE" else ""
+            pre = admin_line(ep) + ("    rt.require_destructive()\n" if ep["method"] == "DELETE" else "")
             mod.add(f"def {mod.unique('test_' + eid + '_unknown_id_not_found')}(api):\n    ep = {ref}\n{pre}"
                     f"    resp = api.send(ep, path={_missing_ids(ep)})\n{check}\n")
         if ep["method"] in BODY_METHODS and has_json_body(ep):

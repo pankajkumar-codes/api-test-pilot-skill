@@ -18,6 +18,9 @@ INJECTION = ["' OR '1'='1", "1; SELECT 1", '{"$ne": null}', "$(id)", "../../../.
              "<script>apitest</script>", "{{7*7}}"]
 SSRF_URLS = ["http://169.254.169.254/latest/meta-data/", "http://127.0.0.1:22/", "file:///etc/passwd"]
 SSRF_NAME_RE = re.compile(r"(^|_)(url|uri|callback|webhook|redirect|return|target|dest|destination|feed|link|href|proxy)($|_)")
+LOGIN_PATH_RE = re.compile(r"/(login|log-in|signin|sign-in|authenticate)(/|$)", re.I)
+USER_FIELDS = ("username", "user_name", "userName", "login", "email", "user")
+PASSWORD_FIELD_RE = re.compile(r"pass(word|wd)?$", re.I)
 LIMIT_NAMES = {"limit", "page_size", "pagesize", "per_page", "perpage", "size", "count", "max", "take", "first"}
 
 
@@ -62,6 +65,21 @@ def _api2(doc: dict, eps: list[dict], mod: Module) -> None:
                 f"def {mod.unique('test_api2_invalid_credentials_rejected_' + ep['id'])}(api):\n"
                 f"    resp = api.send({_ref(ep)}, auth=\"invalid\"{ids})\n"
                 '    rt.expect_denied(resp, "API2:2023 broken authentication", "garbage credentials were not rejected")\n')
+    for ep in eps:  # login endpoints: do failed logins reveal which usernames exist?
+        body = sample_body(ep) if ep["method"] == "POST" and has_json_body(ep) else None
+        if not (isinstance(body, dict) and LOGIN_PATH_RE.search(ep["path"])):
+            continue
+        user = next((k for k in body if k in USER_FIELDS), None)
+        pw = next((k for k in body if PASSWORD_FIELD_RE.search(k)), None)
+        if user and pw:
+            mod.add("@pytest.mark.intrusive\n"
+                    f"def {mod.unique('test_api2_login_does_not_reveal_valid_usernames_' + ep['id'])}(api):\n    ep = {_ref(ep)}\n"
+                    '    known = os.environ.get("APITEST_KNOWN_USERNAME")\n'
+                    '    if not known:\n        pytest.skip("set APITEST_KNOWN_USERNAME to the name of an existing account (no password needed)")\n'
+                    "    wrong = rt.random_token('wrong-')  # two failed logins with a throwaway password; use a test account (lockout risk)\n"
+                    f"    existing = api.send(ep, body={{**ep.body, {user!r}: known, {pw!r}: wrong}})\n"
+                    f"    unknown = api.send(ep, body={{**ep.body, {user!r}: rt.random_token('no-such-user-'), {pw!r}: wrong}})\n"
+                    "    rt.expect_same_login_failure(existing, unknown, known)\n")
     bearer = next((n for n, s in doc.get("security_schemes", {}).items()
                    if s.get("type") in ("oauth2", "openIdConnect") or (s.get("type") == "http" and (s.get("scheme") or "").lower() == "bearer")), None)
     probe = _simple_get(doc, need_auth=True)
@@ -185,7 +203,8 @@ def _injection(eps: list[dict], mod: Module) -> None:
                     cases += [(f"body_{k}[{i}]", {"body": Expr(f"{{**_ep.body, {k!r}: {pl!r}}}")})
                               for i, pl in enumerate(INJECTION)]
         for p in path_params(ep)[:1]:
-            for i, pl in enumerate(("../../../../etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd", "1 OR 1=1")):
+            # the last payload is `x' OR '1'='1` percent-encoded: a quote in a path segment reaches a query built from it
+            for i, pl in enumerate(("../../../../etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd", "1 OR 1=1", "x%27%20OR%20%271%27%3D%271")):
                 cases.append((f"path_{p['name']}[{i}]", {"path": Expr(f"{{{p['name']!r}: rt.RawPath({pl!r})}}")}))
         if not cases:
             continue

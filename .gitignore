@@ -12,3 +12,4 @@ intake.json
 results/
 k6_tests/
 fuzz_tests/
+evals/out/

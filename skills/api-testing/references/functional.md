@@ -32,7 +32,12 @@ The generator prints the exact rerun command. The suite is `conftest.py` + `apit
 - Credentials: names are listed in `conftest.py` and by `intake.py` (`APITEST_<SCHEME>_TOKEN|USER|PASS|KEY`). Never ask for values in chat.
 - Existing ids for path parameters: `APITEST_PATH_<PARAM>` (or the spec `example`). Without one the test **skips and says which variable to set**.
   The integration flows (`references/integration.md`) create their own data and need none.
-- `APITEST_ALLOW_DESTRUCTIVE=yes` is required for any DELETE against an existing id; the test consumes that id.
+- `APITEST_ALLOW_DESTRUCTIVE=yes` is required for any DELETE against an existing id; the test consumes that id. The generated `conftest.py` runs
+  such tests last (authorization probes first), so they cannot remove the ids other tests use.
+- Skips with a reason, never a verdict: a 429 where another status was expected, and a create refused as a duplicate (409, or 400/422 that says
+  "already exists"): every create test sends the same baseline body, so only the first create succeeds on a target that keeps data. Use a fresh target
+  or clear the earlier test data to run them again.
+- PUT/PATCH bodies that name their target (`id` with a spec example, as in `PUT /pet`) send that example id: make sure the record exists.
 - Non-local targets need `APITEST_TARGET_ENV` (local/dev/staging/prod...). Tests never guess a production URL.
 - Administrative endpoints (`/admin`, tag `admin`) skip success-path tests when `APITEST_ASSUME_NON_ADMIN=yes`.
 

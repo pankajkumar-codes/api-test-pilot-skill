@@ -57,6 +57,11 @@ DEFAULT_SEVERITY = {"smoke": "HIGH", "security": "HIGH", "fuzz": "HIGH", "positi
 INTRUSIVE_TYPES = {"security", "fuzz", "resilience", "load", "stress", "spike", "soak"}
 GATE_NOTE = ("Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and "
              "APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused.")
+WRITE_NOTE = ("WARNING: the curl line above sends a write request (POST, PUT, PATCH or DELETE). Running it changes or deletes data on the "
+              "target; run it only against a target whose data you can lose.")
+REDACTED_NOTE = ("The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, "
+                 "never pasted into a report) before it will work.")
+WRITE_CURL_RE = re.compile(r"^curl -sS -i -X (POST|PUT|PATCH|DELETE) ")
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE")
 REQUEST_LINE_RE = re.compile(r"^\s*(" + "|".join(METHODS) + r")\s+(\S+)\s+->", re.M)
 REPRO_RE = re.compile(r"^\s*repro:\s*(curl\s.*)$", re.M)
@@ -493,6 +498,8 @@ class Report:
                        [plain(ln, 220) for ln in lines], commands, owasp,
                        " ".join(x for x in (
                            GATE_NOTE if rec["type"] in INTRUSIVE_TYPES else "",
+                           WRITE_NOTE if any(WRITE_CURL_RE.match(c) for c in curls) else "",
+                           REDACTED_NOTE if any("<redacted>" in c for c in curls) else "",
                            f"{dropped} curl line(s) from the result file were dropped: not the exact shape the generated runtime writes, or "
                            f"the host does not match the target ({'--base-url' if self.args.base_url else 'pass --base-url to include them'})."
                            if dropped else "") if x))

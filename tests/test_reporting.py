@@ -699,3 +699,26 @@ def test_overlong_or_scrubbed_test_names_rerun_the_whole_file(tmp_path):
     cmds = re.findall(r"python -m pytest (\S+) -v", text)
     assert cmds == ["api_tests/test_edge.py", "api_tests/test_edge.py"], cmds
     assert "abcdef123456" not in text
+
+
+WRITE_CURL = ("curl -sS -i -X {m} http://h:8080/pets/1 -H 'Authorization: <redacted>'")
+
+
+@pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
+def test_write_method_repro_carries_a_warning_and_the_redaction_note(tmp_path, method):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", f"[HIGH] bad\n  repro: {WRITE_CURL.format(m=method)}")])
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://h:8080")
+    assert sr.WRITE_NOTE in text and sr.REDACTED_NOTE in text
+    assert f"-X {method} http://h:8080/pets/1" in text
+
+
+def test_read_only_repro_has_no_write_warning_but_keeps_the_redaction_note(tmp_path):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", f"[HIGH] bad\n  repro: {WRITE_CURL.format(m='GET')}")])
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://h:8080")
+    assert sr.WRITE_NOTE not in text and sr.REDACTED_NOTE in text
+
+
+def test_no_curl_line_means_no_curl_notes(tmp_path):
+    p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", "[HIGH] bad")])
+    text = report_of(tmp_path, "--junit", p, "--base-url", "http://h:8080")
+    assert sr.WRITE_NOTE not in text and sr.REDACTED_NOTE not in text
