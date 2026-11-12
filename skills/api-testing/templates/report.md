@@ -1,16 +1,24 @@
-# Test report — {API name} — {date}
+# Test report — {{title}} — {{date}}
+
+{{verdict}}
 
 ## Summary
-Passed / failed / skipped, by test type.
+{{summary}}
 
 ## Coverage per endpoint
-| Endpoint | Types run | Pass | Fail |
-|----------|-----------|------|------|
+{{coverage}}
+
+## Load and performance (k6)
+{{k6}}
 
 ## Findings (most severe first)
-### [Severity] Title
-- Endpoint:
-- What happened vs expected:
-- Reproduce: `command`
+{{findings}}
+
+## Run problems
+{{problems}}
 
 ## Not tested / limitations
+{{limitations}}
+
+## How this report was produced
+{{provenance}}

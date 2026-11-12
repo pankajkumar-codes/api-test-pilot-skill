@@ -63,6 +63,34 @@ The fuzzer found a real bug in the mock server on its first clean run (a bare JS
 
 Real k6 behaviour is exercised only by tests that need a k6 binary; CI without k6 skips them, so add a k6 install step to CI to keep them running.
 
+Who ran what (PR 3): the PR 3 reviewer did **not** run k6 (no binary in the review environment, so the 13 real-k6 tests skipped there); the author did, with k6 v1.3.0, and all 13 real-k6 tests passed. Treat the real-k6 results as author-verified, not independently re-run.
+
 Not verified: k6 against the `eval-apis.md` targets and any real network (Phase 5); k6 other than v1.3.0 on Linux x86-64; runs longer than a few
 minutes (the full-length shapes were checked by construction and by the `--quick` shapes, not run end to end); chaos experiments (v1 produces plans only);
 GraphQL fuzzing (not built); WebSocket/gRPC load.
+
+## Phase 4: reporting on real pytest and k6 output (2026-11-12)
+
+The report script was exercised on output produced by real tools, not hand-written fixtures: the generated REST suite run by real pytest against
+`tests/mock_rest.py` (clean, and with seeded bugs `bola, mass, leak, contract, noauth, cors, stacktrace`), the seeded `crash` bug through the real fuzz
+suite, and generated k6 scripts run by **real k6 v1.3.0** (same checksum-verified binary as Phase 3) against the clean mock and against `down`
+(every call 500). `eval-apis.md` targets are still out of reach of the build sandbox (Phase 5).
+
+| Area | What was run | Result |
+|------|--------------|--------|
+| Clean pytest run | 254 generated tests, healthy mock | PASS report, no findings, 19 skips listed with reasons |
+| Seeded bugs | same suite, 7 seeded bugs | 46 failing tests = 46 findings, HIGH first; BOLA on getPet, mass assignment on createPet, contract violation on listPets all present; every finding has curl + pytest commands; the first finding's pytest command re-run on the same server fails again |
+| Fuzz | `--types fuzz` against `crash` | HIGH finding per endpoint with all distinct repro lines |
+| k6 healthy | load, spike, stress (quick) | no findings; stage and per-endpoint tables present |
+| k6 `down` | load, exit 99 | `checks` and `http_req_failed` thresholds reported HIGH with observed values; confirmed that `true` in `--summary-export` means crossed |
+| Canary secrets | tokens, passwords, cookies, JWTs, userinfo, query params, `curl -u`, headers and env values placed in message, text, names, skip reasons, system-out, k6 names, intake and `--title` | none reach the report (the regenerate command leaked a `--title` secret on the first run; fixed by scrubbing it) |
+| Hostile XML | XXE (file and http), billion laughs, parameter entities, DOCTYPE hidden in UTF-16, undefined entities, depth, size, case count, FIFO, `/dev/zero` | refused with a clean error before any expansion; nothing read from the file system |
+| Markdown | link/image/HTML injection, fence break-outs, table rows, headings, `{{placeholders}}`, bidi/zero-width/control characters, autolinks | everything outside fenced blocks is escaped; headings are only the template's; placeholders are not re-substituted |
+| Redaction speed | 200 KB pathological inputs (`a=a=a=...`, backslash runs, long values) | linear; a first version was quadratic on `a=a=...` (24 s) and was rewritten |
+
+Real-k6 tests skip with a reason when no k6 binary exists (`K6_BIN` or PATH), as in Phase 3; with k6 present `tests/test_reporting.py` runs 54 tests.
+
+Not verified: k6 versions other than v1.3.0 and platforms other than Linux x86-64 (the `--summary-export` layout is what v1.3.0 writes; later k6 versions may
+change it, and the script fails with a clear error when `metrics` is missing); JUnit from runners other than pytest; GraphQL results beyond what the shared
+pytest/k6 shapes carry; the report rendered in a real Markdown renderer (escaping is checked structurally with a CommonMark fence/heading check, not by
+rendering); `eval-apis.md` targets and any real network (Phase 5).
