@@ -177,3 +177,23 @@ def test_real_mode_does_not_set_the_safety_variables():
     src = (ROOT / "evals" / "run_evals.py").read_text()
     assert 'env["APITEST_AUTHORIZED"]' not in src and 'APITEST_TARGET_ENV"]' not in src
     assert "APITEST_AUTHORIZED" not in ev.TARGETS["petstore"]["env"]
+
+
+def test_report_step_works_from_a_deep_checkout_path(tmp_path, monkeypatch):
+    deep = tmp_path / ("d" * 40) / ("e" * 40) / ("f" * 40)
+    monkeypatch.setattr(ev, "OUT", deep)
+    out = ev.run_target("petstore", ["clean"], None, None)
+    assert out["variants"]["clean"]["ok"] and Path(out["variants"]["clean"]["report"]).exists()
+
+
+def test_real_mode_refuses_with_a_nonzero_exit_when_the_gate_blocks(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(ev, "OUT", tmp_path)
+    # a non-loopback host name that is never contacted for intrusive tests: the gate needs APITEST_TARGET_ENV/AUTHORIZED
+    for k in ("APITEST_TARGET_ENV", "APITEST_AUTHORIZED"):
+        monkeypatch.delenv(k, raising=False)
+    with petstore_mock.running(set()) as base:
+        # 127.0.0.1 is loopback (passes the gate); production mode must be refused and must give a non-zero exit
+        monkeypatch.setenv("APITEST_TARGET_ENV", "production")
+        monkeypatch.setattr(sys, "argv", ["run_evals.py", "--target", "petstore", "--real", "--base-url", base])
+        assert ev.main() == 2
+    assert "safety gate refused" in capsys.readouterr().err

@@ -35,9 +35,15 @@ reference files, and only on self-hosted copies.
 Each command writes `evals/out/<target>/real/report.md` (the findings, with repro commands) and prints the failing generated tests.
 Copy what you find into the "found" column of `docs/evals.md`.
 
+**Containers: bind to loopback and pin the image.** VAmPI and DVGA are intentionally vulnerable (SQL and OS command injection among others),
+so every `docker run` below publishes the port on `127.0.0.1` only (`-p 127.0.0.1:PORT:PORT`), never on all interfaces, and uses a pinned image
+(`name:tag@sha256:digest`; VAmPI publishes only `latest`, so it is pinned by digest alone). The digests are the ones Docker Hub's API reported
+on 2026-11-12; they were **not** pulled or verified in the build sandbox (no Docker daemon). After `docker pull`, check that the digest it prints
+matches, and when you bump an image, re-pin it. Stop and remove the containers when done (`docker rm -f petstore vampi-vuln vampi-fixed dvga`).
+
 ### 1. Swagger Petstore (spec: `evals/specs/petstore-openapi.yaml`)
 ```
-docker run -d --name petstore -p 8080:8080 swaggerapi/petstore3:latest
+docker run -d --name petstore -p 127.0.0.1:8080:8080 swaggerapi/petstore3:1.0.29@sha256:97e5aa178dd4d160af9e31a900a685a943cd715cab7ba6ca6377fe976e95d1cf
 export APITEST_API_KEY_KEY=<any value your instance accepts>      # header api_key
 export APITEST_PETSTORE_AUTH_TOKEN=<any value your instance accepts>
 export APITEST_PATH_PETID=1 APITEST_PATH_ORDERID=1 APITEST_PATH_USERNAME=user1   # ids that exist on your instance
@@ -49,8 +55,8 @@ worth a manual look: it is either a real flaw of that build or a false positive 
 
 ### 2. VAmPI (spec: `evals/specs/vampi-openapi.yaml`), vulnerable and fixed
 ```
-docker run -d --name vampi-vuln -p 5000:5000 erev0s/vampi:latest
-docker run -d --name vampi-fixed -p 5001:5000 -e vulnerable=0 erev0s/vampi:latest   # README: `vulnerable=0` turns the flaws off
+docker run -d --name vampi-vuln -p 127.0.0.1:5000:5000 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+docker run -d --name vampi-fixed -p 127.0.0.1:5001:5000 -e vulnerable=0 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12   # README: `vulnerable=0` turns the flaws off
 curl -s localhost:5000/createdb ; curl -s localhost:5001/createdb
 # register your own users on each instance and log in (never reuse a real password):
 curl -s -X POST localhost:5000/users/v1/register -H 'Content-Type: application/json' -d '{"username":"evaluser","password":"evalpass1","email":"eval@example.com"}'
@@ -76,7 +82,7 @@ To start it yourself: `SEEDED_BUGS=all python -m uvicorn seeded_fastapi:app --ap
 
 ### 4. DVGA (GraphQL)
 ```
-docker run -d --name dvga -p 5013:5013 -e WEB_HOST=0.0.0.0 dolevf/dvga     # README: Beginner/Expert modes change difficulty; record which you used
+docker run -d --name dvga -p 127.0.0.1:5013:5013 -e WEB_HOST=0.0.0.0 dolevf/dvga:2.2.0@sha256:040aa33c199d99f3380c9ff9a1ee5d725e9abca7b189c63a35a2a73bda79c957     # README: Beginner/Expert modes change difficulty; record which you used
 python evals/dump_introspection.py http://localhost:5013/graphql -o dvga-introspection.json   # a read-only introspection query
 python evals/run_evals.py --target graphql --real --base-url http://localhost:5013 --spec dvga-introspection.json
 ```

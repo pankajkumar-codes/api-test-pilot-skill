@@ -103,7 +103,7 @@ TARGETS = {
         "kind": "rest", "spec": SPECS / "petstore-openapi.yaml", "flaws": PETSTORE_FLAWS,
         "env": {"APITEST_API_KEY_KEY": "eval-key", "APITEST_PETSTORE_AUTH_TOKEN": "eval-token", "APITEST_ALLOW_DESTRUCTIVE": "yes",
                 "APITEST_PATH_PETID": "1", "APITEST_PATH_ORDERID": "1", "APITEST_PATH_USERNAME": "theUser"},
-        "real_hint": "docker run -d --name petstore -p 8080:8080 swaggerapi/petstore3:latest   # then --base-url http://localhost:8080/api/v3",
+        "real_hint": "docker run -d --name petstore -p 127.0.0.1:8080:8080 swaggerapi/petstore3:1.0.29@sha256:97e5aa178dd4d160af9e31a900a685a943cd715cab7ba6ca6377fe976e95d1cf   # then --base-url http://localhost:8080/api/v3",
     },
     "vampi": {
         "title": "VAmPI (mock of the documented vulnerabilities)", "stands_in_for": "deliberately vulnerable API (eval-apis.md row 2; VAmPI)",
@@ -113,7 +113,7 @@ TARGETS = {
         "env": {"APITEST_ALLOW_DESTRUCTIVE": "yes", "APITEST_PATH_USERNAME": "name1", "APITEST_VICTIM_USERNAME": "name2",
                 "APITEST_PATH_BOOK_TITLE": "bookTitle77", "APITEST_VICTIM_BOOK_TITLE": "bookTitle3",
                 "APITEST_EXPECT_RATE_LIMIT": "yes", "APITEST_RATE_BURST": "20", "APITEST_ASSUME_NON_ADMIN": "yes", "APITEST_KNOWN_USERNAME": "name2"},
-        "real_hint": "docker run -d --name vampi -p 5000:5000 erev0s/vampi:latest   # then GET /createdb and log in for a token (see evals/README.md)",
+        "real_hint": "docker run -d --name vampi -p 127.0.0.1:5000:5000 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12   # then GET /createdb and log in for a token (see evals/README.md)",
     },
     "seeded": {
         "title": "Seeded FastAPI app (REAL server, local)", "stands_in_for": "small custom FastAPI app with seeded bugs (eval-apis.md row 3)",
@@ -126,7 +126,7 @@ TARGETS = {
         "title": "GraphQL shop API (mock; DVGA stand-in)", "stands_in_for": "self-hosted GraphQL API with seeded flaws (eval-apis.md row 4; DVGA)",
         "kind": "graphql", "spec": ROOT / "tests" / "fixtures" / "shop.graphql", "flaws": GRAPHQL_FLAWS,
         "env": {"APITEST_BEARERAUTH_TOKEN": "tokA", "APITEST_GQL_ID": "1", "APITEST_GQL_VICTIM_ID": "2", "APITEST_GQL_EXPECT_FIELD_AUTH": "yes"},
-        "real_hint": "docker run -d --name dvga -p 5013:5013 -e WEB_HOST=0.0.0.0 dolevf/dvga   # then --base-url http://localhost:5013/graphql",
+        "real_hint": "docker run -d --name dvga -p 127.0.0.1:5013:5013 -e WEB_HOST=0.0.0.0 dolevf/dvga:2.2.0@sha256:040aa33c199d99f3380c9ff9a1ee5d725e9abca7b189c63a35a2a73bda79c957   # then --base-url http://localhost:5013/graphql",
     },
 }
 
@@ -183,8 +183,8 @@ def serve(name: str, variant: str):
 
 
 # --------------------------------------------------------------------------------------- pipeline
-def sh(args: list[str], env: dict | None = None, check: bool = True) -> subprocess.CompletedProcess:
-    p = subprocess.run([sys.executable, *args], capture_output=True, text=True, env=env, cwd=ROOT, timeout=900)
+def sh(args: list[str], env: dict | None = None, check: bool = True, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    p = subprocess.run([sys.executable, *args], capture_output=True, text=True, env=env, cwd=cwd or ROOT, timeout=900)
     if check and p.returncode != 0:
         raise RuntimeError(f"{' '.join(args[:2])} failed ({p.returncode}): {(p.stderr or p.stdout)[-800:]}")
     return p
@@ -224,10 +224,12 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     pt = sh(["-m", "pytest", str(suite), "-q", "-p", "no:cacheprovider", "--tb=short", f"--junitxml={junit}"], env=env, check=False)
     if not junit.exists():
         raise RuntimeError("pytest produced no JUnit file: " + (pt.stdout + pt.stderr)[-800:])
-    sh([str(SCRIPTS / "summarize_results.py"), "--junit", str(junit), "--intake", str(intake), "--tests-dir", str(suite),
-        "--base-url", base_url, "--title", f"{cfg['title'].split(' (')[0] if real else cfg['title']} / {variant}", "-o", str(report)], env=env)
+    sh([str(SCRIPTS / "summarize_results.py"), "--junit", "junit.xml", "--intake", "intake.json", "--tests-dir", "suite",
+        "--base-url", base_url, "--title", f"{cfg['title'].split(' (')[0] if real else cfg['title']} / {variant}", "-o", "report.md"],
+       env=env, cwd=work)
     results = read_junit(junit)
-    return {"failed": sorted(k for k, (s, _) in results.items() if s == "failed"),
+    gate = sorted({m for st, m in results.values() if st == "skipped" and "safety gate" in m})
+    return {"gate_refused": gate,"failed": sorted(k for k, (s, _) in results.items() if s == "failed"),
             "passed": sum(s == "passed" for s, _ in results.values()), "skipped": sum(s == "skipped" for s, _ in results.values()),
             "report": str(report.relative_to(ROOT)) if report.is_relative_to(ROOT) else str(report), "generated": gen.stdout.splitlines()[0] if gen.stdout else ""}
 
@@ -330,6 +332,13 @@ def main() -> int:
         Path(a.json).write_text(json.dumps(results, indent=2) + "\n")
     if a.markdown:
         print("\n\n".join(markdown(r) for r in results))
+    for r in results:  # real mode: skipped intrusive checks mean the gate refused the target; that must not look like a clean run
+        for v in r["variants"].values():
+            if r["mode"] == "real" and v.get("gate_refused"):
+                print("ERROR: the safety gate refused the intrusive checks, so this run is INCOMPLETE (no injection, BOLA, mass assignment, SSRF "
+                      "or rate-limit results). Reason: " + v["gate_refused"][0] + "\nExport APITEST_TARGET_ENV (non-production value) and "
+                      "APITEST_AUTHORIZED=yes yourself if you own or may test this target, then run again.", file=sys.stderr)
+                return 2
     bad = [(r["target"], v) for r in results for v, x in r["variants"].items() if not x.get("ok", True) and r["mode"] != "real"]
     for t, v in bad:
         print(f"FAIL: {t}/{v} did not meet its expectation", file=sys.stderr)
