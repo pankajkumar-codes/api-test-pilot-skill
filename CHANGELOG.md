@@ -15,7 +15,9 @@ First release candidate, built in phases (see PLAN.md).
   security (OWASP API Top 10), for REST and GraphQL, with a runtime that enforces the safety gate and redacts secrets.
 - Breaking-change report between two spec versions (`spec_diff.py`).
 - k6 scripts for load, stress, spike and soak (`gen_k6.py`, `run_k6.py`), hard caps and a circuit breaker.
-- Seeded, rate-limited fuzzing for REST (`--types fuzz`) and fault-injection plans (`gen_chaos_plan.py`, plan only).
+- Seeded, rate-limited fuzzing for REST (`--types fuzz`) and fault-injection plans (`gen_chaos_plan.py`).
+- Executable chaos testing (`chaos_run.py`, `chaos_proxy.py`): latency, error, drop, truncate and blackhole faults in a local proxy, TCP faults between the API and a dependency, dependency start/stop commands the user supplies, malformed and oversized payload bursts, steady load with recovery-time measurement; JUnit and JSON output that `summarize_results.py` reports. Same safety gate, hard caps, loopback-only proxies.
+- `APITEST_READ_ONLY=yes` (or `--apitest-read-only`): public-sandbox mode that sends only GET/HEAD/OPTIONS and no active probes.
 - Safety gate for every non-functional flow (`safety_gate.py`, a copy inside each k6 script, the pytest runtime).
 - Markdown report from pytest JUnit XML and k6 summaries (`summarize_results.py`), with a repro command per finding.
 - Eval driver, mock targets and a real local seeded target (`evals/`); results in `docs/evals.md`.
@@ -26,6 +28,7 @@ First release candidate, built in phases (see PLAN.md).
 - `examples/`: a demo API with seedable flaws, a sample spec and a real generated report.
 
 ### Fixed
+- Required request-body fields whose sample value is invented are flagged in the failure text of a 4xx (as query parameters already were); integration flows skip with a reason when a create response has no id (Location header or a single id-like field are used first); a credential parameter with no declared security scheme (`X-API-Key`, `Authorization`, `api_key`) is treated as auth with a warning instead of being sent without credentials.
 - False positives found by running the suite on four public APIs: the "unknown id returns 404" test now runs only for path
   parameters that name a resource (`id`, `petId`, `uuid`, `slug`, `username`, or the only parameter of an endpoint that documents a 404),
   not for `/redirect/{n}` or `/anything/{anything}`; optional query parameters with no spec example, default, enum, range or format are

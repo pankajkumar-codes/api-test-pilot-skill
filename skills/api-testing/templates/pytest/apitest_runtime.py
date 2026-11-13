@@ -91,6 +91,12 @@ def target_env() -> str:
     return os.environ.get("APITEST_TARGET_ENV", "").strip().lower()
 
 
+def read_only() -> bool:
+    """Public-sandbox mode (APITEST_READ_ONLY=yes): only GET/HEAD/OPTIONS are sent and no active probe runs, so no
+    environment confirmation is needed for a target you only read from."""
+    return env_true("APITEST_READ_ONLY")
+
+
 def preflight(base_url: str | None) -> str | None:
     """None when the run may start, else one clear message. Runs before any test, so a remote target with no
     APITEST_TARGET_ENV stops the whole run with a non-zero exit instead of erroring (or skipping) test by test."""
@@ -99,16 +105,19 @@ def preflight(base_url: str | None) -> str | None:
     host = target_host(base_url)
     if host is None:
         return "APITEST_BASE_URL must be a plain http(s) URL (no backslashes, spaces or ambiguous host)."
-    if not is_local_host(host) and not target_env():
+    if not is_local_host(host) and not target_env() and not read_only():
         return (f"Target {host} is not local, and APITEST_TARGET_ENV is not set. Export APITEST_TARGET_ENV to the environment "
                 "you are testing (dev, staging, ...; 'production' limits the run to read-only calls) before running. Intrusive "
-                "tests additionally need a non-production value and APITEST_AUTHORIZED=yes. Nothing was sent to the target.")
+                "tests additionally need a non-production value and APITEST_AUTHORIZED=yes. For a public sandbox you only read from, "
+                "set APITEST_READ_ONLY=yes instead. Nothing was sent to the target.")
     return None
 
 
 def intrusive_skip_reason(base_url: str) -> str | None:
     """None when intrusive tests may run, else the reason they must be skipped (safety gate)."""
     env = target_env()
+    if read_only():
+        return "safety gate: read-only mode (APITEST_READ_ONLY=yes): active probes are not sent"
     if env in PROD_ENVS:
         return "safety gate: APITEST_TARGET_ENV says production; intrusive tests never run against production"
     if is_local_host(target_host(base_url)):
@@ -189,7 +198,7 @@ def fail(resp: requests.Response | None, msg: str, severity: str | None = None, 
     suffix = f"\n  {describe(resp)}" if resp is not None else ""
     guessed = getattr(resp, "_guessed", ())
     if resp is not None and 400 <= resp.status_code < 500 and guessed:
-        suffix += ("\n  note: the spec gives no example or default for required parameter(s) "
+        suffix += ("\n  note: the spec gives no example or default for required parameter(s) or field(s) "
                    + ", ".join(guessed) + ", so the request used an invented value; a "
                    f"{resp.status_code} may be that value being rejected, not an API defect. Add an `example` to the spec to settle it.")
     pytest.fail(f"{tag} {msg}{suffix}".strip(), pytrace=False)
@@ -299,7 +308,7 @@ class Endpoint:
     err: tuple = ()                                  # documented 4xx statuses
     path_params: dict = field(default_factory=dict)  # name -> {"default": value|None, "type": ...}
     query: dict = field(default_factory=dict)        # baseline valid query (required params)
-    guessed: tuple = ()                              # required query params whose baseline value is invented, not from the spec
+    guessed: tuple = ()                              # required query params / body fields ("body.name") whose baseline value is invented
     headers: dict = field(default_factory=dict)      # baseline valid headers (required params)
     body: Any = UNSET                                # baseline valid JSON body
     content_type: str | None = None
@@ -345,6 +354,12 @@ def extract_id(resp: requests.Response, name: str = "id") -> Any:
     loc = resp.headers.get("Location")
     if loc:
         return urllib.parse.urlsplit(loc).path.rstrip("/").rsplit("/", 1)[-1] or None
+    for scope in (body, body.get("data") if isinstance(body, dict) else None):   # last resort: the only id-like scalar field
+        if isinstance(scope, dict):
+            found = [v for k, v in scope.items() if isinstance(v, (str, int)) and not isinstance(v, bool) and v != ""
+                     and re.search(r"(^|[_-])(id|uuid|guid)$|[a-z](Id|ID|Uuid|UUID|Guid|GUID)$", str(k))]
+            if len(found) == 1:
+                return found[0]
     return None
 
 
@@ -486,6 +501,8 @@ def skip_writes_on_production() -> None:
     """Targets declared as production only receive read-only calls (writes would change real data)."""
     if target_env() in PROD_ENVS:
         pytest.skip("APITEST_TARGET_ENV says production: write calls (POST/PUT/PATCH/DELETE) are never sent")
+    if read_only():
+        pytest.skip("read-only mode (APITEST_READ_ONLY=yes): write calls (POST/PUT/PATCH/DELETE) are never sent")
 
 
 def require_destructive() -> None:
@@ -791,11 +808,11 @@ class Api:
             raise pytest.UsageError("APITEST_BASE_URL must be a plain http(s) URL (no backslashes, spaces or ambiguous host).")
         if is_local_host(self.host):
             self.session.trust_env = False  # never route local targets through a proxy
-        elif not target_env():
+        elif not target_env() and not read_only():
             raise pytest.UsageError(
                 f"Target {self.host} is not local. Set APITEST_TARGET_ENV (local/dev/staging/prod...) to confirm "
                 "which environment you are testing; intrusive tests additionally need a non-production value "
-                "and APITEST_AUTHORIZED=yes.")
+                "and APITEST_AUTHORIZED=yes. For a public sandbox you only read from, set APITEST_READ_ONLY=yes.")
 
     # ---- credentials (env only)
     def _env(self, name: str, who: str) -> str | None:
@@ -940,13 +957,16 @@ class Api:
                         h["Content-Type"] = ctype
         resp = self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
                              timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
-        resp._guessed = tuple(n for n in ep.guessed if n in q and q[n] == ep.query.get(n))  # type: ignore[attr-defined]
+        resp._guessed = tuple(  # type: ignore[attr-defined]
+            n for n in ep.guessed
+            if (n.startswith("body.") and body is UNSET and raw is None) or (n in q and q[n] == ep.query.get(n)))
         return resp
 
     def get(self, url_path: str, **kw: Any) -> requests.Response:
         return self._request("GET", self.base_url + url_path, timeout=self.timeout, allow_redirects=False, **kw)
 
     def raw_post(self, url: str, **kw: Any) -> requests.Response:
+        skip_writes_on_production()
         return self._request("POST", url, timeout=self.timeout, allow_redirects=False, **kw)
 
 

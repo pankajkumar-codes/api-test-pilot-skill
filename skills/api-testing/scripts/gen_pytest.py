@@ -29,7 +29,7 @@ import gen_integration  # noqa: E402
 import gen_resilience  # noqa: E402
 import gen_security  # noqa: E402
 import gen_validation  # noqa: E402
-from gen_common import Module, baseline, expected_ok_codes, guessed_query, py, sample_body, error_codes, supported_body  # noqa: E402
+from gen_common import Module, baseline, expected_ok_codes, guessed_body, guessed_query, py, sample_body, error_codes, supported_body  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUNTIME_TEMPLATE = SKILL_DIR / "templates" / "pytest" / "apitest_runtime.py"
@@ -102,6 +102,7 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_AUTHORIZED=yes    you own or are authorized to test the target (needed for intrusive tests)
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
+  APITEST_READ_ONLY=yes     public sandbox you only read from: sends only GET/HEAD/OPTIONS, no active probes, no environment confirmation needed
   APITEST_ALLOW_DESTRUCTIVE=yes   permit DELETE-style calls against existing data
   APITEST_DELAY_MS / APITEST_RPS  pause between requests / cap on requests per second (also --apitest-delay-ms, --apitest-rps)
   APITEST_RETRIES           retries of a GET/HEAD/OPTIONS after a failed connect (default 2)
@@ -121,6 +122,7 @@ SCHEMES = {py(schemes)}
 def pytest_addoption(parser):
     group = parser.getgroup("api-test-pilot")
     group.addoption("--apitest-delay-ms", metavar="MS", help="pause at least MS milliseconds between requests (env: APITEST_DELAY_MS)")
+    group.addoption("--apitest-read-only", action="store_true", help="public-sandbox mode: send only GET/HEAD/OPTIONS and no active probes (env: APITEST_READ_ONLY=yes)")
     group.addoption("--apitest-rps", metavar="N", help="send at most N requests per second (env: APITEST_RPS)")
 
 
@@ -128,6 +130,8 @@ def pytest_configure(config):
     for opt, var in (("apitest_delay_ms", "APITEST_DELAY_MS"), ("apitest_rps", "APITEST_RPS")):
         if config.getoption(opt, None) not in (None, ""):
             os.environ[var] = str(config.getoption(opt))  # the command line wins over the environment
+    if config.getoption("apitest_read_only", False):
+        os.environ["APITEST_READ_ONLY"] = "yes"
     config.addinivalue_line("markers", "smoke: quick reachability checks")
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
     config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
@@ -246,7 +250,7 @@ def endpoints_source(doc: dict) -> str:
             "responses": scrub(ep.get("responses") or {}), "tags": ep.get("tags") or [],
             "deprecated": bool(ep.get("deprecated")),
         }
-        args["guessed"] = tuple(guessed_query(ep))
+        args["guessed"] = tuple(guessed_query(ep)) + (tuple(guessed_body(ep)) if has_body else ())
         parts = [f"{k}={py(v)}" for k, v in args.items() if v not in ([], {}, (), None, False) or k in ("id", "method", "path")]
         if has_body and body is not None:
             parts.append(f"body={py(body)}")

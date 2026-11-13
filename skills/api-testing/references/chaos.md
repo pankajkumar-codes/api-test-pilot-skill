@@ -1,29 +1,52 @@
-# Chaos testing: fault-injection plans (v1: plans only)
+# Chaos testing: plans and runnable experiments
 
-**Safety gate first.** Chaos experiments break things on purpose. They belong in a non-production environment that the user owns or is authorized to
-test, run by the people who operate it. Production is out of scope. Ask the user to confirm the environment and the authorization; never tick the
-plan's checklist or set the gate variables yourself.
+**Safety gate first.** Chaos breaks things on purpose. It belongs in a non-production environment that the user owns or is authorized to test.
+Ask the user to confirm both; never set `APITEST_TARGET_ENV` or `APITEST_AUTHORIZED` yourself, never tick the plan's checklist for them.
+`chaos_run.py` enforces the same gate as load and fuzz (`safety_gate.py`): production is refused (exit 3), a non-loopback target needs
+`APITEST_TARGET_ENV` (non-production) and `APITEST_AUTHORIZED=yes`.
 
-## Scope in v1 (DECISIONS.md)
-api-test-pilot **writes the plan**. It does not inject faults, does not contact the target, and the plan contains no executable injection
-commands. The platform team runs the experiments with their own tooling and change process. Executable injection is a v2 question.
-
-## Generate
+## 1. Plan (nothing is sent)
 ```
-python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging \
-    --dependency "orders db" --dependency "payments api"
+python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging --dependency "orders db"
 ```
-- `--env` must be a non-production name (production is refused). `--dependency` is repeatable (default: datastore, cache, downstream HTTP service,
-  broker, identity provider; at most 8). `--endpoints` picks the endpoints used to observe user impact (default: writes and authenticated ones first, up to 8).
-- Only methods, paths, ids and documented status codes come from the spec. Titles, summaries and descriptions are **not** copied (untrusted text).
-- Ask the user for the real dependencies; the defaults are a guess. Where the spec documents no 5xx or 429, the plan flags it: agree the intended contract first.
+Nine experiments (C1 latency ... C9 partition) with hypothesis, blast radius, abort conditions and rollback. Spec free text is never copied in.
 
-## What the plan contains
-Safety gate and unchecked pre-flight checklist; scope; steady state (smoke tests and a low-rate k6 probe through `run_k6.py`, so the same gate applies);
-then nine experiments, each with hypothesis, injection (what, not how), blast radius, expected behaviour, what to observe, abort conditions, rollback and a result line per dependency:
-C1 added latency, C2 upstream 5xx, C3 timeouts and hung connections, C4 dependency down, C5 partial failure, C6 upstream rate limiting,
-C7 malformed responses, C8 resource exhaustion, C9 network partition.
+## 2. Run experiments
+```
+APITEST_TARGET_ENV=staging APITEST_AUTHORIZED=yes python scripts/chaos_run.py intake.json --base-url URL \
+    --experiments proxy-latency,proxy-5xx,proxy-drop,payload --out results/chaos      # --dry-run first
+```
+Each experiment runs a steady GET load (default 5 req/s, `--probe /path` to choose, else parameterless GETs from the intake) while one fault is
+active, removes the fault, and measures **recovery time** (first 5 consecutive healthy answers). Output: `results/chaos/chaos.xml` (JUnit) and `chaos.json`
+(per-experiment numbers). Report with `summarize_results.py --junit results/chaos/chaos.xml --intake intake.json`.
 
-## After the experiments
-Record results in the plan, turn findings into fixes or accepted risks, rerun failed scenarios. Report which experiments were **planned** and say
-plainly that none were run by this tool.
+| Experiment | What is injected | Needs |
+|---|---|---|
+| `proxy-latency`, `proxy-5xx`, `proxy-drop`, `proxy-truncate`, `proxy-blackhole` | faults on the network path in front of the API (local proxy on 127.0.0.1) | nothing |
+| `payload` | oversized, malformed, deeply nested, wrong-type and truncated bodies in bursts (first 3 write endpoints; 4xx expected, 5xx or a hang is a finding) | a POST/PUT/PATCH with a JSON body |
+| `dep-outage`, `dep-slow` | start/stop (or slow on/off) commands **you wrote** for a dependency | `--dependency-config`, `--allow-hooks`, loopback target |
+| `dep-latency`, `dep-blackhole`, `dep-reset` | TCP faults between the API and a dependency | `--dep-proxy 15432=127.0.0.1:5432`: point the API's dependency address at `127.0.0.1:15432`, start the API, then run with `--wait-for-target-s 90` |
+
+Proxy faults sit between the client and the API, so they show what clients and gateways see and whether the API recovers; they do not prove the API is
+resilient to its own dependencies. Use the `dep-*` experiments for that. `dep-*` experiments skip with a reason when no traffic went through the proxy.
+
+Dependency commands live in a JSON file, as argv lists (no shell), and every fault has an undo:
+```
+{"dependencies": [{"name": "postgres", "stop": ["docker", "stop", "pg"], "start": ["docker", "start", "pg"],
+                   "slow_on": ["..."], "slow_off": ["..."]}]}
+```
+Commands are never guessed or inferred from the spec. They run only with `--allow-hooks`, only against loopback targets, are printed (secret-looking
+arguments masked) before anything runs, and the undo runs on error, Ctrl-C and SIGTERM (`MANUAL ACTION REQUIRED` is printed if even that fails).
+
+## Findings the runner reports
+No recovery within `--max-recovery-s` (HIGH); API stopped accepting connections during a dependency fault (HIGH); requests hang instead of failing fast
+(`--fail-fast-ms`, MEDIUM); the API answered 5xx on bad input or on a path-only fault (MEDIUM); unhealthy right after a payload burst (HIGH).
+A skipped experiment says why. If the baseline is unhealthy nothing is injected.
+
+## Bounds (hard ceilings in code)
+Probe rate 50/s; fault 120 s; dependency outage 60 s; whole run 30 min; payload 1 MiB; burst 100; latency 10 s; proxies on 127.0.0.1 only, upstream
+passes the gate, at most 64 connections. Output holds paths, statuses and timings only: no headers, bodies or credentials (credentials come from the
+`APITEST_*` environment variables the intake lists).
+
+## After the run
+Report which experiments **ran**, which were skipped and why, and the rerun command the runner prints. Turn findings into fixes or accepted risks.

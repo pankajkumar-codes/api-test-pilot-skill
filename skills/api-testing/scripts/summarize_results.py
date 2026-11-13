@@ -53,8 +53,8 @@ RANK = {"passed": 0, "skipped": 1, "error": 2, "failed": 3}
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 # Used when a failing test carries no [SEVERITY] tag of its own; the report says "default rating" for these.
 DEFAULT_SEVERITY = {"smoke": "HIGH", "security": "HIGH", "fuzz": "HIGH", "positive": "MEDIUM", "negative": "MEDIUM",
-                    "contract": "MEDIUM", "integration": "MEDIUM", "data-validation": "MEDIUM", "edge": "LOW", "resilience": "LOW"}
-INTRUSIVE_TYPES = {"security", "fuzz", "resilience", "load", "stress", "spike", "soak"}
+                    "contract": "MEDIUM", "integration": "MEDIUM", "data-validation": "MEDIUM", "edge": "LOW", "resilience": "LOW", "chaos": "MEDIUM"}
+INTRUSIVE_TYPES = {"security", "fuzz", "resilience", "load", "stress", "spike", "soak", "chaos"}
 GATE_NOTE = ("Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and "
              "APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused.")
 WRITE_NOTE = ("WARNING: the curl line above sends a write request (POST, PUT, PATCH or DELETE). Running it changes or deletes data on the "
@@ -67,6 +67,7 @@ REQUEST_LINE_RE = re.compile(r"^\s*(" + "|".join(METHODS) + r")\s+(\S+)\s+->", r
 REPRO_RE = re.compile(r"^\s*repro:\s*(curl\s.*)$", re.M)
 OWASP_RE = re.compile(r"^API\d{1,2}(:\d{4})?$", re.I)
 SAFE_DIR_RE = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]{1,100}$")
+CHAOS_RERUN_RE = re.compile(r"^rerun: ((?:[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./:@%+,-]+ )?python [A-Za-z0-9_./-]*chaos_run\.py [A-Za-z0-9_./:=,@%+ -]{1,500})$", re.M)
 SAFE_STEM_RE = re.compile(r"^test_[A-Za-z0-9_]{1,80}$")
 K6_FILE_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})-summary\.json$")
 THRESHOLD_RE = re.compile(r"^\s*(?P<agg>[A-Za-z_]+(?:\([0-9.]+\))?)\s*(?P<op><=|>=|==|!=|<|>|=)\s*(?P<lim>-?[0-9.]+(?:e[+-]?\d+)?)\s*$", re.I)
@@ -479,7 +480,10 @@ class Report:
         tests_dir = self.args.tests_dir
         prefix = base_prefix(self.args.base_url)
         stem_file = f"{tests_dir}/{rec['stem']}.py"
-        if rec["name"] == raw_name and SAFE_STEM_RE.match(rec["stem"]):
+        chaos = CHAOS_RERUN_RE.search(raw) if rec["type"] == "chaos" else None
+        if rec["type"] == "chaos":   # chaos results come from chaos_run.py, not pytest: use its own validated rerun line
+            cmd = chaos.group(1) if chaos else "python scripts/chaos_run.py <intake.json> --experiments <name> (rerun line missing or not in the expected shape)"
+        elif rec["name"] == raw_name and SAFE_STEM_RE.match(rec["stem"]):
             cmd = f"{prefix} python -m pytest {shlex.quote(stem_file + '::' + rec['name'])} -v"
         elif SAFE_STEM_RE.match(rec["stem"]):   # a truncated or scrubbed name is not a valid node id: run the whole file
             cmd = f"{prefix} python -m pytest {shlex.quote(stem_file)} -v"

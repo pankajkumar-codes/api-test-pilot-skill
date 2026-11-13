@@ -11,7 +11,7 @@ a GraphQL schema, a Postman collection or curl examples. It writes plain pytest 
 | Resilience | idempotency, retries, pagination, rate-limit behaviour |
 | Load, stress, spike, soak | k6 scripts with hard caps, plus a launcher |
 | Fuzzing | seeded, rate-limited malformed-input suite (REST) |
-| Chaos | a fault-injection **plan** only; nothing is injected |
+| Chaos | a fault-injection plan, plus runnable experiments (local fault proxies, dependency start/stop commands you supply, malformed and oversized payload bursts) with recovery-time measurement; same safety gate |
 | Reporting | one Markdown report: coverage per endpoint, findings ranked by severity, a repro command for each |
 
 Protocols: REST (OpenAPI 3.x and Swagger 2) and GraphQL. Out of scope for v1: gRPC, mobile, UI accessibility, a hosted service.

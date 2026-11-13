@@ -27,7 +27,7 @@ What you get:
 - **Security checks** mapped to the OWASP API Top 10: missing or weak authentication, BOLA and BFLA, injection, mass assignment,
   SSRF, excessive data exposure, CORS and security headers.
 - **k6 scripts** for load, stress, spike and soak runs, GET-only and capped by default.
-- **Seeded fuzzing** for REST and a **fault-injection plan** for chaos testing (a plan only; nothing is injected).
+- **Seeded fuzzing** for REST and a **fault-injection plan** plus **runnable chaos experiments** (local fault proxy, your own dependency start/stop commands, payload bursts) that measure recovery time.
 - **A Markdown report** with per-endpoint coverage, findings ranked by severity and a repro command for each finding.
 - **A breaking-change report** between two versions of a spec.
 

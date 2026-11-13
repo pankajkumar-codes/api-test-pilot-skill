@@ -55,7 +55,7 @@ function gateReason(baseUrl) {
   }
   const tenv = envOf('APITEST_TARGET_ENV').trim().toLowerCase();
   if (PROD_ENVS.indexOf(tenv) !== -1) {
-    return 'safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak and fuzz runs never target production';
+    return 'safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak, chaos and fuzz runs never target production';
   }
   if (isLocalHost(host)) return null;
   if (NON_PROD_ENVS.indexOf(tenv) === -1) {

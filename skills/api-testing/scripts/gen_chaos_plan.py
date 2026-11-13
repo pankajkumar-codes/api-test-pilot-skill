@@ -5,7 +5,7 @@ Usage:
   python gen_chaos_plan.py intake.json -o chaos-plan.md [--env staging] [--dependency "orders db"]...
                            [--endpoints id1,id2] [--max-endpoints 8]
 
-v1 scope (DECISIONS.md): plans only. This tool never injects a fault, never contacts the target, and the plan
+This tool is the PLANNER (executable experiments live in chaos_run.py, DECISIONS.md 2026-11-13). It never injects a fault, never contacts the target, and the plan
 contains no executable injection commands (no fenced code blocks): the user's platform team runs the experiments
 with their own tooling, under their own change process. Every plan opens with the safety gate and an unchecked
 pre-flight checklist; production is refused.
@@ -121,8 +121,9 @@ def render(doc: dict, env: str | None, deps: list[str], endpoints: list[dict]) -
     lines = [
         "# Chaos plan",
         "",
-        "> This is a PLAN. api-test-pilot v1 does not inject faults and does not contact the target.",
-        "> Experiments are run by the people who own the platform, with their own tools and change process.",
+        "> This is a PLAN. gen_chaos_plan.py does not inject faults and does not contact the target.",
+        "> Experiments are run by the people who own the platform, with their own tools and change process;",
+        "> some of them can be run with chaos_run.py (see references/chaos.md), after the same safety gate.",
         "",
         "## Safety gate (read first)",
         f"- Target environment: **{env_line}**",
