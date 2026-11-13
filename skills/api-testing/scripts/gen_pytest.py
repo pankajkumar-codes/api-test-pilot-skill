@@ -104,7 +104,8 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
   APITEST_ALLOW_DESTRUCTIVE=yes   permit DELETE-style calls against existing data
   APITEST_DELAY_MS / APITEST_RPS  pause between requests / cap on requests per second (also --apitest-delay-ms, --apitest-rps)
-  APITEST_RETRIES           retries of a GET/HEAD/OPTIONS after a connection error (default 2); then the test is skipped
+  APITEST_RETRIES           retries of a GET/HEAD/OPTIONS after a failed connect (default 2)
+  APITEST_UNREACHABLE=skip|fail   what a target that cannot be reached does to a test (default skip; smoke tests always fail)
   APITEST_FUZZ_SEED / _CASES / _RPS / _MAX_REQUESTS / _MAX_BYTES / _SLOW_MS   fuzz tuning (hard caps apply)
 """
 import os
@@ -192,6 +193,14 @@ def base_url():
 @pytest.fixture(scope="session")
 def api(base_url):
     return rt.Api(base_url, SCHEMES)
+
+
+@pytest.fixture(autouse=True)
+def _unreachable_mode(request):
+    """Smoke tests are reachability checks: a dead target must fail them (exit code != 0), not skip. Others follow APITEST_UNREACHABLE."""
+    rt.set_unreachable_mode("fail" if request.node.get_closest_marker("smoke") else None)
+    yield
+    rt.set_unreachable_mode(None)
 
 
 @pytest.fixture(autouse=True)

@@ -16,7 +16,7 @@ import requests
 
 from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call them as gr.<name>)
     DB_ERROR_RE, UNSET, Api, env_true, expect_injection_safe, expect_no_crash, fail, json_of,
-    require_destructive, require_flag, skip_writes_on_production,
+    require_destructive, require_flag, skip_if_paced, skip_writes_on_production,
 )
 
 GQL_SEC = [["bearerAuth"]]

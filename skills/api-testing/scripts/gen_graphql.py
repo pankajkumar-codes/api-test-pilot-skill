@@ -332,6 +332,7 @@ def security(sc: Schema, mod: Module) -> list[str]:
             "    gr.expect_no_crash(resp, \"batched request\")\n")
     mod.add(I + "def test_rate_limiting_present(gql):\n"
             "    gr.require_flag(\"APITEST_EXPECT_RATE_LIMIT\", \"this API is expected to rate-limit\")\n"
+            "    gr.skip_if_paced(gql)\n"
             "    n = int(os.environ.get(\"APITEST_RATE_BURST\", \"40\"))\n"
             "    codes = [gql.post(\"query { __typename }\").status_code for _ in range(n)]\n"
             "    assert 429 in codes, f\"[MEDIUM][API4:2023] {n} rapid requests were never throttled (no 429)\"\n")

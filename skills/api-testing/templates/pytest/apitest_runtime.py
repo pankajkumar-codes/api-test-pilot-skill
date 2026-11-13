@@ -184,15 +184,13 @@ def describe(resp: requests.Response) -> str:
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
 
-_LAST_GUESSED: list[str] = []  # guessed parameters of the most recent request (set by Api.send)
-
-
 def fail(resp: requests.Response | None, msg: str, severity: str | None = None, owasp: str | None = None) -> None:
     tag = "".join(f"[{t}]" for t in (severity, owasp) if t)
     suffix = f"\n  {describe(resp)}" if resp is not None else ""
-    if resp is not None and 400 <= resp.status_code < 500 and _LAST_GUESSED:
+    guessed = getattr(resp, "_guessed", ())
+    if resp is not None and 400 <= resp.status_code < 500 and guessed:
         suffix += ("\n  note: the spec gives no example or default for required parameter(s) "
-                   + ", ".join(_LAST_GUESSED) + ", so the request used an invented value; a "
+                   + ", ".join(guessed) + ", so the request used an invented value; a "
                    f"{resp.status_code} may be that value being rejected, not an API defect. Add an `example` to the spec to settle it.")
     pytest.fail(f"{tag} {msg}{suffix}".strip(), pytrace=False)
 
@@ -463,6 +461,7 @@ def expect_pages_differ(one: requests.Response, two: requests.Response) -> None:
 
 def expect_rate_limit_behaviour(api: "Api", ep: Endpoint, n: int) -> None:
     """If the API throttles, it must say how long to back off (Retry-After) and recover afterwards."""
+    skip_if_paced(api)
     responses = burst(lambda: api.send(ep), n)
     limited = [r for r in responses if r.status_code in (429, 503)]
     if not limited:
@@ -724,13 +723,53 @@ def min_interval_seconds(delay_ms: float | None = None, rps: float | None = None
     return max(d / 1000.0, (1.0 / r) if r > 0 else 0.0)
 
 
-# Connection failures that say nothing about the API under test (proxy hiccup, reset, DNS, timeout). TLS and URL
-# errors are configuration problems and are left to fail loudly.
-def is_transient(exc: BaseException) -> bool:
+# Only a failure to CONNECT says nothing about the API under test (DNS, refused, connect timeout, proxy tunnel). An error after the
+# connection was made (reset, dropped, read timeout, truncated body) is what a server does when it crashes or hangs on an input,
+# so it is never skipped. TLS and URL errors are configuration problems and fail loudly.
+def _chain(exc: BaseException, depth: int = 0):
+    yield exc
+    if depth < 6:
+        for nxt in (exc.__cause__, getattr(exc, "reason", None), *[a for a in exc.args if isinstance(a, BaseException)]):
+            if isinstance(nxt, BaseException):
+                yield from _chain(nxt, depth + 1)
+
+
+def is_connect_failure(exc: BaseException) -> bool:
+    from urllib3 import exceptions as u3
     if isinstance(exc, (requests.exceptions.SSLError, requests.exceptions.InvalidURL, requests.exceptions.InvalidSchema,
                         requests.exceptions.MissingSchema, requests.exceptions.InvalidHeader)):
         return False
-    return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError))
+    if isinstance(exc, requests.exceptions.ConnectTimeout):
+        return True
+    if not isinstance(exc, requests.exceptions.ConnectionError):
+        return False  # ReadTimeout, ChunkedEncodingError, ...: the server answered at least partly
+    chain = list(_chain(exc))
+    if any(isinstance(e, (u3.ProtocolError, u3.SSLError)) for e in chain):
+        return False  # "Connection aborted": the connection existed
+    return any(isinstance(e, (u3.NewConnectionError, u3.ConnectTimeoutError, u3.NameResolutionError, u3.ProxyError))
+               or isinstance(e, ConnectionRefusedError) for e in chain)
+
+
+_MODE_OVERRIDE: list[str] = []  # set per test by the generated conftest (smoke tests must fail on a dead target)
+
+
+def set_unreachable_mode(mode: str | None) -> None:
+    _MODE_OVERRIDE[:] = [mode] if mode else []
+
+
+def unreachable_mode() -> str:
+    if _MODE_OVERRIDE:
+        return _MODE_OVERRIDE[0]
+    mode = os.environ.get("APITEST_UNREACHABLE", "skip").strip().lower() or "skip"
+    if mode not in ("skip", "fail"):
+        raise pytest.UsageError(f"APITEST_UNREACHABLE must be skip or fail (got {mode!r}).")
+    return mode
+
+
+def skip_if_paced(api: "Api") -> None:
+    """Rate-limit probes need a burst; a configured throttle would spread it out and report a false 'never throttled'."""
+    if api.min_interval:
+        pytest.skip("rate-limit probe skipped: APITEST_DELAY_MS / APITEST_RPS spaces the requests, so no burst can be sent")
 
 
 RETRY_METHODS = {"GET", "HEAD", "OPTIONS"}  # safe to repeat; writes are never retried (a lost reply may mean it was applied)
@@ -827,23 +866,34 @@ class Api:
         self._last_sent = time.monotonic()
 
     def _request(self, method: str, url: str, transient: str = "skip", **kw: Any) -> requests.Response:
-        """Every request goes through here: paced, and a transient connection error is retried (safe methods only) and,
-        if it persists, SKIPS the test: the target was unreachable, which is not a verdict on the API.
-        transient="raise" hands the exception to the caller untouched (fuzzing treats a drop or hang as a finding)."""
+        """Every request goes through here and is paced. A failure to CONNECT is retried (safe methods only) and then ends the
+        test as "target unreachable" (a skip, or a failure for smoke tests or APITEST_UNREACHABLE=fail). An error after the
+        connection was made (drop, reset, hang, truncated body) is a finding: the test fails with a clear message, for every
+        method. transient="raise" hands any exception to the caller untouched (fuzzing classifies them itself)."""
         attempts = 1 + (max(self.retries, 0) if method.upper() in RETRY_METHODS and transient == "skip" else 0)
         for attempt in range(attempts):
             self._pace()
             try:
                 return self.session.request(method, url, **kw)
             except requests.exceptions.RequestException as exc:
-                if transient != "skip" or not is_transient(exc):
+                if transient != "skip":
+                    raise
+                if not is_connect_failure(exc):
+                    if (isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                                         requests.exceptions.ChunkedEncodingError))
+                            and not isinstance(exc, requests.exceptions.SSLError)):
+                        fail(None, f"{method.upper()} {_redact_url(url)}: the server accepted the connection but gave no complete "
+                                   f"response ({type(exc).__name__}): it dropped, reset or hung on this request", "MEDIUM")
                     raise
                 if attempt + 1 < attempts:
                     time.sleep(min(0.5 * 2 ** attempt, 4.0))
                     continue
                 self.unreachable += 1
-                pytest.skip(f"{UNREACHABLE_PREFIX}: {method.upper()} request failed with {type(exc).__name__} after {attempts} "
-                            f"attempt(s); the target was unreachable, so this check has no verdict (APITEST_RETRIES, APITEST_TIMEOUT)")
+                msg = (f"{UNREACHABLE_PREFIX}: could not connect for {method.upper()} {_redact_url(url)} ({type(exc).__name__}) "
+                       f"after {attempts} attempt(s)")
+                if unreachable_mode() == "fail":
+                    fail(None, msg + "; failing because this is a reachability check (APITEST_UNREACHABLE=skip makes it a skip)")
+                pytest.skip(msg + "; no verdict on the API (APITEST_UNREACHABLE=fail makes it a failure)")
         raise AssertionError("unreachable")  # pragma: no cover
 
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
@@ -888,16 +938,15 @@ class Api:
                     kwargs["json"] = payload
                     if ctype:
                         h["Content-Type"] = ctype
-        _LAST_GUESSED[:] = [n for n in ep.guessed if n in q and q[n] == ep.query.get(n)]
-        return self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
+        resp = self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
                              timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
+        resp._guessed = tuple(n for n in ep.guessed if n in q and q[n] == ep.query.get(n))  # type: ignore[attr-defined]
+        return resp
 
     def get(self, url_path: str, **kw: Any) -> requests.Response:
-        _LAST_GUESSED.clear()
         return self._request("GET", self.base_url + url_path, timeout=self.timeout, allow_redirects=False, **kw)
 
     def raw_post(self, url: str, **kw: Any) -> requests.Response:
-        _LAST_GUESSED.clear()
         return self._request("POST", url, timeout=self.timeout, allow_redirects=False, **kw)
 
 
