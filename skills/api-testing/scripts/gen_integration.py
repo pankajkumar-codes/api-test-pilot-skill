@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 
-from gen_common import Module, has_json_body, path_params, py, sample_body, supported_body, writable_props
+from gen_common import Module, has_json_body, is_id_param, path_params, py, sample_body, success_schema, supported_body, writable_props
 
 
 def _item_param(path: str) -> str | None:
@@ -95,6 +95,12 @@ def generate(doc: dict, mod: Module) -> list[str]:
     notes: list[str] = []
     for coll, r in sorted(build_resources(doc).items()):
         if not r.get("create") or not r.get("read") or not r.get("param"):
+            continue
+        item = next((p for p in path_params(r["read"]) if p["name"] == r["param"]), None)
+        created = (success_schema(r["create"]) or {}).get("properties") or {}
+        if item is not None and r["param"] not in created and not is_id_param(item, r["read"]):
+            notes.append(f"integration: no flow for {coll} ('{{{r['param']}}}' is a value the server echoes or computes, "
+                         "not the id of a stored resource, so a create-then-read flow would be a false failure)")
             continue
         chain = _chain(r)
         if not chain:

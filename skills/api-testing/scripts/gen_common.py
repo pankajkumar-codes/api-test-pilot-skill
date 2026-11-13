@@ -135,6 +135,26 @@ _FORMAT_SAMPLES = {
 }
 
 
+_NAME_HINT_STR = (
+    (re.compile(r"e-?mail", re.I), "apitest@example.com"),
+    (re.compile(r"(^|[_-])(url|uri|link|href|website|homepage|callback|webhook)(s)?$|(Url|Uri|Link|Href)$"), "https://example.com/apitest"),
+    (re.compile(r"phone|mobile", re.I), "+15555550100"),
+)
+_NAME_HINT_INT = (
+    (re.compile(r"(^|[_-])status([_-]?code)?$|(Status|StatusCode)$", re.I), 200),   # an HTTP status: 1 is never valid
+    (re.compile(r"(^|[_-])port$", re.I), 8080),
+)
+
+
+def name_hint(name: str, kind: str | None) -> Any:
+    """A plausible value from the field name alone (`email`, `default_status`), used only when the spec gives no
+    example, default, enum, range or format. The value is still a guess (see is_guessed) but a real validator accepts it."""
+    if not name:
+        return None
+    table = _NAME_HINT_STR if kind == "string" else _NAME_HINT_INT if kind in ("integer", "number") else ()
+    return next((v for rx, v in table if rx.search(name)), None)
+
+
 def _first_type(schema: dict) -> str | None:
     t = schema.get("type")
     return t[0] if isinstance(t, list) and t else t
@@ -159,7 +179,8 @@ def sample(schema: Any, name: str = "", depth: int = 0) -> Any:
         if is_secret_name(name) or schema.get("format") == "password":
             return PLACEHOLDER
         fmt = schema.get("format", "")
-        s = _FORMAT_SAMPLES.get(fmt) or (f"sample-{name}" if name else "sample")
+        s = _FORMAT_SAMPLES.get(fmt) or (None if schema.get("pattern") else name_hint(name, "string")) \
+            or (f"sample-{name}" if name else "sample")
         lo, hi = schema.get("minLength"), schema.get("maxLength")
         if isinstance(lo, int) and len(s) < lo:
             s = s + "x" * (lo - len(s))
@@ -168,6 +189,9 @@ def sample(schema: Any, name: str = "", depth: int = 0) -> Any:
         return s
     if t in ("integer", "number"):
         lo, hi = schema.get("minimum"), schema.get("maximum")
+        hint = name_hint(name, t) if not isinstance(lo, (int, float)) and not isinstance(hi, (int, float)) else None
+        if hint is not None:
+            return hint if t == "integer" else float(hint)
         v: Any = lo if isinstance(lo, (int, float)) else (min(1, hi) if isinstance(hi, (int, float)) else 1)
         if isinstance(lo, (int, float)) and schema.get("exclusiveMinimum") is True:
             v = lo + 1

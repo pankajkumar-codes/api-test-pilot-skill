@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (eval follow-ups, 2026-11-13)
+- Invented sample values from the field name when the spec gives none: `email` gets a valid address, `*_status`/`status_code` 200, `*_url`/`link`/`webhook` an https URL, `port` 8080 (a range, default, enum or pattern still wins). They stay marked as guesses.
+- No create-then-read integration flow for a path parameter the server echoes or computes (`/anything/{anything}`), unless the create response documents it.
+- A skipped test for an inferred auth scheme says the scheme was inferred from the parameter name.
+- `chaos_run.py` exits 4 when a signal cuts the run short (partial results, faults undone); `references/chaos.md` notes that a secret in the target URL path would still be echoed.
+
 ### Added
 - Skill `api-testing`: `SKILL.md` router plus 16 reference files loaded on demand.
 - Intake parsers: OpenAPI 3.x and Swagger 2, Postman collections, curl commands, GraphQL SDL and introspection JSON, all

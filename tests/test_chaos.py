@@ -597,6 +597,8 @@ def test_the_dependency_is_restored_when_the_runner_is_signalled(tmp_path, upstr
         if p.poll() is None:
             p.kill()
     assert not flag.exists(), "the dependency was left down"
+    assert p.returncode == chaos_run.EXIT_INTERRUPTED == 4, "a run cut short must not exit 0 or 1"
+    assert "INCOMPLETE" in p.stderr.read()
 
 
 def test_a_failing_dependency_command_is_a_failed_experiment_not_a_traceback(tmp_path, upstream):

@@ -304,3 +304,77 @@ def test_gate_skip_for_a_remote_target_without_authorization_is_one_line_too(moc
     gate_lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("SKIPPED") and "safety gate:" in ln]
     assert len(gate_lines) == 1 and "APITEST_AUTHORIZED" in gate_lines[0], proc.stdout[-600:]
     assert "failed" not in proc.stdout and "error" not in proc.stdout.lower().replace("errors", "")
+
+
+# ---------------------------------------------------------------- sample values that real validators accept
+@pytest.mark.parametrize("name,kind,expected", [
+    ("email", "string", "apitest@example.com"), ("owner_email", "string", "apitest@example.com"),
+    ("default_status", "integer", 200), ("status_code", "integer", 200), ("statusCode", "integer", 200),
+    ("callback_url", "string", "https://example.com/apitest"), ("homepage", "string", "https://example.com/apitest"),
+    ("port", "integer", 8080), ("name", "string", None), ("status_text", "string", None), ("page", "integer", None)])
+def test_name_hints(name, kind, expected):
+    assert gen_common.name_hint(name, kind) == expected
+
+
+def test_sample_uses_name_hints_only_when_the_spec_gives_nothing_better():
+    S = gen_common.sample
+    assert S({"type": "integer"}, "default_status") == 200
+    assert S({"type": "string"}, "email") == "apitest@example.com"
+    assert S({"type": "integer", "minimum": 100, "maximum": 599}, "default_status") == 100   # a range wins
+    assert S({"type": "integer", "default": 404}, "default_status") == 404
+    assert S({"type": "string", "pattern": "^x+$"}, "email") == "sample-email"                # a pattern: do not override
+    assert S({"type": "string"}, "label") == "sample-label"
+
+
+def test_hinted_values_are_still_marked_as_guesses():
+    assert gen_common.is_guessed({"name": "email", "schema": {"type": "string"}})
+
+
+def _flow_spec(param="itemId", with_id_in_create=False):
+    create = {"responses": {"200": {"description": "ok"}}, "requestBody": {"content": {"application/json": {"schema": {
+        "type": "object", "required": ["n"], "properties": {"n": {"type": "string"}}}}}}}
+    if with_id_in_create:
+        create["responses"] = {"201": {"description": "ok", "content": {"application/json": {"schema": {
+            "type": "object", "properties": {param: {"type": "string"}}}}}}}
+    return {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "servers": [{"url": "http://127.0.0.1:1"}], "paths": {
+        "/things": {"post": create},
+        "/things/{%s}" % param: {"get": {"parameters": [{"name": param, "in": "path", "required": True, "schema": {"type": "string"}}],
+                                         "responses": {"200": {"description": "ok"}}}}}}
+
+
+def _integration(tmp_path, spec):
+    f = tmp_path / "s.json"
+    f.write_text(json.dumps(spec))
+    out = tmp_path / "o"
+    res = gen_pytest.generate(parse_openapi.build(str(f)), out, ["integration"])
+    return out, res["notes"]
+
+
+def test_no_create_then_read_flow_for_a_value_the_server_echoes(tmp_path):
+    out, notes = _integration(tmp_path, _flow_spec("anything"))
+    assert not (out / "test_integration.py").exists() or "lifecycle" not in (out / "test_integration.py").read_text()
+    assert any("echoes or computes" in n for n in notes)
+
+
+def test_flow_kept_for_id_named_params_and_when_the_create_response_documents_the_param(tmp_path):
+    (tmp_path / "a").mkdir()
+    out, _ = _integration(tmp_path / "a", _flow_spec("itemId"))
+    assert "test_flow_things_lifecycle" in (out / "test_integration.py").read_text()
+    (tmp_path / "b").mkdir()
+    out, _ = _integration(tmp_path / "b", _flow_spec("code", with_id_in_create=True))
+    assert "test_flow_things_lifecycle" in (out / "test_integration.py").read_text()
+
+
+def test_skip_message_says_when_the_auth_scheme_was_inferred(tmp_path):
+    spec = {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "servers": [{"url": "http://127.0.0.1:1"}], "paths": {
+        "/bearer": {"get": {"parameters": [{"name": "Authorization", "in": "header", "schema": {"type": "string"}}],
+                            "responses": {"200": {"description": "ok"}, "401": {"description": "no"}}}}}}
+    f = tmp_path / "s.json"
+    f.write_text(json.dumps(spec))
+    out = tmp_path / "o"
+    gen_pytest.generate(parse_openapi.build(str(f)), out, ["positive"])
+    assert "'inferred': True" in (out / "conftest.py").read_text()
+    env = {k: v for k, v in os.environ.items() if not k.startswith("APITEST_")}
+    r = subprocess.run([sys.executable, "-m", "pytest", str(out), "-rs", "-q", "-p", "no:cacheprovider"], env={**env, "APITEST_BASE_URL": "http://127.0.0.1:1"},
+                       capture_output=True, text=True, cwd=tmp_path)
+    assert "credentials not configured: set APITEST_INFERRED_AUTHORIZATION_TOKEN" in r.stdout and "scheme is inferred" in r.stdout, r.stdout

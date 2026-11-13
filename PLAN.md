@@ -78,3 +78,4 @@ UI accessibility testing (separate skill), mobile, gRPC (v2), hosted service (re
 - [x] Reporting understands chaos results (`summarize_results.py`: type `chaos`, intrusive note, rerun command)
 - [x] Gaps: guessed required body fields flagged, integration flows skip when the create response has no id, undeclared auth parameters inferred, `APITEST_READ_ONLY` public-sandbox mode, PR #8 nits (the destructive marker and xdist note were already in)
 - [x] Tests (`tests/test_chaos.py`) and a live run against the spring-boot-demo with a throwaway Postgres (docs/evals.md)
+- [x] Eval follow-ups: name-based sample values, no echo-endpoint flows, inferred-auth skip hint, chaos exit code 4 on signal, URL-path secret note
