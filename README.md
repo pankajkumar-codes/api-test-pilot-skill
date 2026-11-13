@@ -109,8 +109,9 @@ Notes on running generated suites:
 - Tests that delete or overwrite data are marked `destructive`, need `APITEST_ALLOW_DESTRUCTIVE=yes`, and run last.
   With `pytest-xdist` each worker orders its own share, so use `-p no:xdist` (or `-n 0`) when that order matters to you.
 - Be polite to shared targets: `APITEST_DELAY_MS=300` (or `--apitest-delay-ms 300`) pauses between requests, `APITEST_RPS=5`
-  (or `--apitest-rps 5`) caps the rate; with both, the slower limit applies. A connection error is retried (GET/HEAD/OPTIONS only,
-  `APITEST_RETRIES`, default 2) and then skipped as "target unreachable", never reported as an API failure.
+  (or `--apitest-rps 5`) caps the rate; with both, the slower limit applies. A failed connect is retried (GET/HEAD/OPTIONS only,
+  `APITEST_RETRIES`, default 2) and then skipped as "target unreachable" (set `APITEST_UNREACHABLE=fail` to fail instead; smoke tests always
+  fail). A server that drops or hangs after connecting is a failure, never a skip. Rate-limit probes skip while a throttle is set.
 - The safety gate's skips are listed once (`-rs`) with a one-line summary instead of once per test.
 - If more than half of the tests skip (missing credentials, ids or gate variables), pytest prints a warning and the report adds
   one, because a green result then covers only the tests that ran. Use `-rs` to see the reasons.

@@ -29,8 +29,10 @@ First release candidate, built in phases (see PLAN.md).
 - False positives found by running the suite on four public APIs: the "unknown id returns 404" test now runs only for path
   parameters that name a resource (`id`, `petId`, `uuid`, `slug`, `username`, or the only parameter of an endpoint that documents a 404),
   not for `/redirect/{n}` or `/anything/{anything}`; optional query parameters with no spec example, default, enum, range or format are
-  no longer sent with an invented value (`?status=1`), and a failure caused by an invented required value says so; a transient connection
-  error (proxy hiccup, reset, timeout) is retried for GET/HEAD/OPTIONS and then skipped as "target unreachable" instead of failing.
+  no longer sent with an invented value (`?status=1`), and a failure caused by an invented required value says so; a failure to
+  connect (refused, DNS, connect timeout, proxy tunnel) is retried for GET/HEAD/OPTIONS and then skipped as "target unreachable" (smoke tests
+  and `APITEST_UNREACHABLE=fail` fail instead, so a dead target still exits non-zero). An error after connecting (drop, reset, hang) fails
+  the test with a clear message for every method, because it is what a crashing server does.
 - The safety-gate skip is reported as one `-rs` line plus one summary line, not one line per test. The gate itself is unchanged.
 - Redaction fails closed: values nested deeper than 64 levels, or too deep to parse, are replaced by a placeholder and never printed
   raw (a secret hidden deep in a response can no longer reach a failure message or the JUnit file).
@@ -42,7 +44,7 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Changed
 - Request throttle: `APITEST_DELAY_MS` / `APITEST_RPS` (or `--apitest-delay-ms` / `--apitest-rps`) space every request the generated
-  suite sends; `APITEST_RETRIES` (default 2) sets the retries after a connection error.
+  suite sends; `APITEST_RETRIES` (default 2) sets the retries after a failed connect. Rate-limit probes skip while a throttle is set.
 - A remote target without `APITEST_TARGET_ENV` now stops the whole pytest run with exit code 4 and one clear message,
   instead of erroring test by test (generated `conftest.py`, `preflight()` in the runtime).
 - Destructive tests carry a `destructive` pytest marker; the run-last ordering uses it instead of reading test source.
