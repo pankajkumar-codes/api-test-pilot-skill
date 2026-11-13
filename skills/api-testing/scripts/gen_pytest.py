@@ -88,7 +88,7 @@ def env_names(doc: dict) -> list[str]:
 
 
 def conftest_source(doc: dict, base_url: str, extra_fixtures: str = "") -> str:
-    schemes = {n: {k: v for k, v in s.items() if k in ("type", "scheme", "in", "name", "env")}
+    schemes = {n: {k: v for k, v in s.items() if k in ("type", "scheme", "in", "name", "env", "inferred")}
                for n, s in (doc.get("security_schemes") or {}).items()}
     envs = env_names(doc)
     env_doc = "\n".join(f"  {gen_common.doc_safe(n)}" for n in envs) or "  (none: this API declares no authentication)"

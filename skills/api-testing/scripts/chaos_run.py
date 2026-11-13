@@ -21,7 +21,8 @@ Safety (CLAUDE.md, non-negotiable; scripts/safety_gate.py is the single gate):
     also on error, Ctrl-C and SIGTERM.
   * Blast radius is capped in code: request rate, fault length, total run time, payload size and burst size have hard ceilings.
   * Output holds paths, statuses and timings only: no headers, bodies or credentials. Credentials come from the environment.
-Exit codes: 0 every experiment passed or was skipped, 1 at least one experiment found a problem, 2 bad input, 3 gate refused.
+Exit codes: 0 every experiment passed or was skipped, 1 at least one experiment found a problem, 2 bad input, 3 gate refused,
+4 a signal (Ctrl-C, SIGTERM, SIGHUP) cut the run short: faults were undone and results are partial (also when some experiments had failed).
 """
 from __future__ import annotations
 
@@ -287,6 +288,8 @@ def load_dependencies(path: str | None) -> dict[str, dict]:
         deps[d["name"]] = entry
     return deps
 
+
+EXIT_INTERRUPTED = 4   # 0 ok, 1 failed experiments, 2 bad input, 3 refused by the safety gate, 4 cut short by a signal
 
 STOP_SIGNALS = [getattr(signal, n) for n in ("SIGINT", "SIGTERM", "SIGHUP") if hasattr(signal, n)]
 
@@ -777,6 +780,7 @@ def main(argv: list[str] | None = None) -> int:
 
     runner = Runner(a, doc, base, probes, auth_headers(doc))
     install_stop_handlers()
+    interrupted = False
     try:
         if dep_listen:
             runner.dep_proxy = chaos_proxy.TcpFaultProxy(dep_listen[1], listen_port=dep_listen[0]).start()
@@ -792,6 +796,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 3
     except KeyboardInterrupt:
+        interrupted = True
         print("interrupted: undoing faults", file=sys.stderr)
     finally:
         runner.hooks.undo_all()
@@ -807,6 +812,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  FAILED [{r.severity}] {r.name}: {r.title}")
     print(f"Report: python {shlex.quote(str(Path(sys.argv[0]).with_name('summarize_results.py')))} --junit {shlex.quote(a.out)}/chaos.xml "
           f"--intake {shlex.quote(a.intake)} -o reports/chaos-report.md")
+    if interrupted:
+        print(f"INCOMPLETE: a signal (Ctrl-C/SIGTERM/SIGHUP) cut the run short; faults were undone, results above are partial. "
+              f"Exit code {EXIT_INTERRUPTED}.", file=sys.stderr)
+        return EXIT_INTERRUPTED
     return 1 if bad else 0
 
 

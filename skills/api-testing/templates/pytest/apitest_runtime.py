@@ -848,7 +848,9 @@ class Api:
             if not gaps:
                 return h, q, c
             missing = missing or gaps
-        pytest.skip("credentials not configured: set " + ", ".join(missing or ["(no auth scheme)"]))
+        hint = " (the spec declares no security scheme; the credential parameter was recognised by name, so the " \
+               "scheme is inferred)" if any(self.schemes.get(x, {}).get("inferred") for alt in sec for x in alt) else ""
+        pytest.skip("credentials not configured: set " + ", ".join(missing or ["(no auth scheme)"]) + hint)
 
     def token(self, scheme: str, who: str = "A") -> str:
         names = (self.schemes.get(scheme) or {}).get("env") or []

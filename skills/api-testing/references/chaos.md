@@ -2,7 +2,7 @@
 
 **Safety gate first.** Chaos breaks things on purpose. It belongs in a non-production environment that the user owns or is authorized to test.
 Ask the user to confirm both; never set `APITEST_TARGET_ENV` or `APITEST_AUTHORIZED` yourself, never tick the plan's checklist for them.
-`chaos_run.py` enforces the same gate as load and fuzz (`safety_gate.py`): production is refused (exit 3), a non-loopback target needs
+`chaos_run.py` enforces the same gate as load and fuzz (`safety_gate.py`): production is refused (exit 3); a run cut short by Ctrl-C, SIGTERM or SIGHUP undoes its faults, writes the partial results and exits 4 (so a pipeline never reads a partial run as a pass or as ordinary failures), a non-loopback target needs
 `APITEST_TARGET_ENV` (non-production) and `APITEST_AUTHORIZED=yes`.
 
 ## 1. Plan (nothing is sent)
@@ -52,3 +52,5 @@ passes the gate, at most 64 connections. Output holds paths, statuses and timing
 
 ## After the run
 Report which experiments **ran**, which were skipped and why, and the rerun command the runner prints. Turn findings into fixes or accepted risks.
+
+Secrets in the target: the query string and userinfo of the target are never echoed, but a secret placed in the URL **path** (for example `https://host/t/<token>/api`) would be printed in the rerun line, `chaos.json` and the report. Put credentials in headers/env vars, not in the path.
