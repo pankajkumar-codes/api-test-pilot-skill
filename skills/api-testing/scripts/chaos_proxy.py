@@ -349,7 +349,7 @@ class TcpFaultProxy(_Base):
                     time.sleep(fault.latency_ms / 1000)
                 self._count("bytes", len(data))
                 dst.sendall(data)
-        except OSError:
+        except (OSError, ValueError):   # ValueError: the socket was closed under us by a reset fault
             pass
         finally:
             stop.set()

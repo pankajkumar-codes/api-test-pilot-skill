@@ -202,8 +202,12 @@ def test_tcp_proxy_passthrough_latency_blackhole_reset():
                 except OSError:
                     return True
             assert closed(c)
-            n = socket.create_connection(("127.0.0.1", px.port), timeout=2)
-            assert closed(n)
+            try:
+                n = socket.create_connection(("127.0.0.1", px.port), timeout=2)
+            except OSError:
+                pass   # reset while connecting: the fault is doing its job
+            else:
+                assert closed(n)
             px.clear_fault()
             d = socket.create_connection(("127.0.0.1", px.port), timeout=3)
             d.sendall(b"ok")
