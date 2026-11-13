@@ -32,6 +32,7 @@ Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the ta
 non-production and (b) they own or are authorized to test it. If not confirmed, stop. Do not weaken this.
 The user exports `APITEST_TARGET_ENV` (non-production value) and `APITEST_AUTHORIZED=yes`; never set them yourself
 (loopback targets pass without them; production is always refused). `run_k6.py`, the k6 scripts and the fuzz tests enforce this too.
+A public sandbox you only read from: `APITEST_READ_ONLY=yes` sends only GET/HEAD/OPTIONS and no active probes (pytest suites skip writes and intrusive tests, k6 skips write methods, `chaos_run.py` skips payload and dependency-command experiments).
 
 ## 4. Generate
 Read only the reference files for the chosen test types, then generate runnable pytest:
@@ -43,7 +44,7 @@ Spec drift between versions: `python scripts/spec_diff.py old.json new.json`.
 Non-functional (after step 3 only; details in each reference):
 - load/stress/spike/soak: `python scripts/gen_k6.py intake.json -o k6_tests --profiles load` (GET-only, capped, `--quick` first), run with `python scripts/run_k6.py k6_tests/load.js`
 - fuzz: `python scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz` (opt-in, REST only, seeded and rate-limited)
-- chaos: `python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging` (a plan only: nothing is injected in v1)
+- chaos: plan with `python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging`; run experiments with `python scripts/chaos_run.py intake.json --dry-run` first (proxy faults, payload bursts, your own dependency commands; never guess commands)
 
 ## 5. Run
 Execute if the environment allows; otherwise print the exact commands to run. Always print the rerun command.
@@ -68,7 +69,7 @@ Report what was run and what was skipped; never state results the files do not c
 - `references/load.md` — k6 setup, caps and the launcher; load profile
 - `references/stress.md`, `references/spike.md`, `references/soak.md` — the other k6 profiles
 - `references/reporting.md` — building the report, severity rules, what it never prints
-- `references/chaos.md` — fault-injection plans (plans only in v1)
+- `references/chaos.md` — chaos plans and runnable experiments (`chaos_run.py`)
 - `references/fuzzing.md` — malformed-input fuzzing
 
 ## Not covered

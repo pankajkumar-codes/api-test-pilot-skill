@@ -9,6 +9,7 @@ Output shape: see references/intake.md.
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -170,6 +171,28 @@ def _scheme_info(name: str, s: dict) -> dict:
     return info
 
 
+AUTH_PARAMS = {"authorization", "x-api-key", "api-key", "apikey", "api_key", "x-auth-token", "x-access-token", "access_token", "x-token"}
+
+
+def _inferred_scheme(params: list[dict], schemes: dict) -> str | None:
+    """Scheme name for an operation that declares no security but has a credential parameter (header or query).
+    The synthetic scheme is added to `schemes` (marked inferred) so the generated tests send credentials from env vars."""
+    for p in params:
+        name = str(p.get("name", ""))
+        if p.get("in") not in ("header", "query") or name.lower() not in AUTH_PARAMS:
+            continue
+        key = "inferred_" + re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+        if key not in schemes:
+            if name.lower() == "authorization":
+                info: dict[str, Any] = {"type": "http", "scheme": "bearer", "env": [env_name(key, "TOKEN")]}
+            else:
+                info = {"type": "apiKey", "in": p["in"], "name": name, "env": [env_name(key, "KEY")]}
+            info["inferred"] = True
+            schemes[key] = info
+        return key
+    return None
+
+
 def _security_reqs(sec: Any) -> list[list[str]]:
     """[{a: [], b: []}, {c: []}] -> [[a, b], [c]] (OR of ANDs). Empty dict = anonymous allowed."""
     return [sorted(req.keys()) for req in (sec or []) if isinstance(req, dict)]
@@ -281,6 +304,13 @@ def parse(doc: Any, filename: str = "") -> dict:
             # effective auth: operation-level overrides global; [] means public
             reqs = _security_reqs(op["security"]) if "security" in op else global_sec
             auth_required = bool(reqs) and not any(len(req) == 0 for req in reqs)
+            if not reqs and "security" not in op:   # no scheme declared anywhere, yet a parameter carries a credential
+                inferred = _inferred_scheme(list(params.values()), schemes)
+                if inferred:
+                    reqs, auth_required = [[inferred]], True
+                    warnings.append(f"{method.upper()} {path}: no security scheme is declared, but the parameter "
+                                    f"'{schemes[inferred]['name'] if schemes[inferred].get('name') else 'Authorization'}' carries a credential; "
+                                    f"treated as {schemes[inferred]['type']} auth ({schemes[inferred]['env'][0]}). Declare a securityScheme in the spec to be exact.")
             for req in reqs:
                 for s in req:
                     if s not in schemes:

@@ -90,7 +90,8 @@ def success_codes(ep: dict) -> list[int]:
 
 def expected_ok_codes(ep: dict) -> list[int]:
     """Statuses a valid request should get: the declared 2xx, or the declared 3xx when the spec has no 2xx
-    (redirect endpoints such as GET /redirect/3 -> 302 are successes, not failures)."""
+    (redirect endpoints such as GET /redirect/3 -> 302 are successes, not failures). When a spec declares both a 2xx and
+    a 3xx (200 and 302 on one operation), only the 2xx is expected: the 3xx is treated as an alternative outcome."""
     ok = success_codes(ep)
     return ok or sorted(int(c) for c in ep.get("responses", {}) if str(c).isdigit() and 300 <= int(c) < 400)
 
@@ -274,6 +275,16 @@ def guessed_query(ep: dict) -> list[str]:
     """Names of required query params in the baseline whose value is a guess (see is_guessed)."""
     return [p["name"] for p in params_in(ep, "query") if p.get("required") and is_guessed(p)
             and param_value(p) is not None]
+
+
+def guessed_body(ep: dict) -> list[str]:
+    """`body.<field>` for each required top-level JSON body field whose baseline value is invented (see is_guessed)."""
+    sch = body_schema(ep)
+    if not sch or not isinstance(sch.get("properties"), dict) or not has_json_body(ep):
+        return []
+    return [f"body.{k}" for k in sch.get("required") or []
+            if isinstance(sch["properties"].get(k), dict) and not is_secret_name(k)
+            and is_guessed({"name": k, "schema": sch["properties"][k]})]
 
 
 def writable_props(schema: dict | None) -> dict:

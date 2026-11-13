@@ -55,7 +55,7 @@ function gateReason(baseUrl) {
   }
   const tenv = envOf('APITEST_TARGET_ENV').trim().toLowerCase();
   if (PROD_ENVS.indexOf(tenv) !== -1) {
-    return 'safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak and fuzz runs never target production';
+    return 'safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak, chaos and fuzz runs never target production';
   }
   if (isLocalHost(host)) return null;
   if (NON_PROD_ENVS.indexOf(tenv) === -1) {
@@ -157,8 +157,8 @@ function resolveVars(value, missing) {
 }
 
 function build(ep, notes) {
-  if (ep.write && !(CONFIG.includeWrites && truthy('APITEST_ALLOW_WRITES'))) {
-    notes.push(ep.tag + ': write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)');
+  if (ep.write && (truthy('APITEST_READ_ONLY') || !(CONFIG.includeWrites && truthy('APITEST_ALLOW_WRITES')))) {
+    notes.push(ep.tag + (truthy('APITEST_READ_ONLY') ? ': write method skipped (APITEST_READ_ONLY=yes)' : ': write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)'));
     return null;
   }
   let path = ep.path;

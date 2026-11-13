@@ -16,7 +16,7 @@
 | 12 | Stress | Beyond capacity: breaking point, recovery | k6 script |
 | 13 | Spike | Sudden surge and recovery | k6 script |
 | 14 | Soak | Long run: leaks, degradation | k6 script |
-| 15 | Chaos | Dependency failure, latency injection, partial outages | fault-injection plan |
+| 15 | Chaos | Dependency failure, latency injection, partial outages | fault-injection plan + `chaos_run.py` experiments (JUnit/JSON) |
 | 16 | Fuzzing | Randomized malformed input; crashes, 5xx, leaks | script + findings |
 | 17 | Versioning / compatibility | Old clients still work on new versions | diff report (`scripts/spec_diff.py`) |
 | 18 | Error-message quality / i18n | Helpful errors, encoding, localization | pytest |

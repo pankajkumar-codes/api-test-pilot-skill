@@ -1,4 +1,4 @@
-"""Safety gate for non-functional runs (load, stress, spike, soak, fuzz). Stdlib only, offline.
+"""Safety gate for non-functional runs (load, stress, spike, soak, chaos, fuzz). Stdlib only, offline.
 
 Mirrors the gate in templates/pytest/apitest_runtime.py (intrusive tests) and the JavaScript gate inside every
 generated k6 script; tests/test_nonfunctional.py proves the three agree on a host matrix. This copy is deliberately
@@ -98,7 +98,7 @@ def gate_reason(base_url: str, env: Mapping[str, str] | None = None) -> str | No
         return "safety gate: the target must be a plain http(s) URL (no credentials, backslashes, spaces or ambiguous host)"
     tenv = e.get("APITEST_TARGET_ENV", "").strip().lower()
     if tenv in PROD_ENVS:
-        return "safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak and fuzz runs never target production"
+        return "safety gate: APITEST_TARGET_ENV says production; load, stress, spike, soak, chaos and fuzz runs never target production"
     if is_local_host(host):
         return None
     if tenv not in NON_PROD_ENVS:

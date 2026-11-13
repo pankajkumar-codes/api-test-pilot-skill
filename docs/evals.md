@@ -66,7 +66,7 @@ Real k6 behaviour is exercised only by tests that need a k6 binary; CI without k
 Who ran what (PR 3): the PR 3 reviewer did **not** run k6 (no binary in the review environment, so the 13 real-k6 tests skipped there); the author did, with k6 v1.3.0, and all 13 real-k6 tests passed. Treat the real-k6 results as author-verified, not independently re-run.
 
 Not verified: k6 against the `eval-apis.md` targets and any real network (Phase 5); k6 other than v1.3.0 on Linux x86-64; runs longer than a few
-minutes (the full-length shapes were checked by construction and by the `--quick` shapes, not run end to end); chaos experiments (v1 produces plans only);
+minutes (the full-length shapes were checked by construction and by the `--quick` shapes, not run end to end); chaos experiments against real third-party targets (see the Phase 8 section for the local run);
 GraphQL fuzzing (not built); WebSocket/gRPC load.
 
 ## Phase 4: reporting on real pytest and k6 output (2026-11-12)
@@ -220,3 +220,25 @@ so the success-path contract test of a login endpoint fails on a target that is 
 - k6 was not installed in this sandbox: the 17 real-k6 tests skip here (full suite: 259 passed, 17 skipped). The Phase 3/4 notes about real-k6 runs still stand; nothing in Phase 5 touches k6.
 - Load, stress, spike, soak, chaos and fuzz were not part of the Phase 5 evals (they are gated and need self-hosted targets); fuzzing the seeded app and the mocks was covered in Phase 3.
 - No eval target is fuzzed or load-tested in `run_evals.py`: it only runs the functional, contract, security, data-validation, integration and resilience suites.
+
+## Phase 8: executable chaos on a real local app (2026-11-13)
+Target: `pankajkumar-codes/spring-boot-demo` (Spring Boot 4.1, `e4544f8`) run from its jar on `localhost:8080`, against a **throwaway PostgreSQL 16** started for the run
+(`initdb` in a temp directory, port 5332; nothing else was touched). Spec: the five-endpoint `openapi.json` from the earlier local run. Everything ran locally; no third-party host was contacted.
+Probe: `GET /api/v1/software-engineers` (reads the database), 5 req/s.
+
+| Experiment | What ran | Result |
+|---|---|---|
+| `proxy-latency` (+250, +1000, +3000 ms), `proxy-5xx` (50 %), `proxy-drop` (abort and reset, 50 %) | local HTTP fault proxy in front of the app | pass: no 5xx from the app itself, recovered in under 1 s each time |
+| `payload` (POST, 10 requests per case) | oversized 256 KiB, malformed JSON, 800-deep nesting, `text/plain`, truncated body | pass: 400, 400, 400, 415, connection closed cleanly; the app answered health probes afterwards |
+| `dep-outage` | PostgreSQL stopped with `pg_ctl stop -m fast` for 8 s, then started (user-supplied commands via `--allow-hooks`) | pass: 8 of 12 probes failed during the outage, all within about 3 s (Hikari `connection-timeout=3000`), recovered 2.9 s after the database returned |
+| `dep-reset` | TCP proxy between the app and PostgreSQL resets every connection | pass: recovered 3.2 s after the fault was removed |
+| `dep-latency` (+2 s per chunk) | same proxy | pass: no failures, but p95 rose to 8.1 s (several round trips per query) |
+| `dep-slow` | PostgreSQL frozen with SIGSTOP for 8 s, then SIGCONT | **finding (MEDIUM)**: failed requests took about 5.0 s (limit 5.0 s); the queries wait on a socket with no read timeout; recovered 0.8 s after SIGCONT |
+| `dep-blackhole` | proxy swallows the bytes, connections stay open | **finding (MEDIUM)**: 8 of 8 probes failed after about 5.0 s; recovered 3.7 s after the fault was removed |
+
+What the two findings mean: the app fails fast (about 3 s) when the database is *down* (connection refused) but takes about 5 s, and not 3, when the database is *hung or
+silent*. The cause was not investigated beyond this run; a JDBC `socketTimeout` and a query timeout are the usual way to bound it. The limit (`--fail-fast-ms`, default 5000) is a default, not a standard,
+and the 5.0 s observed sits right at it, so treat these two as "at the limit", not as a measured hang. Each fault was bounded, so unbounded hanging was not measured.
+The chaos results were turned into a report with `summarize_results.py` (type `chaos`, two MEDIUM findings, each with the `chaos_run.py` rerun command).
+
+Not verified: HTTPS upstreams (the proxy code supports them; no run), IPv6, chunked request bodies through the proxy (answered 411 by design), remote targets, Windows.

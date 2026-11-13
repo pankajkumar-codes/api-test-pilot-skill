@@ -33,7 +33,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 
 ## Phase 3 — Non-functional modules
 - [x] references/load.md, stress.md, spike.md, soak.md → k6 scripts (`gen_k6.py`, `run_k6.py`; REST and GraphQL queries)
-- [x] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down) via `gen_chaos_plan.py`; plans only, nothing injected
+- [x] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down) via `gen_chaos_plan.py`; plans; executable experiments added in Phase 8 (`chaos_run.py`, `chaos_proxy.py`)
 - [x] references/fuzzing.md (`--types fuzz` in `gen_pytest.py`, REST; GraphQL fuzzing deferred)
 - [x] Safety gate wired into every non-functional flow (`safety_gate.py`, k6 script start-up gate, `intrusive` fuzz tests, chaos plan checklist)
 - [~] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
@@ -71,3 +71,10 @@ Preparation is done on a branch; the outward-facing steps need the maintainer (s
 
 ## Out of scope for v1
 UI accessibility testing (separate skill), mobile, gRPC (v2), hosted service (revisit only if the skill gains traction).
+
+## Phase 8 — Executable chaos and skill gaps (2026-11-13)
+- [x] DECISIONS.md: chaos is no longer plan-only (overrides the Phase 0 decision)
+- [x] `scripts/chaos_proxy.py` (HTTP and TCP fault proxies, loopback only) and `scripts/chaos_run.py` (runner, hooks, payload bursts, recovery time, JUnit + JSON)
+- [x] Reporting understands chaos results (`summarize_results.py`: type `chaos`, intrusive note, rerun command)
+- [x] Gaps: guessed required body fields flagged, integration flows skip when the create response has no id, undeclared auth parameters inferred, `APITEST_READ_ONLY` public-sandbox mode, PR #8 nits (the destructive marker and xdist note were already in)
+- [x] Tests (`tests/test_chaos.py`) and a live run against the spring-boot-demo with a throwaway Postgres (docs/evals.md)

@@ -113,7 +113,9 @@ def generate(doc: dict, mod: Module) -> list[str]:
                   f"    resp = api.send(ep{', ' + path if path else ''})",
                   "    rt.expect_ok(resp, ep)", "    rt.expect_contract(resp, ep)",
                   f"    ids[{param!r}] = rt.extract_id(resp, {param!r})",
-                  f"    assert ids[{param!r}] is not None, \"create response has no id (JSON id field or Location header)\""]
+                  f"    if ids[{param!r}] is None:",
+                  "        pytest.skip(\"create succeeded but the response has no id (no JSON id-like field, no Location header): "
+                  "cannot continue this flow; the created data was not removed\")"]
             if c.get("delete"):
                 L.append(f"    cleanup.add(lambda p=dict(ids): api.send(EP[{c['delete']['id']!r}], path=p))")
             if i < len(chain) - 1:
