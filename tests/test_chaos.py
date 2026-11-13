@@ -30,12 +30,16 @@ class Upstream(ThreadingHTTPServer):
     daemon_threads = True
 
 
+SEEN: list[str] = []
+
+
 def make_upstream(posts_5xx: bool = False):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
 
         def do_GET(self):
+            SEEN.append("GET")
             body = b'{"ok":true,"pad":"' + b"x" * 200 + b'"}'
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -44,6 +48,7 @@ def make_upstream(posts_5xx: bool = False):
             self.wfile.write(body)
 
         def do_POST(self):
+            SEEN.append("POST")
             n = int(self.headers.get("Content-Length") or 0)
             self.rfile.read(n)
             code = 500 if posts_5xx else 400
@@ -472,3 +477,137 @@ def test_read_only_replaces_the_environment_confirmation_for_remote_reads_only(g
 def test_chaos_type_is_reported_as_intrusive_with_the_gate_note():
     assert "chaos" in summarize_results.INTRUSIVE_TYPES and "chaos" in summarize_results.DEFAULT_SEVERITY
     assert safety_gate.gate_reason("http://example.com", {}) is not None
+
+
+# --------------------------------------------------------------------------- review fixes (PR 10)
+CANARY = "SECRETCANARY8431"
+
+
+def test_secrets_in_the_target_or_probe_query_are_never_printed_or_written(tmp_path, upstream):
+    intake = intake_for(tmp_path)
+    out = tmp_path / "res"
+    dry = run_cli([intake, "--base-url", f"{upstream}/?api_key={CANARY}#{CANARY}", "--probe", f"/health?token={CANARY}", "--dry-run"])
+    assert dry.returncode == 0 and CANARY not in dry.stdout + dry.stderr
+    real = run_cli([intake, "--base-url", f"{upstream}/?api_key={CANARY}", "--probe", f"/health?token={CANARY}", "--experiments", "payload",
+                    "--baseline-s", "2", "--burst", "1", "--out", str(out)])
+    assert real.returncode == 0, real.stdout + real.stderr
+    for text in (real.stdout, real.stderr, (out / "chaos.xml").read_text(), (out / "chaos.json").read_text()):
+        assert CANARY not in text
+
+
+def test_hook_arguments_mask_url_passwords():
+    assert "hunter2" not in chaos_run.mask(["psql", "postgresql://user:hunter2@localhost/db"])
+
+
+def junit_with(tmp_path, rerun):
+    xml = tmp_path / "evil.xml"
+    xml.write_text('<testsuites><testsuite name="chaos"><testcase classname="chaos.test_chaos" name="test_chaos_dep_slow_db" time="1">'
+                   f'<failure message="m">[MEDIUM] hang\nrerun: {rerun}</failure></testcase></testsuite></testsuites>')
+    return xml
+
+
+def test_report_rebuilds_the_chaos_command_and_never_echoes_the_result_files_line(tmp_path):
+    intake = intake_for(tmp_path)
+    for evil in ("PYTHONPATH=/tmp/evil python /tmp/evil/chaos_run.py intake.json --dependency-config /tmp/evil/deps.json --allow-hooks --experiments dep-outage",
+                 "python chaos_run.py ../../etc/passwd --experiments dep-outage",
+                 "python chaos_run.py intake.json --experiments rm-rf,dep-outage"):
+        rep = tmp_path / "r.md"
+        assert summarize_results.main(["--junit", str(junit_with(tmp_path, evil)), "--intake", intake, "-o", str(rep)]) == 0
+        text = rep.read_text()
+        assert "PYTHONPATH" not in text and "/tmp/evil" not in text and "--allow-hooks" not in text and "passwd" not in text
+        assert "<intake.json>" in text
+    rep = tmp_path / "ok.md"
+    good = "APITEST_BASE_URL=http://x python /home/me/chaos_run.py intake.json --experiments dep-slow,proxy-5xx --out res --allow-hooks"
+    summarize_results.main(["--junit", str(junit_with(tmp_path, good)), "--intake", intake, "-o", str(rep)])
+    text = rep.read_text()
+    assert "python scripts/chaos_run.py intake.json --experiments dep-slow,proxy-5xx" in text
+    assert "/home/me" not in text and "--allow-hooks" not in text.split("**Reproduce**")[1].split("```")[1]
+
+
+def test_read_only_mode_skips_payload_and_dependency_commands_and_sends_no_write(tmp_path):
+    srv = make_upstream()
+    try:
+        cfg = tmp_path / "deps.json"
+        flag = tmp_path / "ran"
+        cmd = [sys.executable, "-c", f"open({str(flag)!r}, 'w')"]
+        cfg.write_text(json.dumps({"dependencies": [{"name": "db", "stop": cmd, "start": cmd, "slow_on": cmd, "slow_off": cmd}]}))
+        SEEN.clear()
+        out = tmp_path / "res"
+        r = run_cli([intake_for(tmp_path), "--base-url", f"http://127.0.0.1:{srv.server_address[1]}", "--experiments", "payload,dep-outage,dep-slow",
+                     "--dependency-config", str(cfg), "--allow-hooks", "--baseline-s", "2", "--out", str(out)], {"APITEST_READ_ONLY": "yes"})
+        assert r.returncode == 0, r.stdout + r.stderr
+        statuses = {e["name"]: (e["status"], e["title"]) for e in json.loads((out / "chaos.json").read_text())["experiments"]}
+        for name in ("test_chaos_payload", "test_chaos_dep_outage", "test_chaos_dep_slow"):
+            assert statuses[name][0] == "skipped" and "read-only" in statuses[name][1]
+        assert "POST" not in SEEN and not flag.exists()
+    finally:
+        srv.shutdown()
+
+
+def test_k6_script_skips_writes_in_read_only_mode():
+    src = (ROOT / "skills" / "api-testing" / "templates" / "k6" / "k6_script.js").read_text()
+    line = next(ln for ln in src.splitlines() if "ep.write &&" in ln)
+    assert "APITEST_READ_ONLY" in line
+
+
+def test_undo_survives_an_interrupt_that_arrives_while_it_runs(tmp_path):
+    import signal
+    marker = tmp_path / "undone"
+    h = chaos_run.Hooks()
+    h.pending_undo.append(("db", [sys.executable, "-c", f"import time; time.sleep(0.8); open({str(marker)!r}, 'w')"]))
+    threading.Timer(0.3, lambda: os.kill(os.getpid(), signal.SIGINT)).start()
+    with pytest.raises(KeyboardInterrupt):   # delivered after the cleanup finished
+        h.undo_all()
+    assert marker.exists() and not h.pending_undo
+
+
+def test_a_failed_undo_stays_pending_for_a_retry(tmp_path):
+    h = chaos_run.Hooks()
+    h.pending_undo.append(("db", ["definitely-not-a-command-xyz"]))
+    h.undo_all()
+    assert not h.pending_undo   # reported as MANUAL ACTION REQUIRED, not retried forever
+
+
+@pytest.mark.parametrize("signals", [["SIGHUP"], ["SIGTERM", "SIGTERM"], ["SIGINT", "SIGTERM", "SIGHUP"]])
+def test_the_dependency_is_restored_when_the_runner_is_signalled(tmp_path, upstream, signals):
+    import signal
+    flag = tmp_path / "down"
+    cfg = tmp_path / "deps.json"
+    cfg.write_text(json.dumps({"dependencies": [{
+        "name": "db", "stop": [sys.executable, "-c", f"open({str(flag)!r}, 'w')"],
+        "start": [sys.executable, "-c", f"import time, os; time.sleep(1.5); os.remove({str(flag)!r})"]}]}))
+    env = {k: v for k, v in os.environ.items() if not k.startswith("APITEST_")}
+    p = subprocess.Popen([sys.executable, str(SCRIPTS / "chaos_run.py"), intake_for(tmp_path), "--base-url", upstream, "--experiments", "dep-outage",
+                          "--dependency-config", str(cfg), "--allow-hooks", "--baseline-s", "2", "--outage-s", "40", "--out", str(tmp_path / "res")],
+                         env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        deadline = time.monotonic() + 30
+        while not flag.exists() and time.monotonic() < deadline:
+            time.sleep(0.1)
+        assert flag.exists(), "the outage never started"
+        for i, name in enumerate(signals):
+            p.send_signal(getattr(signal, name))
+            time.sleep(0.4)
+        p.wait(timeout=30)
+    finally:
+        if p.poll() is None:
+            p.kill()
+    assert not flag.exists(), "the dependency was left down"
+
+
+def test_a_failing_dependency_command_is_a_failed_experiment_not_a_traceback(tmp_path, upstream):
+    cfg = tmp_path / "deps.json"
+    cfg.write_text(json.dumps({"dependencies": [{"name": "db", "stop": [sys.executable, "-c", "import sys; sys.exit(3)"],
+                                                 "start": [sys.executable, "-c", "pass"]}]}))
+    r = run_cli([intake_for(tmp_path), "--base-url", upstream, "--experiments", "dep-outage", "--dependency-config", str(cfg), "--allow-hooks",
+                 "--baseline-s", "2", "--out", str(tmp_path / "res")])
+    assert r.returncode == 1 and "Traceback" not in r.stderr and "FAILED [HIGH]" in r.stdout
+
+
+def test_proxy_survives_a_bad_content_length(upstream):
+    with chaos_proxy.HttpFaultProxy(upstream) as px:
+        s = socket.create_connection(("127.0.0.1", px.port), timeout=3)
+        s.sendall(b"POST /x HTTP/1.1\r\nHost: h\r\nContent-Length: -5\r\n\r\n")
+        assert s.recv(100).startswith(b"HTTP/1.")
+        s.close()
+        assert get(f"http://127.0.0.1:{px.port}/x")[0] == 200

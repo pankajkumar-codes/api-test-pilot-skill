@@ -157,8 +157,8 @@ function resolveVars(value, missing) {
 }
 
 function build(ep, notes) {
-  if (ep.write && !(CONFIG.includeWrites && truthy('APITEST_ALLOW_WRITES'))) {
-    notes.push(ep.tag + ': write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)');
+  if (ep.write && (truthy('APITEST_READ_ONLY') || !(CONFIG.includeWrites && truthy('APITEST_ALLOW_WRITES')))) {
+    notes.push(ep.tag + (truthy('APITEST_READ_ONLY') ? ': write method skipped (APITEST_READ_ONLY=yes)' : ': write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)'));
     return null;
   }
   let path = ep.path;

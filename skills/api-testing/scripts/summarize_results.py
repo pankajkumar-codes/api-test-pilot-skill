@@ -67,7 +67,9 @@ REQUEST_LINE_RE = re.compile(r"^\s*(" + "|".join(METHODS) + r")\s+(\S+)\s+->", r
 REPRO_RE = re.compile(r"^\s*repro:\s*(curl\s.*)$", re.M)
 OWASP_RE = re.compile(r"^API\d{1,2}(:\d{4})?$", re.I)
 SAFE_DIR_RE = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]{1,100}$")
-CHAOS_RERUN_RE = re.compile(r"^rerun: ((?:[A-Za-z_][A-Za-z0-9_]*=[A-Za-z0-9_./:@%+,-]+ )?python [A-Za-z0-9_./-]*chaos_run\.py [A-Za-z0-9_./:=,@%+ -]{1,500})$", re.M)
+CHAOS_EXPERIMENTS = {"proxy-latency", "proxy-5xx", "proxy-drop", "proxy-truncate", "proxy-blackhole", "payload", "dep-outage", "dep-slow",
+                     "dep-latency", "dep-blackhole", "dep-reset"}
+CHAOS_RERUN_LINE_RE = re.compile(r"^rerun: .*?\bchaos_run\.py ([A-Za-z0-9_./-]{1,100}) --experiments ([a-z0-9,-]{1,200})(?: |$)", re.M)
 SAFE_STEM_RE = re.compile(r"^test_[A-Za-z0-9_]{1,80}$")
 K6_FILE_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})-summary\.json$")
 THRESHOLD_RE = re.compile(r"^\s*(?P<agg>[A-Za-z_]+(?:\([0-9.]+\))?)\s*(?P<op><=|>=|==|!=|<|>|=)\s*(?P<lim>-?[0-9.]+(?:e[+-]?\d+)?)\s*$", re.I)
@@ -475,14 +477,25 @@ class Report:
 
     def _pytest_finding(self, rec: dict, raw: str, raw_name: str, request) -> Finding:
         sev, owasp, verdict, detail, repros = split_message(raw)
+        if rec["type"] == "chaos":   # the rerun line is parsed below, never shown as text
+            detail = [d for d in detail if not d.startswith("rerun:")]
         rating = "tagged by the test" if sev else "default for this test type"
         sev = sev or DEFAULT_SEVERITY.get(rec["type"], "MEDIUM")
         tests_dir = self.args.tests_dir
         prefix = base_prefix(self.args.base_url)
         stem_file = f"{tests_dir}/{rec['stem']}.py"
-        chaos = CHAOS_RERUN_RE.search(raw) if rec["type"] == "chaos" else None
-        if rec["type"] == "chaos":   # chaos results come from chaos_run.py, not pytest: use its own validated rerun line
-            cmd = chaos.group(1) if chaos else "python scripts/chaos_run.py <intake.json> --experiments <name> (rerun line missing or not in the expected shape)"
+        chaos_note = ""
+        if rec["type"] == "chaos":   # chaos results come from chaos_run.py, not pytest. The command is REBUILT from validated parts,
+            # never copied from the result file: that text is untrusted (env prefixes, script paths and flags such as --allow-hooks are dropped)
+            m = CHAOS_RERUN_LINE_RE.search(raw)
+            names = m.group(2).split(",") if m else []
+            if m and SAFE_DIR_RE.match(m.group(1)) and names and all(n in CHAOS_EXPERIMENTS for n in names):
+                cmd = f"{prefix} python scripts/chaos_run.py {shlex.quote(m.group(1))} --experiments {','.join(names)}"
+                if any(n in ("dep-outage", "dep-slow", "dep-latency", "dep-blackhole", "dep-reset") for n in names):
+                    chaos_note = ("dep-* experiments also need your own --dependency-config and --allow-hooks, or --dep-proxy; "
+                                  "they are not added to this command (see references/chaos.md).")
+            else:
+                cmd = "python scripts/chaos_run.py <intake.json> --experiments <name> (the result file's rerun line was missing or not in the expected shape)"
         elif rec["name"] == raw_name and SAFE_STEM_RE.match(rec["stem"]):
             cmd = f"{prefix} python -m pytest {shlex.quote(stem_file + '::' + rec['name'])} -v"
         elif SAFE_STEM_RE.match(rec["stem"]):   # a truncated or scrubbed name is not a valid node id: run the whole file
@@ -501,6 +514,7 @@ class Report:
         return Finding(sev, verdict or rec["name"], rec["endpoint"], rec["type"], rating,
                        [plain(ln, 220) for ln in lines], commands, owasp,
                        " ".join(x for x in (
+                           chaos_note,
                            GATE_NOTE if rec["type"] in INTRUSIVE_TYPES else "",
                            WRITE_NOTE if any(WRITE_CURL_RE.match(c) for c in curls) else "",
                            REDACTED_NOTE if any("<redacted>" in c for c in curls) else "",

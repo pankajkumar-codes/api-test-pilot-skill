@@ -36,7 +36,9 @@ Dependency commands live in a JSON file, as argv lists (no shell), and every fau
                    "slow_on": ["..."], "slow_off": ["..."]}]}
 ```
 Commands are never guessed or inferred from the spec. They run only with `--allow-hooks`, only against loopback targets, are printed (secret-looking
-arguments masked) before anything runs, and the undo runs on error, Ctrl-C and SIGTERM (`MANUAL ACTION REQUIRED` is printed if even that fails).
+arguments and `user:password@` in URLs masked; do not put secrets in commands anyway) before anything runs. The undo runs on error, Ctrl-C, SIGTERM and SIGHUP; signals are held while it runs, an undo stays pending until it has run, and the commands run in their own session (`MANUAL ACTION REQUIRED` is printed if even that fails).
+
+`APITEST_READ_ONLY=yes`: `payload`, `dep-outage` and `dep-slow` are skipped with a reason (they send writes or change a dependency); the proxy experiments send GETs only. The printed rerun line, `chaos.json` and the report never contain the target's or a probe's query string, and the report rebuilds its command from the experiment names (it never copies the result file's line, so add `--dependency-config`/`--allow-hooks` yourself).
 
 ## Findings the runner reports
 No recovery within `--max-recovery-s` (HIGH); API stopped accepting connections during a dependency fault (HIGH); requests hang instead of failing fast
@@ -44,7 +46,7 @@ No recovery within `--max-recovery-s` (HIGH); API stopped accepting connections 
 A skipped experiment says why. If the baseline is unhealthy nothing is injected.
 
 ## Bounds (hard ceilings in code)
-Probe rate 50/s; fault 120 s; dependency outage 60 s; whole run 30 min; payload 1 MiB; burst 100; latency 10 s; proxies on 127.0.0.1 only, upstream
+Probe rate 50/s; probe timeout and settle wait 60 s; fault 120 s; dependency outage 60 s; whole run 30 min (checked between steps); payload 1 MiB; burst 100; latency 10 s; proxies on 127.0.0.1 only, upstream
 passes the gate, at most 64 connections. Output holds paths, statuses and timings only: no headers, bodies or credentials (credentials come from the
 `APITEST_*` environment variables the intake lists).
 

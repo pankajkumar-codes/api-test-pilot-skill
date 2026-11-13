@@ -31,7 +31,8 @@ Fill `templates/test-plan.md` from `intake.json`: endpoints in scope and the tes
 Load, stress, spike, soak, chaos and fuzz require the user to confirm (a) the target is
 non-production and (b) they own or are authorized to test it. If not confirmed, stop. Do not weaken this.
 The user exports `APITEST_TARGET_ENV` (non-production value) and `APITEST_AUTHORIZED=yes`; never set them yourself
-(loopback targets pass without them; production is always refused). A public sandbox you only read from: `APITEST_READ_ONLY=yes` sends only GET/HEAD/OPTIONS and no active probes. `run_k6.py`, the k6 scripts and the fuzz tests enforce this too.
+(loopback targets pass without them; production is always refused). `run_k6.py`, the k6 scripts and the fuzz tests enforce this too.
+A public sandbox you only read from: `APITEST_READ_ONLY=yes` sends only GET/HEAD/OPTIONS and no active probes (pytest suites skip writes and intrusive tests, k6 skips write methods, `chaos_run.py` skips payload and dependency-command experiments).
 
 ## 4. Generate
 Read only the reference files for the chosen test types, then generate runnable pytest:

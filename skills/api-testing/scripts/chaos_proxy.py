@@ -180,7 +180,14 @@ class HttpFaultProxy(_Base):
             def _serve(self):
                 fault = proxy._current()
                 hit = proxy._hit(fault)
-                length = int(self.headers.get("Content-Length") or 0)
+                try:
+                    length = int(self.headers.get("Content-Length") or 0)
+                except ValueError:
+                    length = -1
+                if length < 0:
+                    self.close_connection = True
+                    self.send_error(400)
+                    return
                 if length > MAX_BODY or self.headers.get("Transfer-Encoding"):
                     self.close_connection = True
                     self.send_error(413 if length > MAX_BODY else 411)

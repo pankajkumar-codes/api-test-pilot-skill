@@ -88,6 +88,7 @@ def mask(argv: list[str]) -> str:
     """Printable form of a user command with secret-looking arguments masked."""
     out, hide = [], False
     for a in argv:
+        a = re.sub(r"(://[^/@:\s]*:)[^/@\s]+@", r"\1<redacted>@", a)   # user:password@host in a URL argument
         if hide:
             out.append("<redacted>")
             hide = False
@@ -112,6 +113,15 @@ def auth_headers(doc: dict) -> dict[str, str]:
             elif s.get("type") == "apiKey" and s.get("in") == "header" and s.get("name"):
                 headers.setdefault(s["name"], val)
     return headers
+
+
+def safe_target(base: str) -> str:
+    """The target as it may be printed or written: no query, fragment or credentials (they can carry secrets)."""
+    p = urllib.parse.urlsplit(base)
+    host = p.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    return f"{p.scheme}://{host}{':' + str(p.port) if p.port else ''}{p.path}"
 
 
 def split_base(base: str) -> tuple[str, str, int, str]:
@@ -278,6 +288,38 @@ def load_dependencies(path: str | None) -> dict[str, dict]:
     return deps
 
 
+STOP_SIGNALS = [getattr(signal, n) for n in ("SIGINT", "SIGTERM", "SIGHUP") if hasattr(signal, n)]
+
+
+class deferred_signals:
+    """Hold SIGINT/SIGTERM/SIGHUP while cleanup runs; re-deliver the first one afterwards as KeyboardInterrupt."""
+
+    def __enter__(self):
+        self.seen = False
+        self.old = {}
+        if threading.current_thread() is threading.main_thread():
+            for sig in STOP_SIGNALS:
+                self.old[sig] = signal.signal(sig, self._note)
+        return self
+
+    def _note(self, *_a) -> None:
+        self.seen = True
+
+    def __exit__(self, exc_type, *_a):
+        for sig, handler in self.old.items():
+            signal.signal(sig, handler)
+        if self.seen and exc_type is None:
+            raise KeyboardInterrupt
+
+
+def install_stop_handlers() -> None:
+    def stop(*_a):
+        raise KeyboardInterrupt
+    if threading.current_thread() is threading.main_thread():
+        for sig in STOP_SIGNALS:
+            signal.signal(sig, stop)
+
+
 class Hooks:
     """Runs user-supplied commands (no shell). Everything started is undone, also on error, Ctrl-C and SIGTERM."""
 
@@ -294,7 +336,7 @@ class Hooks:
         self.log.append(f"{what}: {mask(argv)}")
         try:
             r = subprocess.run([exe, *argv[1:]], shell=False, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL, timeout=90)
+                               stderr=subprocess.DEVNULL, timeout=90, start_new_session=True)
             return r.returncode == 0
         except (OSError, subprocess.SubprocessError) as exc:
             self.log.append(f"{what}: failed ({type(exc).__name__})")
@@ -305,11 +347,17 @@ class Hooks:
         return self.run(inject_cmd, f"inject {name}")
 
     def undo_all(self) -> None:
-        while self.pending_undo:
-            name, cmd = self.pending_undo.pop()
-            ok = self.run(cmd, f"undo {name}") or self.run(cmd, f"undo {name} (retry)")
-            if not ok:
-                print(f"MANUAL ACTION REQUIRED: could not undo the fault for dependency {name!r}. Run: {mask(cmd)}", file=sys.stderr)
+        """Run every pending undo. Signals are held until it is done, an entry leaves the list only after its command ran
+        (so a retry from `finally` or atexit still finds it), and the commands run in their own session so a Ctrl-C in the
+        terminal does not reach them."""
+        with deferred_signals():
+            while self.pending_undo:
+                name, cmd = self.pending_undo[-1]
+                ok = self.run(cmd, f"undo {name}") or self.run(cmd, f"undo {name} (retry)")
+                if self.pending_undo and self.pending_undo[-1][0] == name:
+                    self.pending_undo.pop()
+                if not ok:
+                    print(f"MANUAL ACTION REQUIRED: could not undo the fault for dependency {name!r}. Run: {mask(cmd)}", file=sys.stderr)
 
 
 # --------------------------------------------------------------------------- the runner
@@ -430,6 +478,10 @@ class Runner:
     # ---- dependency hooks
     def hook_experiment(self, kind: str, deps: dict[str, dict]) -> None:
         a = self.args
+        if safety_gate.env_true("APITEST_READ_ONLY"):
+            self.add(Result(f"test_chaos_{kind.replace('-', '_')}").skip(
+                "read-only mode (APITEST_READ_ONLY=yes): commands that change a dependency are not run"))
+            return
         key_on, key_off = ("stop", "start") if kind == "dep-outage" else ("slow_on", "slow_off")
         chosen = [d for d in deps.values() if key_on in d]
         if not chosen:
@@ -440,9 +492,12 @@ class Runner:
             res = Result(f"test_chaos_{kind.replace('-', '_')}_{d['name']}")
             on, off = d[key_on], d[key_off]
             res.lines.append(f"dependency {d['name']}: {kind} using the user-supplied commands in the dependency config")
-            self.fault_window(res, apply=lambda d=d, on=on, off=off: self._inject(d["name"], on, off),
-                              revert=lambda: self.hooks.undo_all(), fault_s=min(a.outage_s, HARD_MAX_OUTAGE_S), dependency=True,
-                              settle_s=a.settle_s)
+            try:
+                self.fault_window(res, apply=lambda d=d, on=on, off=off: self._inject(d["name"], on, off),
+                                  revert=lambda: self.hooks.undo_all(), fault_s=min(a.outage_s, HARD_MAX_OUTAGE_S), dependency=True,
+                                  settle_s=a.settle_s)
+            except RuntimeError as exc:
+                res.fail("HIGH", str(exc), "the undo command was still run")
             self.add(res)
 
     def _inject(self, name: str, on: list[str], off: list[str]) -> None:
@@ -452,6 +507,9 @@ class Runner:
     # ---- payload bursts
     def payload_experiment(self) -> None:
         a = self.args
+        if safety_gate.env_true("APITEST_READ_ONLY"):
+            self.add(Result("test_chaos_payload").skip("read-only mode (APITEST_READ_ONLY=yes): POST/PUT/PATCH bursts are not sent"))
+            return
         eps = [e for e in self.doc.get("endpoints", []) if e["method"] in ("POST", "PUT", "PATCH") and gen_common.has_json_body(e)]
         if a.payload_endpoints:
             eps = [e for e in eps if e["id"] in a.payload_endpoints]
@@ -483,7 +541,9 @@ class Runner:
                 def send(cname=cname, make=make, path=path, method=ep["method"]) -> None:
                     out = "ok"
                     try:
-                        if make is None:   # promise 5000 bytes, send 20, close: the server must not hang or crash
+                        if make is None and scheme == "https":
+                            out = "skipped_tls"
+                        elif make is None:   # promise 5000 bytes, send 20, close: the server must not hang or crash
                             s = socket.create_connection((host, port), timeout=a.timeout_s)
                             s.sendall(f"{method} {prefix}{path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\n"
                                       f"Content-Length: 5000\r\nConnection: close\r\n\r\n{{\"name\":\"trunc".encode())
@@ -518,6 +578,9 @@ class Runner:
                 counts: dict[str, int] = {}
                 for o in outcomes:
                     counts[o] = counts.get(o, 0) + 1
+                if counts.get("skipped_tls") == len(outcomes) and outcomes:
+                    self.add(res.skip("the truncated-body case uses a plain socket and is not run against https targets"))
+                    continue
                 res.metrics = {"outcomes": counts, "burst": burst, "bytes": size if cname == "oversized" else None}
                 res.lines.append(f"{ep['method']} {ep['path']} x{burst} ({cname}): " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
                 five = sum(v for k, v in counts.items() if k.startswith("5"))
@@ -589,7 +652,7 @@ def write_outputs(out: Path, results: list[Result], rerun: str, target: str) -> 
     xml = (f'<?xml version="1.0" encoding="utf-8"?>\n<testsuites><testsuite name="chaos" tests="{len(results)}" failures="{fails}" '
            f'errors="0" skipped="{skips}">\n' + "\n".join(cases) + "\n</testsuite></testsuites>\n")
     (out / "chaos.xml").write_text(xml, encoding="utf-8")
-    doc = {"target": clean(target), "rerun": rerun, "experiments": [
+    doc = {"target": clean(safe_target(target)), "rerun": rerun, "experiments": [
         {"name": r.name, "status": r.status, "severity": r.severity, "title": clean(r.title), "seconds": round(r.seconds, 2),
          "details": [clean(x) for x in r.lines], "metrics": r.metrics} for r in results]}
     (out / "chaos.json").write_text(json.dumps(doc, indent=2), encoding="utf-8")
@@ -651,6 +714,8 @@ def main(argv: list[str] | None = None) -> int:
         a.recovery_wait_s = min(max(a.recovery_wait_s, 1), HARD_MAX_RECOVERY_WAIT_S)
         a.max_total_s = min(max(a.max_total_s, 30), HARD_MAX_TOTAL_S)
         a.baseline_s = min(max(a.baseline_s, 2), 60)
+        a.timeout_s = min(max(a.timeout_s, 1), 60)
+        a.settle_s = min(max(a.settle_s, 0), 60)
         names = ALL_EXPERIMENTS if a.experiments == "all" else [e.strip() for e in a.experiments.split(",") if e.strip()]
         unknown = [e for e in names if e not in ALL_EXPERIMENTS]
         if unknown or not names:
@@ -687,17 +752,17 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     script = shlex.quote(sys.argv[0])
-    parts = [f"APITEST_BASE_URL={shlex.quote(base)}", "python", script, shlex.quote(a.intake), "--experiments", ",".join(names), "--out", shlex.quote(a.out)]
+    parts = [f"APITEST_BASE_URL={shlex.quote(safe_target(base))}", "python", script, shlex.quote(a.intake), "--experiments", ",".join(names), "--out", shlex.quote(a.out)]
     for flag, val in (("--dependency-config", a.dependency_config), ("--dep-proxy", a.dep_proxy)):
         if val:
             parts += [flag, shlex.quote(val)]
     if a.allow_hooks and a.dependency_config:
         parts.append("--allow-hooks")
     for p in a.probe:
-        parts += ["--probe", shlex.quote(p)]
+        parts += ["--probe", shlex.quote(p.split("?")[0])]   # a probe's query string can carry a secret: never echoed
     parts += ["--fault-s", f"{a.fault_s:g}", "--rps", f"{a.rps:g}"]
     rerun = " ".join(parts)
-    print(f"target: {urllib.parse.urlsplit(base)._replace(query='', fragment='').geturl()}  (gate passed)")
+    print(f"target: {safe_target(base)}  (gate passed; any query string of the target is not echoed)")
     print(f"experiments: {', '.join(names)}; probes: {', '.join(p.split('?')[0] for p in probes) or '(none)'}; "
           f"{a.rps:g} req/s, faults of {a.fault_s:g} s, whole run at most {a.max_total_s:g} s")
     for d in deps.values():
@@ -711,7 +776,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     runner = Runner(a, doc, base, probes, auth_headers(doc))
-    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+    install_stop_handlers()
     try:
         if dep_listen:
             runner.dep_proxy = chaos_proxy.TcpFaultProxy(dep_listen[1], listen_port=dep_listen[0]).start()

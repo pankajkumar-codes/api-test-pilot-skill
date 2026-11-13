@@ -17,7 +17,7 @@ First release candidate, built in phases (see PLAN.md).
 - k6 scripts for load, stress, spike and soak (`gen_k6.py`, `run_k6.py`), hard caps and a circuit breaker.
 - Seeded, rate-limited fuzzing for REST (`--types fuzz`) and fault-injection plans (`gen_chaos_plan.py`).
 - Executable chaos testing (`chaos_run.py`, `chaos_proxy.py`): latency, error, drop, truncate and blackhole faults in a local proxy, TCP faults between the API and a dependency, dependency start/stop commands the user supplies, malformed and oversized payload bursts, steady load with recovery-time measurement; JUnit and JSON output that `summarize_results.py` reports. Same safety gate, hard caps, loopback-only proxies.
-- `APITEST_READ_ONLY=yes` (or `--apitest-read-only`): public-sandbox mode that sends only GET/HEAD/OPTIONS and no active probes.
+- `APITEST_READ_ONLY=yes` (or `--apitest-read-only`): public-sandbox mode that sends only GET/HEAD/OPTIONS and no active probes (pytest suites, k6 scripts and `chaos_run.py`).
 - Safety gate for every non-functional flow (`safety_gate.py`, a copy inside each k6 script, the pytest runtime).
 - Markdown report from pytest JUnit XML and k6 summaries (`summarize_results.py`), with a repro command per finding.
 - Eval driver, mock targets and a real local seeded target (`evals/`); results in `docs/evals.md`.
