@@ -309,7 +309,7 @@ def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
         _pace(cfg)
         sent += 1
         try:
-            resp = api.send(ep, timeout=min(api.timeout, 10.0), **case["send"])
+            resp = api.send(ep, timeout=min(api.timeout, 10.0), transient="raise", **case["send"])
         except requests.exceptions.Timeout as exc:
             findings.append({"kind": "timeout", "sev": "MEDIUM", "case": case["label"], "msg": "request hung or timed out",
                              "repro": _repro(exc)})

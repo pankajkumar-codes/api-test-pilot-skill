@@ -16,7 +16,7 @@ import requests
 
 from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call them as gr.<name>)
     DB_ERROR_RE, UNSET, Api, env_true, expect_injection_safe, expect_no_crash, fail, json_of,
-    require_destructive, require_flag, skip_writes_on_production,
+    require_destructive, require_flag, skip_if_paced, skip_writes_on_production,
 )
 
 GQL_SEC = [["bearerAuth"]]
@@ -79,7 +79,7 @@ class Gql(Api):
         h.update(self._auth(auth, who))
         h.update(headers or {})
         data = raw if raw is not None else json.dumps(payload)
-        return self.session.post(self.url, data=data, headers=h, timeout=self.timeout, allow_redirects=False)
+        return self._request("POST", self.url, data=data, headers=h, timeout=self.timeout, allow_redirects=False)
 
     def arg_value(self, op: Operation, arg: str, default: Any, victim: bool) -> Any:
         keys = [f"APITEST_GQL_{'VICTIM_' if victim else ''}{_env_key(op.name)}_{_env_key(arg)}",

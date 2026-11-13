@@ -141,6 +141,7 @@ def _api4(doc: dict, eps: list[dict], mod: Module) -> None:
         mod.add("@pytest.mark.intrusive\n"
                 f"def {mod.unique('test_api4_rate_limiting_present')}(api):\n"
                 '    rt.require_flag("APITEST_EXPECT_RATE_LIMIT", "this API is expected to rate-limit")\n'
+                "    rt.skip_if_paced(api)\n"
                 f"    ep = {_ref(probe)}\n    n = int(os.environ.get(\"APITEST_RATE_BURST\", \"40\"))\n"
                 "    codes = [api.send(ep).status_code for _ in range(n)]\n"
                 '    assert 429 in codes, f"[MEDIUM][API4:2023] {n} rapid requests were never throttled (no 429)"\n')

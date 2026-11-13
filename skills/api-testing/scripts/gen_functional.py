@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from gen_common import (
-    admin_line, BODY_METHODS, SAFE_METHODS, Expr, Module, case_table, error_codes, has_json_body, optional_query,
+    admin_line, BODY_METHODS, SAFE_METHODS, Expr, Module, case_table, error_codes, has_json_body, is_id_param, optional_query,
     params_in, path_params, py, sample_body, supported_body, writable_props,
 )
 
@@ -13,10 +13,13 @@ def _ref(ep: dict) -> str:
     return f"EP[{ep['id']!r}]"
 
 
-def _missing_ids(ep: dict) -> str:
+def _missing_ids(ep: dict, only_ids: bool = False) -> str:
+    """Path override with a value that cannot exist. only_ids: leave parameters that are not resource ids (`n` in
+    /redirect/{n}) at their normal value, so the test varies exactly one thing."""
     items = ", ".join(
         f'{py(p["name"])}: api.missing_id({py((p.get("schema") or {}).get("type") or "string")}, '
-        f'{py((p.get("schema") or {}).get("format"))})' for p in path_params(ep))
+        f'{py((p.get("schema") or {}).get("format"))})'
+        for p in path_params(ep) if not only_ids or is_id_param(p, ep))
     return "{" + items + "}"
 
 
@@ -77,7 +80,7 @@ def negative(doc: dict, mod: Module) -> None:
             mod.add(f"def {mod.unique('test_' + eid + '_rejects_missing_credentials')}(api):\n{body}"
                     f"    resp = api.send(ep, auth=\"none\"{path})\n"
                     '    rt.expect_status(resp, (401, 403), "request without credentials must be rejected")\n')
-        if path_params(ep) and ep["method"] in ("GET", "PUT", "PATCH", "DELETE"):
+        if any(is_id_param(p, ep) for p in path_params(ep)) and ep["method"] in ("GET", "PUT", "PATCH", "DELETE"):
             codes = error_codes(ep)
             if ep["method"] in ("GET", "PATCH"):
                 check = ('    rt.expect_status(resp, (404,), "unknown id")' if 404 in codes
@@ -87,7 +90,7 @@ def negative(doc: dict, mod: Module) -> None:
                          else '    rt.expect_no_crash(resp, "unknown id")')
             pre = admin_line(ep) + ("    rt.require_destructive()\n" if ep["method"] == "DELETE" else "")
             mod.add(f"def {mod.unique('test_' + eid + '_unknown_id_not_found')}(api):\n    ep = {ref}\n{pre}"
-                    f"    resp = api.send(ep, path={_missing_ids(ep)})\n{check}\n")
+                    f"    resp = api.send(ep, path={_missing_ids(ep, only_ids=True)})\n{check}\n")
         if ep["method"] in BODY_METHODS and has_json_body(ep):
             cases = [("malformed_json", {"raw": '{"broken": ', "content_type": "application/json"}),
                      ("wrong_content_type", {"raw": "name=x", "content_type": "text/plain"})]

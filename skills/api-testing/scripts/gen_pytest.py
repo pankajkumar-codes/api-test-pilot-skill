@@ -29,7 +29,7 @@ import gen_integration  # noqa: E402
 import gen_resilience  # noqa: E402
 import gen_security  # noqa: E402
 import gen_validation  # noqa: E402
-from gen_common import Module, baseline, expected_ok_codes, py, sample_body, error_codes, supported_body  # noqa: E402
+from gen_common import Module, baseline, expected_ok_codes, guessed_query, py, sample_body, error_codes, supported_body  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUNTIME_TEMPLATE = SKILL_DIR / "templates" / "pytest" / "apitest_runtime.py"
@@ -103,6 +103,9 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
   APITEST_ALLOW_DESTRUCTIVE=yes   permit DELETE-style calls against existing data
+  APITEST_DELAY_MS / APITEST_RPS  pause between requests / cap on requests per second (also --apitest-delay-ms, --apitest-rps)
+  APITEST_RETRIES           retries of a GET/HEAD/OPTIONS after a failed connect (default 2)
+  APITEST_UNREACHABLE=skip|fail   what a target that cannot be reached does to a test (default skip; smoke tests always fail)
   APITEST_FUZZ_SEED / _CASES / _RPS / _MAX_REQUESTS / _MAX_BYTES / _SLOW_MS   fuzz tuning (hard caps apply)
 """
 import os
@@ -115,7 +118,16 @@ DEFAULT_BASE_URL = {base_url!r}
 SCHEMES = {py(schemes)}
 
 
+def pytest_addoption(parser):
+    group = parser.getgroup("api-test-pilot")
+    group.addoption("--apitest-delay-ms", metavar="MS", help="pause at least MS milliseconds between requests (env: APITEST_DELAY_MS)")
+    group.addoption("--apitest-rps", metavar="N", help="send at most N requests per second (env: APITEST_RPS)")
+
+
 def pytest_configure(config):
+    for opt, var in (("apitest_delay_ms", "APITEST_DELAY_MS"), ("apitest_rps", "APITEST_RPS")):
+        if config.getoption(opt, None) not in (None, ""):
+            os.environ[var] = str(config.getoption(opt))  # the command line wins over the environment
     config.addinivalue_line("markers", "smoke: quick reachability checks")
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
     config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
@@ -142,9 +154,25 @@ def pytest_collection_modifyitems(config, items):
     # run destructive suites with `-p no:xdist` (or `-n 0`) if the order matters to you.
 
 
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Report every safety-gate skip from one place, so `-rs` shows one line for the gate instead of one per test."""
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.skipped and isinstance(rep.longrepr, tuple) and len(rep.longrepr) == 3 and rt.GATE_PREFIX in str(rep.longrepr[2]):
+        rep.longrepr = (__file__, 0, rep.longrepr[2])
+
+
 def pytest_terminal_summary(terminalreporter):
     """A run where most tests skip proves little: say so, with the usual causes."""
     stats = terminalreporter.stats
+    gated = [r for r in stats.get("skipped", []) if rt.GATE_PREFIX in str(getattr(r, "longrepr", ""))]
+    if gated:
+        reason = str(gated[0].longrepr[2]).split(rt.GATE_PREFIX, 1)[1].strip() if isinstance(gated[0].longrepr, tuple) else ""
+        terminalreporter.write_line(f"safety gate: {{len(gated)}} intrusive test(s) not run: {{reason}}")
+    down = [r for r in stats.get("skipped", []) if rt.UNREACHABLE_PREFIX in str(getattr(r, "longrepr", ""))]
+    if down:
+        terminalreporter.write_line(f"{{len(down)}} test(s) skipped because the target was unreachable (connection errors); check the target and rerun.")
     skipped = len(stats.get("skipped", []))
     total = skipped + sum(len(stats.get(k, [])) for k in ("passed", "failed", "error"))
     if total and skipped * 2 > total:
@@ -165,6 +193,14 @@ def base_url():
 @pytest.fixture(scope="session")
 def api(base_url):
     return rt.Api(base_url, SCHEMES)
+
+
+@pytest.fixture(autouse=True)
+def _unreachable_mode(request):
+    """Smoke tests are reachability checks: a dead target must fail them (exit code != 0), not skip. Others follow APITEST_UNREACHABLE."""
+    rt.set_unreachable_mode("fail" if request.node.get_closest_marker("smoke") else None)
+    yield
+    rt.set_unreachable_mode(None)
 
 
 @pytest.fixture(autouse=True)
@@ -210,6 +246,7 @@ def endpoints_source(doc: dict) -> str:
             "responses": scrub(ep.get("responses") or {}), "tags": ep.get("tags") or [],
             "deprecated": bool(ep.get("deprecated")),
         }
+        args["guessed"] = tuple(guessed_query(ep))
         parts = [f"{k}={py(v)}" for k, v in args.items() if v not in ([], {}, (), None, False) or k in ("id", "method", "path")]
         if has_body and body is not None:
             parts.append(f"body={py(body)}")
