@@ -41,6 +41,8 @@ LOCAL_SUFFIXES = (".localhost",)  # RFC 6761 loopback names only; ".local"/".int
 NON_PROD_ENVS = {"local", "dev", "development", "test", "testing", "staging", "stage", "qa", "sandbox"}
 PROD_ENVS = {"prod", "production", "live"}
 TRUTHY = {"1", "true", "yes", "y", "on"}
+UNREACHABLE_PREFIX = "target unreachable"
+GATE_PREFIX = "safety gate:"
 
 
 # --------------------------------------------------------------------------- environment / safety
@@ -182,9 +184,16 @@ def describe(resp: requests.Response) -> str:
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
 
+_LAST_GUESSED: list[str] = []  # guessed parameters of the most recent request (set by Api.send)
+
+
 def fail(resp: requests.Response | None, msg: str, severity: str | None = None, owasp: str | None = None) -> None:
     tag = "".join(f"[{t}]" for t in (severity, owasp) if t)
     suffix = f"\n  {describe(resp)}" if resp is not None else ""
+    if resp is not None and 400 <= resp.status_code < 500 and _LAST_GUESSED:
+        suffix += ("\n  note: the spec gives no example or default for required parameter(s) "
+                   + ", ".join(_LAST_GUESSED) + ", so the request used an invented value; a "
+                   f"{resp.status_code} may be that value being rejected, not an API defect. Add an `example` to the spec to settle it.")
     pytest.fail(f"{tag} {msg}{suffix}".strip(), pytrace=False)
 
 
@@ -292,6 +301,7 @@ class Endpoint:
     err: tuple = ()                                  # documented 4xx statuses
     path_params: dict = field(default_factory=dict)  # name -> {"default": value|None, "type": ...}
     query: dict = field(default_factory=dict)        # baseline valid query (required params)
+    guessed: tuple = ()                              # required query params whose baseline value is invented, not from the spec
     headers: dict = field(default_factory=dict)      # baseline valid headers (required params)
     body: Any = UNSET                                # baseline valid JSON body
     content_type: str | None = None
@@ -691,11 +701,51 @@ def jwt_variants(token: str) -> dict[str, str]:
     }
 
 
+def _env_number(name: str, default: float, minimum: float = 0.0) -> float:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        val = float(raw)
+    except ValueError:
+        val = float("nan")
+    if not val >= minimum or val == float("inf"):
+        raise pytest.UsageError(f"{name} must be a number >= {minimum:g} (got {raw!r}).")
+    return val
+
+
+def min_interval_seconds(delay_ms: float | None = None, rps: float | None = None) -> float:
+    """Smallest allowed gap between two requests. delay_ms / rps (CLI options) override APITEST_DELAY_MS / APITEST_RPS;
+    if both are set the slower one wins. 0 = no throttle."""
+    d = delay_ms if delay_ms is not None else _env_number("APITEST_DELAY_MS", 0.0)
+    r = rps if rps is not None else _env_number("APITEST_RPS", 0.0)
+    if d < 0 or r < 0:
+        raise pytest.UsageError("The request delay and rate must not be negative.")
+    return max(d / 1000.0, (1.0 / r) if r > 0 else 0.0)
+
+
+# Connection failures that say nothing about the API under test (proxy hiccup, reset, DNS, timeout). TLS and URL
+# errors are configuration problems and are left to fail loudly.
+def is_transient(exc: BaseException) -> bool:
+    if isinstance(exc, (requests.exceptions.SSLError, requests.exceptions.InvalidURL, requests.exceptions.InvalidSchema,
+                        requests.exceptions.MissingSchema, requests.exceptions.InvalidHeader)):
+        return False
+    return isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError))
+
+
+RETRY_METHODS = {"GET", "HEAD", "OPTIONS"}  # safe to repeat; writes are never retried (a lost reply may mean it was applied)
+
+
 class Api:
-    def __init__(self, base_url: str, schemes: dict, timeout: float | None = None):
+    def __init__(self, base_url: str, schemes: dict, timeout: float | None = None,
+                 delay_ms: float | None = None, rps: float | None = None, retries: int | None = None):
         self.base_url = base_url.rstrip("/")
         self.schemes = schemes
         self.timeout = timeout or float(os.environ.get("APITEST_TIMEOUT", "15"))
+        self.min_interval = min_interval_seconds(delay_ms, rps)
+        self.retries = int(retries if retries is not None else _env_number("APITEST_RETRIES", 2))
+        self._last_sent = 0.0
+        self.unreachable = 0  # requests given up on after a transient connection error (skipped, not failed)
         self.session = requests.Session()
         self.host = target_host(self.base_url)
         if self.host is None:
@@ -768,9 +818,39 @@ class Api:
         return str(uuid.uuid4()) if fmt == "uuid" else "does-not-exist-" + uuid.uuid4().hex[:8]
 
     # ---- sending
+    def _pace(self) -> None:
+        """Politeness throttle (APITEST_DELAY_MS / APITEST_RPS / --apitest-delay-ms / --apitest-rps)."""
+        if self.min_interval:
+            wait = self._last_sent + self.min_interval - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+        self._last_sent = time.monotonic()
+
+    def _request(self, method: str, url: str, transient: str = "skip", **kw: Any) -> requests.Response:
+        """Every request goes through here: paced, and a transient connection error is retried (safe methods only) and,
+        if it persists, SKIPS the test: the target was unreachable, which is not a verdict on the API.
+        transient="raise" hands the exception to the caller untouched (fuzzing treats a drop or hang as a finding)."""
+        attempts = 1 + (max(self.retries, 0) if method.upper() in RETRY_METHODS and transient == "skip" else 0)
+        for attempt in range(attempts):
+            self._pace()
+            try:
+                return self.session.request(method, url, **kw)
+            except requests.exceptions.RequestException as exc:
+                if transient != "skip" or not is_transient(exc):
+                    raise
+                if attempt + 1 < attempts:
+                    time.sleep(min(0.5 * 2 ** attempt, 4.0))
+                    continue
+                self.unreachable += 1
+                pytest.skip(f"{UNREACHABLE_PREFIX}: {method.upper()} request failed with {type(exc).__name__} after {attempts} "
+                            f"attempt(s); the target was unreachable, so this check has no verdict (APITEST_RETRIES, APITEST_TIMEOUT)")
+        raise AssertionError("unreachable")  # pragma: no cover
+
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
              query: Any = UNSET, headers: dict | None = None, body: Any = UNSET, raw: Any = None,
-             content_type: Any = UNSET, timeout: float | None = None, victim: bool = False) -> requests.Response:
+             content_type: Any = UNSET, timeout: float | None = None, victim: bool = False,
+             transient: str = "skip") -> requests.Response:
+        """transient: "skip" (default) skips the test when the target is unreachable; "raise" lets the error propagate."""
         if ep.method not in ("GET", "HEAD", "OPTIONS"):
             skip_writes_on_production()
         ids = {}
@@ -808,14 +888,17 @@ class Api:
                     kwargs["json"] = payload
                     if ctype:
                         h["Content-Type"] = ctype
-        return self.session.request(ep.method, url, params=q or None, headers=h, cookies=cookies or None,
-                                    timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
+        _LAST_GUESSED[:] = [n for n in ep.guessed if n in q and q[n] == ep.query.get(n)]
+        return self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
+                             timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
 
     def get(self, url_path: str, **kw: Any) -> requests.Response:
-        return self.session.get(self.base_url + url_path, timeout=self.timeout, allow_redirects=False, **kw)
+        _LAST_GUESSED.clear()
+        return self._request("GET", self.base_url + url_path, timeout=self.timeout, allow_redirects=False, **kw)
 
     def raw_post(self, url: str, **kw: Any) -> requests.Response:
-        return self.session.post(url, timeout=self.timeout, allow_redirects=False, **kw)
+        _LAST_GUESSED.clear()
+        return self._request("POST", url, timeout=self.timeout, allow_redirects=False, **kw)
 
 
 def burst(call, n: int) -> list[requests.Response]:

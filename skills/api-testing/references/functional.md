@@ -37,6 +37,10 @@ The generator prints the exact rerun command. The suite is `conftest.py` + `apit
 - Skips with a reason, never a verdict: a 429 where another status was expected, and a create refused as a duplicate (409, or 400/422 that says
   "already exists"): every create test sends the same baseline body, so only the first create succeeds on a target that keeps data. Use a fresh target
   or clear the earlier test data to run them again.
+- Skips with a reason also cover a target that cannot be reached (connection error after `APITEST_RETRIES` retries of GET/HEAD/OPTIONS; writes are never retried).
+- Pace requests on shared targets with `APITEST_DELAY_MS` or `APITEST_RPS` (CLI: `--apitest-delay-ms`, `--apitest-rps`); the slower limit wins.
+- Generated values are labelled: optional query params with no example/default/enum/range/format are omitted; a required one without them is sent
+  as a guess, and a 4xx on it is annotated as possibly the guess being rejected. The unknown-id test runs only for id-like path parameters.
 - PUT/PATCH bodies that name their target (`id` with a spec example, as in `PUT /pet`) send that example id: make sure the record exists.
 - Non-local targets need `APITEST_TARGET_ENV` (local/dev/staging/prod...). Tests never guess a production URL.
 - Administrative endpoints (`/admin`, tag `admin`) skip success-path tests when `APITEST_ASSUME_NON_ADMIN=yes`.

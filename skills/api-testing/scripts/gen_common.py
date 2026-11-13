@@ -217,6 +217,39 @@ def param_value(p: dict) -> Any:
     return sample(p.get("schema") or {}, p["name"])
 
 
+def is_guessed(p: dict) -> bool:
+    """True when param_value() would invent the value: no spec example, default, enum, range or format backs it.
+    Such values (`status=1`, `url=sample-url`) are often legitimately rejected, so they must not be sent for optional
+    parameters and are flagged in the failure text for required ones."""
+    if p.get("example") not in (None, "<redacted>") or is_secret_name(p["name"]):
+        return False
+    sch = p.get("schema") or {}
+    if any(sch.get(k) not in (None, "<redacted>") for k in ("example", "default")) or sch.get("enum"):
+        return False
+    t = _first_type(sch)
+    if t == "string":
+        return not sch.get("format") and not sch.get("pattern")
+    if t in ("integer", "number"):
+        return not isinstance(sch.get("minimum"), (int, float)) and not isinstance(sch.get("maximum"), (int, float))
+    return t in ("boolean", "array", "object", None)
+
+
+_ID_NAME_RE = re.compile(r"(^|[^a-z])(id|ids|uuid|guid|slug|username)$", re.I)   # id, user_id, user-id, ID
+_CAMEL_ID_RE = re.compile(r"[a-z](Id|Ids|ID|Uuid|UUID|Guid|GUID)$")               # petId, userID (not "valid", "paid")
+
+
+def is_id_param(p: dict, ep: dict) -> bool:
+    """Path parameter that names a stored resource (so an unknown value should be a 404), as opposed to a value the
+    server computes from (`/redirect/{n}`, `/cache/{value}`, `/anything/{anything}`). Judged from the name and format;
+    an endpoint that documents a 404 is a lookup whatever the parameter is called."""
+    sch = p.get("schema") or {}
+    if sch.get("enum"):
+        return False
+    if sch.get("format") in ("uuid", "objectid") or _ID_NAME_RE.search(p["name"]) or _CAMEL_ID_RE.search(p["name"]):
+        return True
+    return 404 in error_codes(ep) and len(path_params(ep)) == 1
+
+
 def baseline(ep: dict) -> dict:
     """Valid baseline request pieces for runtime Endpoint(): path ids, required query/header, body."""
     pp = {}
@@ -234,7 +267,13 @@ def baseline(ep: dict) -> dict:
 
 def optional_query(ep: dict) -> dict:
     return {p["name"]: v for p in params_in(ep, "query") if not p.get("required")
-            and not is_secret_name(p["name"]) and (v := param_value(p)) is not None}
+            and not is_secret_name(p["name"]) and not is_guessed(p) and (v := param_value(p)) is not None}
+
+
+def guessed_query(ep: dict) -> list[str]:
+    """Names of required query params in the baseline whose value is a guess (see is_guessed)."""
+    return [p["name"] for p in params_in(ep, "query") if p.get("required") and is_guessed(p)
+            and param_value(p) is not None]
 
 
 def writable_props(schema: dict | None) -> dict:
