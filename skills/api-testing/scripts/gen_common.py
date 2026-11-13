@@ -88,6 +88,13 @@ def success_codes(ep: dict) -> list[int]:
     return sorted(int(c) for c in ep.get("responses", {}) if str(c).isdigit() and 200 <= int(c) < 300)
 
 
+def expected_ok_codes(ep: dict) -> list[int]:
+    """Statuses a valid request should get: the declared 2xx, or the declared 3xx when the spec has no 2xx
+    (redirect endpoints such as GET /redirect/3 -> 302 are successes, not failures)."""
+    ok = success_codes(ep)
+    return ok or sorted(int(c) for c in ep.get("responses", {}) if str(c).isdigit() and 300 <= int(c) < 400)
+
+
 def error_codes(ep: dict) -> list[int]:
     return sorted(int(c) for c in ep.get("responses", {}) if str(c).isdigit() and 400 <= int(c) < 500)
 

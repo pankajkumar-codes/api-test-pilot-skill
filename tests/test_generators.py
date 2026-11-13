@@ -645,3 +645,10 @@ def test_production_target_only_receives_read_calls(rest_suite):
         assert status == "skipped" and "production" in msg
     from mock_rest import LAST_LOG
     assert all(m == "GET" for m, _ in LAST_LOG), LAST_LOG
+
+
+def test_redirect_only_endpoint_expects_its_declared_3xx():
+    ep = {"responses": {"302": {}}}
+    assert gen_common.expected_ok_codes(ep) == [302]
+    assert gen_common.expected_ok_codes({"responses": {"200": {}, "302": {}}}) == [200]
+    assert gen_common.expected_ok_codes({"responses": {"404": {}}}) == []

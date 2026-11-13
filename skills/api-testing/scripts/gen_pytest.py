@@ -29,7 +29,7 @@ import gen_integration  # noqa: E402
 import gen_resilience  # noqa: E402
 import gen_security  # noqa: E402
 import gen_validation  # noqa: E402
-from gen_common import Module, baseline, py, sample_body, success_codes, error_codes, supported_body  # noqa: E402
+from gen_common import Module, baseline, expected_ok_codes, py, sample_body, error_codes, supported_body  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUNTIME_TEMPLATE = SKILL_DIR / "templates" / "pytest" / "apitest_runtime.py"
@@ -204,7 +204,7 @@ def endpoints_source(doc: dict) -> str:
         args = {
             "id": ep["id"], "method": ep["method"], "path": ep["path"],
             "sec": ep.get("security") or [] if ep.get("auth_required") else [],
-            "ok": tuple(success_codes(ep)), "err": tuple(error_codes(ep)),
+            "ok": tuple(expected_ok_codes(ep)), "err": tuple(error_codes(ep)),
             "path_params": b["path_params"], "query": b["query"], "headers": b["headers"],
             "content_type": (ep.get("request_body") or {}).get("content_type"),
             "responses": scrub(ep.get("responses") or {}), "tags": ep.get("tags") or [],
