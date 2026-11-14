@@ -465,15 +465,20 @@ class Report:
                 label = "(API-wide)"
             rec = {"type": ctype, "stem": stem, "name": name, "status": c["status"], "endpoint": label, "time": c["time"]}
             self.cases.append(rec)
+            rec["reason"] = ""
             if c["status"] == "skipped":
                 reason = plain(c["message"] or c["text"], 160) or "no reason given"
+                rec["reason"] = reason
                 self.skips[reason] = self.skips.get(reason, 0) + 1
             elif c["status"] == "error":
                 first = plain((raw.strip().split("\n") or [""])[0], 160) or "error without a message"
+                rec["reason"] = first
                 key = f"{name}: {first}" if len(self.problems) < 50 else "(further errors not listed)"
                 self.problems[key] = self.problems.get(key, 0) + 1
             elif c["status"] == "failed":
-                self.findings.append(self._pytest_finding(rec, raw, c["name"], request))
+                f = self._pytest_finding(rec, raw, c["name"], request)
+                rec["reason"] = f"[{f.severity}] {f.title}"
+                self.findings.append(f)
         self._raw = {}
 
     def _pytest_finding(self, rec: dict, raw: str, raw_name: str, request) -> Finding:
@@ -840,6 +845,8 @@ def main(argv: list[str] | None = None) -> int:
             r.add_k6(p)
         title = args.title or (plain((doc.get("info") or {}).get("title"), 80) if isinstance(doc, dict) and isinstance(doc.get("info"), dict) else "") or "API"
         fmt_ = args.format or ("html" if args.output != "-" and args.output.lower().endswith((".html", ".htm")) else "md")
+        if fmt_ == "html" and args.output != "-" and Path(args.output).suffix.lower() == ".json":
+            raise ReportError("an HTML report cannot be written to a .json path: the JSON file would overwrite it")
         date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
         title_s = plain(title, 80)
         json_text = ""

@@ -15,6 +15,1392 @@
     "total": 173,
     "test_seconds": 33.71
   },
+  "cases": [
+    {
+      "type": "contract",
+      "name": "test_addNewSoftwareEngineer_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_filterByTechStack_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.055,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getEngineerById_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.014,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getEngineers_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.013,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_searchByName_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.253,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[missing_techStack]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_deleteEngineer_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_filterByTechStack_rejects_invalid_input[query_techStack_missing]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineerById_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_page_below_minimum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.023,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_page_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_above_maximum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_below_minimum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[missing_techStack]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_searchByName_rejects_invalid_input[query_name_missing]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.016,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_empty]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_page_min_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.031,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_size_max_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_size_min_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.012,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.019,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_empty]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[DELETE_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "DELETE /api/v1/software-engineers/{id}  (DELETE_api_v1_software_engineers_id)",
+      "seconds": 2.755,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers  (GET_api_v1_software_engineers)",
+      "seconds": 5.724,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_filter]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/filter  (GET_api_v1_software_engineers_filter)",
+      "seconds": 2.972,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/{id}  (GET_api_v1_software_engineers_id)",
+      "seconds": 2.604,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_search]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/search  (GET_api_v1_software_engineers_search)",
+      "seconds": 2.963,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[POST_api_v1_software_engineers]",
+      "status": "passed",
+      "endpoint": "POST /api/v1/software-engineers  (POST_api_v1_software_engineers)",
+      "seconds": 7.559,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[PUT_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "PUT /api/v1/software-engineers/{id}  (PUT_api_v1_software_engineers_id)",
+      "seconds": 7.525,
+      "reason": ""
+    },
+    {
+      "type": "integration",
+      "name": "test_flow_api_v1_software_engineers_lifecycle",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.085,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_deleteEngineer_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getEngineerById_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_addNewSoftwareEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_deleteEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_filterByTechStack_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineerById_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineers_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineers_with_optional_params",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_replaceEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_searchByName_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_deleteEngineer_repeated_delete_is_safe",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_filterByTechStack_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_filterByTechStack_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineerById_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineerById_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_invalid_limit_is_handled[-1]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_invalid_limit_is_handled[0]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.017,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_limit_one_returns_at_most_one",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_pages_do_not_overlap",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_past_the_end_is_empty",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_rate_limit_behaviour",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.173,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_replaceEngineer_put_is_idempotent",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.012,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_searchByName_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_searchByName_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api4_rate_limiting_present",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes"
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_addNewSoftwareEngineer",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.013,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_replaceEngineer",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_filterByTechStack",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_searchByName",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api4_page_size_capped_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_cors_not_permissive",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_errors_do_not_leak_internals",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_security_headers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_filterByTechStack",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getEngineerById",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_searchByName",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    }
+  ],
   "by_type": {
     "contract": {
       "passed": 5,

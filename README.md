@@ -62,13 +62,13 @@ tests, no credentials, and no load, fuzz, stress, spike, soak or chaos.
 |---|---|---|---|---|
 | Total across the four APIs | 1098 | 257 | 52 | 789 |
 
-73% of the tests were skipped, almost all by the safety gate, so this run says little about writes. Most failures were false positives that
+72% of the tests were skipped, almost all by the safety gate, so this run says little about writes. Most failures were false positives that
 this run exposed in the skill (redirect-only endpoints, guessed sample values, ids for non-id path parameters). They were fixed afterwards.
 The real findings were a CORS policy that reflects any origin with credentials, missing HSTS and a spec mismatch on HTTPBin's cookie endpoints.
 Specs for three of the four APIs were written by hand.
 
 ### Seeded flaws and tests of the skill itself
-- On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA and data exposure). The other 3 failures come from
+- On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 3 findings, and data exposure, 1 finding). The other 3 failures come from
   using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 7.
 - Against local mocks with 14 seeded REST flaws and 9 GraphQL flaws, the matching generated test fails on each flaw and the clean variant
   passes. The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
@@ -227,7 +227,7 @@ The full list is in `skills/api-testing/references/` (one file per test type).
 ### The report
 
 `summarize_results.py` writes `reports/report.html`: a single file with no external assets, so it opens offline and can be attached to a ticket
-or a CI run. It has the pass/fail verdict, a chart and totals, results per test type, findings ranked by severity (each with what happened,
+or a CI run. It has the pass/fail verdict, a chart and totals, results per test type (click a type to see every test with its status and reason), findings ranked by severity (each with what happened,
 what was expected and a command to reproduce it), k6 numbers with threshold results, per-endpoint coverage, skip reasons and limitations. It follows
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
 

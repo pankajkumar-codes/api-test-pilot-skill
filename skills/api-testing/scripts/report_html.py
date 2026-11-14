@@ -1,8 +1,8 @@
 """HTML and JSON output for summarize_results.py. Stdlib only, no network, no external assets.
 
 The page is one file: CSS and a few lines of JS are inline, charts are inline SVG, and a CSP meta tag blocks
-everything else. Every string in the data is already redacted by summarize_results.plain(); this module only
-escapes it for HTML. Nothing here reads result files or contacts a target.
+everything else. Strings from result files are redacted with summarize_results.plain() (build_data runs it over the whole payload);
+this module then escapes them for HTML. Nothing here reads result files or contacts a target.
 """
 from __future__ import annotations
 
@@ -14,6 +14,9 @@ from typing import Any
 SEV_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
 STATUS_CLASS = {"PASS": "ok", "FAIL": "bad", "INCOMPLETE": "warn", "INCONCLUSIVE": "warn"}
 SCHEMA_VERSION = 1
+STATUS_ORDER = {"failed": 0, "error": 1, "skipped": 2, "passed": 3}
+STATUS_LABEL = {"failed": "FAIL", "error": "ERROR", "skipped": "SKIP", "passed": "PASS"}
+MAX_CASES_SHOWN = 3000   # per report; the JSON keeps all of them
 
 
 def e(value: Any) -> str:
@@ -41,11 +44,14 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
     if r.index.eps:
         seen = {c["endpoint"] for c in r.cases}
         none_run = [mod.ep_key(x) for x in r.index.eps if mod.ep_key(x) not in seen]
-    return {
+    data = {
         "schema_version": SCHEMA_VERSION,
         "title": title, "date": date,
         "result": {"status": status, "summary": text, "warning": mod.skip_warning(r)},
         "totals": {**tot, "total": len(r.cases), "test_seconds": round(sum(c["time"] or 0 for c in r.cases), 2)},
+        "cases": [{"type": c["type"], "name": c["name"], "status": c["status"], "endpoint": c["endpoint"],
+                   "seconds": round(c["time"] or 0, 3), "reason": c.get("reason", "")}
+                  for c in sorted(r.cases, key=lambda c: (c["type"], STATUS_ORDER[c["status"]], c["name"]))],
         "by_type": {t: {**v, "total": sum(v.values())} for t, v in sorted(by.items())},
         "severity_counts": {s: sum(1 for f in r.findings if f.severity == s) for s in SEV_ORDER},
         "findings": findings, "findings_total": len(r.findings),
@@ -56,6 +62,18 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         "inputs": [{"kind": k, "file": n, "sha256_prefix": d} for k, n, d in r.inputs],
         "command": command,
     }
+    return _scrub(data, mod)
+
+
+def _scrub(value: Any, mod) -> Any:
+    """Redact every string in the payload once more. Most are clean already; k6 names, tags and the findings built from them are not."""
+    if isinstance(value, str):
+        return mod.plain(value, 4000, keep_newlines=True)
+    if isinstance(value, dict):
+        return {(_scrub(k, mod) if isinstance(k, str) else k): _scrub(v, mod) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_scrub(v, mod) for v in value]
+    return value
 
 
 def to_json(data: dict) -> str:
@@ -113,13 +131,35 @@ def section_stats(d: dict) -> str:
 def section_types(d: dict) -> str:
     if not d["by_type"]:
         return ""
-    rows = "".join(
-        f'<tr><td>{e(t)}</td><td class="bar">{stacked(v)}</td><td class="n">{v["passed"]}</td><td class="n">{v["failed"]}</td>'
-        f'<td class="n">{v["skipped"]}</td><td class="n">{v["error"]}</td><td class="n">{v["total"]}</td></tr>'
-        for t, v in d["by_type"].items())
-    return (f'<section><h2>Results by test type</h2><div class="scroll"><table><thead><tr><th>Type</th><th>Share</th><th>Pass</th><th>Fail</th>'
-            f'<th>Skip</th><th>Error</th><th>Total</th></tr></thead><tbody>{rows}</tbody></table></div>'
-            f'<p class="muted">Test time (sum of per-test times): {d["totals"]["test_seconds"]} s.</p></section>')
+    by_type: dict[str, list] = {}
+    for c in d["cases"]:
+        by_type.setdefault(c["type"], []).append(c)
+    shown = 0
+    blocks = []
+    for t, v in d["by_type"].items():
+        rows = []
+        for c in by_type.get(t, []):
+            if shown >= MAX_CASES_SHOWN:
+                break
+            shown += 1
+            st = c["status"]
+            rows.append(
+                f'<tr data-st="{e(st)}"><td><span class="st st-{e(st)}">{STATUS_LABEL[st]}</span></td><td class="tn">{e(c["name"])}</td>'
+                f'<td class="te">{e(c["endpoint"])}</td><td class="tr">{e(c["reason"])}</td></tr>')
+        left = len(by_type.get(t, [])) - len(rows)
+        more = f'<p class="muted">{left} more case(s) in report.json.</p>' if left > 0 else ""
+        filt = "".join(f'<button class="chip sm" type="button" data-f="{k}">{lab} {v[k2]}</button>'
+                       for k, lab, k2 in (("failed", "Failed", "failed"), ("error", "Errors", "error"), ("skipped", "Skipped", "skipped"), ("passed", "Passed", "passed")) if v[k2])
+        bad = v["failed"] or v["error"]
+        errs = f' <b class="f">{v["error"]}</b> error' if v["error"] else ""
+        blocks.append(
+            f'<details class="type{" has-bad" if bad else ""}"><summary><span class="tname">{e(t)}</span><span class="bar">{stacked(v)}</span>'
+            f'<span class="tnums"><b class="p">{v["passed"]}</b> pass <b class="f">{v["failed"]}</b> fail <b>{v["skipped"]}</b> skip'
+            f'{errs}</span></summary>'
+            f'<div class="tcases"><div class="chips">{filt}</div><div class="scroll"><table class="cases"><thead><tr><th>Status</th><th>Test</th>'
+            f'<th>Endpoint</th><th>Failure or skip reason</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>{more}</div></details>')
+    return (f'<section><h2>Results by test type</h2><p class="muted">Click a type to see every test that ran, failed or was skipped.</p>'
+            f'{"".join(blocks)}<p class="muted">Test time (sum of per-test times): {d["totals"]["test_seconds"]} s.</p></section>')
 
 
 def section_k6(d: dict) -> str:
@@ -245,6 +285,14 @@ td.bar{min-width:160px;width:40%}.stack{display:flex;height:10px;border-radius:6
 .finding summary{cursor:pointer;padding:10px 14px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}.ft{font-weight:600}.fe{color:var(--muted);font-size:13px;margin-left:auto}
 .fbody{padding:0 14px 14px}.cmd{position:relative}.copy{position:absolute;top:6px;right:6px;font-size:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
 .note{font-size:13px;color:var(--muted);border-left:3px solid var(--err);padding-left:10px;margin-top:10px}
+details.type{border:1px solid var(--line);border-radius:10px;margin:8px 0;background:var(--panel)}details.type.has-bad{border-left:4px solid var(--fail)}
+details.type>summary{cursor:pointer;display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:center;padding:10px 14px;list-style:none}
+details.type>summary::-webkit-details-marker{display:none}details.type>summary .tname::before{content:">";display:inline-block;width:16px;color:var(--muted);transition:transform .15s}
+details.type[open]>summary .tname::before{transform:rotate(90deg)}.tname{font-weight:600}.tnums{font-size:13px;color:var(--muted);white-space:nowrap}.tnums b.p{color:var(--pass)}.tnums b.f{color:var(--fail)}
+.tcases{padding:0 14px 12px}.chip.sm{font-size:12px;padding:2px 10px}.cases td{font-size:13px;vertical-align:top}.tn{word-break:break-word}.te{color:var(--muted)}.tr{color:var(--muted);word-break:break-word}
+.st{display:inline-block;min-width:48px;text-align:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;background:var(--skip)}
+.st-passed{background:var(--pass)}.st-failed{background:var(--fail)}.st-error{background:var(--err)}
+@media (max-width:640px){details.type>summary{grid-template-columns:1fr}.tnums{white-space:normal}}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:12px}
 @media (max-width:640px){.hero{grid-template-columns:1fr;justify-items:center}.fe{margin-left:0;flex-basis:100%}h1{font-size:22px}}
 @media print{header.top{background:#312e81!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.chips,.search,.copy{display:none}details.finding{break-inside:avoid}}
@@ -252,7 +300,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;padding:12px}
 
 JS = """
 (function(){
-  var chips=document.querySelectorAll('.chip'),fs=document.querySelectorAll('details.finding');
+  var chips=document.querySelectorAll('.chip[data-sev]'),fs=document.querySelectorAll('details.finding');
   chips.forEach(function(c){c.addEventListener('click',function(){
     chips.forEach(function(x){x.classList.remove('on')});c.classList.add('on');
     var s=c.getAttribute('data-sev');fs.forEach(function(f){f.style.display=(s==='all'||f.getAttribute('data-sev')===s)?'':'none'});
@@ -261,6 +309,15 @@ JS = """
     var t=b.parentNode.querySelector('pre').textContent;
     if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1200)},function(){})}
   })});
+  document.querySelectorAll('details.type').forEach(function(t){
+    var cs=t.querySelectorAll('.chip.sm'),rows=t.querySelectorAll('tbody tr'),on=null;
+    cs.forEach(function(c){c.addEventListener('click',function(){
+      var f=c.getAttribute('data-f');on=(on===f)?null:f;
+      cs.forEach(function(x){x.classList.toggle('on',on!==null&&x.getAttribute('data-f')===on)});
+      rows.forEach(function(r){r.style.display=(on===null||r.getAttribute('data-st')===on)?'':'none'});
+    })});
+    if(t.classList.contains('has-bad')){t.open=true}
+  });
   var q=document.getElementById('cov-q');
   if(q){q.addEventListener('input',function(){var v=q.value.toLowerCase();
     document.querySelectorAll('#cov tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(v)<0?'none':''})})}
@@ -274,7 +331,7 @@ def render_html(d: dict) -> str:
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <title>Test report: {e(d["title"])}</title>
 <style>{CSS}</style></head><body>
 <header class="top"><div class="wrap"><h1>{e(d["title"])}</h1><div class="sub">API test report · {e(d["date"])}</div>

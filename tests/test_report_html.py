@@ -80,3 +80,33 @@ def test_checked_in_samples_are_current_html():
         text = (ROOT / rel).read_text(encoding="utf-8")
         assert text.startswith("<!doctype html>") and "Content-Security-Policy" in text
         json.loads((ROOT / rel).with_suffix(".json").read_text(encoding="utf-8"))
+
+
+def test_each_test_type_lists_its_cases_with_status_and_reason(tmp_path):
+    out = build(tmp_path)
+    text = out.read_text(encoding="utf-8")
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    by = {(c["type"], c["name"]): c for c in data["cases"]}
+    assert by[("smoke", "test_smoke_ok")]["status"] == "passed"
+    assert by[("edge", "test_edge_skip")]["reason"] == "needs an id"
+    assert "BOLA" in by[("security", "test_api1_bola_getPet")]["reason"]
+    for name in ("test_smoke_ok", "test_api1_bola_getPet", "test_edge_skip", "needs an id"):
+        assert name in text
+    assert '<details class="type has-bad">' in text and 'data-st="skipped"' in text
+
+
+def test_k6_strings_are_scrubbed_in_html_and_json(tmp_path):
+    doc = k6_doc()
+    doc["metrics"][f"http_req_duration{{stage:{CANARY}}}"] = {"p(95)": 4.0, "thresholds": {f"p(95)<500 {CANARY}": True}}
+    doc["metrics"][f"http_req_failed{{endpoint:{CANARY}}}"] = {"value": 0.0}
+    p = tmp_path / f"{CANARY}-summary.json"
+    p.write_text(json.dumps(doc), encoding="utf-8")
+    out = build(tmp_path, "--k6", p, env={"APITEST_BEARERAUTH_TOKEN": CANARY})
+    for f in (out, out.with_suffix(".json")):
+        assert CANARY not in f.read_text(encoding="utf-8"), f.name
+
+
+def test_html_cannot_overwrite_itself_with_json(tmp_path):
+    out = tmp_path / "r.json"
+    proc = summarize("--junit", junit(tmp_path, [("a.test_x", "test_y", "pass", "", "")]), "-o", out, "--format", "html", expect=2)
+    assert "overwrite" in proc.stderr and not out.exists()

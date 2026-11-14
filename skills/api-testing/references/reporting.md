@@ -17,7 +17,7 @@ never contacts the target and prints the command that regenerates the report.
 
 ## What the report contains
 The HTML page works offline: CSS, a few lines of JS (severity filter, endpoint filter, copy buttons) and the SVG charts are inline, and a
-content security policy blocks anything external. It follows the system light or dark theme and prints cleanly. All text is escaped, so a hostile
+content security policy blocks anything external. Each test type in "Results by test type" expands to list every test case with its status (pass, fail, error, skip), endpoint and the failure or skip reason, with filter buttons; types with failures open by default. It follows the system light or dark theme and prints cleanly. All text is escaped, so a hostile
 test name cannot inject markup. The JSON (`schema_version` 1) holds `result`, `totals`, `by_type`, `severity_counts`, `findings`, `coverage`, `k6`, `run_problems`, `skips` and `inputs`.
 Samples: `examples/sample-report.html` (seeded flaws) and `examples/spring-boot-demo/report.html` (real run).
 
