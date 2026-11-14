@@ -170,7 +170,7 @@ function build(ep, notes) {
     }
     path = path.split('{' + p.name + '}').join(encodeURIComponent(val));
   }
-  const headers = Object.assign({}, ep.headers, { 'X-Load-Test': 'api-test-pilot' });
+  const headers = Object.assign({}, ep.headers, { 'X-Load-Test': 'api-test-pilot-skill' });
   const query = Object.assign({}, ep.query);
   const cookies = {};
   const required = ep.sec.length > 0;
@@ -237,7 +237,7 @@ for (const ep of CONFIG.endpoints) {
   if (built) ACTIVE.push(built);
 }
 for (const n of NOTES) {
-  console.warn('[api-test-pilot] ' + n); // env var names only, no values
+  console.warn('[api-test-pilot-skill] ' + n); // env var names only, no values
 }
 if (ACTIVE.length === 0) {
   throw new Error('No endpoint can be tested with the current configuration (see the warnings above).');
@@ -290,7 +290,7 @@ export const options = {
     },
   },
   thresholds: thresholds,
-  userAgent: 'api-test-pilot-k6',
+  userAgent: 'api-test-pilot-skill-k6',
   insecureSkipTLSVerify: false,
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   tags: { testtype: CONFIG.profile },

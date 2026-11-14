@@ -1,4 +1,4 @@
-# api-test-pilot
+# api-test-pilot-skill
 
 An [Agent Skill](https://agentskills.io/specification) that plans, generates and runs API tests from an OpenAPI spec,
 a GraphQL schema, a Postman collection or curl examples. It writes plain pytest and k6 files you can read, edit and keep.
@@ -14,13 +14,15 @@ a GraphQL schema, a Postman collection or curl examples. It writes plain pytest 
 | Chaos | a fault-injection plan, plus runnable experiments (local fault proxies, dependency start/stop commands you supply, malformed and oversized payload bursts) with recovery-time measurement; same safety gate |
 | Reporting | one self-contained HTML report (plus JSON): results per test type, coverage per endpoint, findings ranked by severity, a repro command for each |
 
-Protocols: REST (OpenAPI 3.x and Swagger 2) and GraphQL. Out of scope for v1: gRPC, mobile, UI accessibility, a hosted service.
+Protocols: REST (OpenAPI 3.x and Swagger 2) and GraphQL.
+Scope: **gRPC is planned for v2** (it needs its own toolchain). **Not part of this skill at all:** UI accessibility and mobile app testing
+(they are not API testing; accessibility could become a separate skill) and a hosted service (the skill runs in your environment).
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 
-> **Status: 0.1.0, not yet released.** The code is complete and tested; the release itself (tag, marketplace listings) is
-> still to be done. See [docs/RELEASE.md](docs/RELEASE.md). The three third-party targets (Petstore, VAmPI, DVGA) have **not** been run
-> for real, only against labelled mock stand-ins that the same author wrote, so the detection numbers show that the checks work on those
-> seeded flaws and nothing more. Read [docs/evals.md](docs/evals.md) before you trust them.
+> **Version 0.1.0 is the first version.** The code is public and tested, but no release tag has been cut and it is not yet listed in any
+> skill marketplace; that is the remaining release work, see [docs/RELEASE.md](docs/RELEASE.md). The three third-party eval targets
+> (Petstore, VAmPI, DVGA) have **not** been run for real, only against labelled mock stand-ins written by the same author, so the detection numbers
+> show that the checks work on those seeded flaws and nothing more. Read [docs/evals.md](docs/evals.md) before you trust them.
 
 ## Results: what has been run
 
@@ -28,50 +30,62 @@ The skill has been run end to end on a real service and on public sandboxes, and
 did and did not cover is stated next to it. Detection numbers against *seeded* flaws are in [docs/evals.md](docs/evals.md).
 
 **Open the report:** [spring-boot-demo, real run (HTML)](examples/spring-boot-demo/report.html) ·
-[seeded-flaw demo, 7 findings (HTML)](examples/sample-report.html). Download the file and open it in a browser; it works offline.
+[deliberately flawed demo API, 7 findings (HTML)](examples/sample-report.html) ·
+[four public sandbox APIs](examples/public-sandbox/README.md). GitHub shows HTML files as source, so download the file and open it in a browser.
+Each report is one self-contained file (no external scripts, styles or fonts) and was checked to open with no network connection.
 
 ### A real Spring Boot service (local, throwaway database)
 
 Target: a Spring Boot 4 REST demo built from source and run on `localhost:8080` against a throwaway PostgreSQL 16. The spec was
-written by hand from the controller (7 endpoints). Nothing outside the sandbox was touched.
+written by hand from the controller (7 endpoints). Nothing outside the sandbox was touched. This is the final run, with a bug in the demo fixed
+before it; one report covers all of it: [report.html](examples/spring-boot-demo/report.html).
 
 | Run | Tests | Pass | Fail | Skip | Outcome |
 |---|---|---|---|---|---|
-| Functional: smoke, positive, negative, edge, data-validation, contract, security, integration, resilience | 166 | 165 | 0 | 1 | no findings |
-| Fuzz, 150 cases per endpoint at 20 req/s | 7 | 5 | 1 | 1 | **1 MEDIUM, a real bug** |
-| Chaos: latency, 5xx, dropped connections, payload bursts, database outage | 15 | 15 | 0 | 0 | no findings |
-| Fuzz again after the bug was fixed | 7 | 7 | 0 | 0 | finding gone |
-| k6 load, stress, spike, soak (GET endpoints only) | 4 profiles | 4 | 0 | 0 | 0 failed requests, p95 3 to 8 ms |
+| Functional: smoke, positive, negative, edge, data-validation, contract, security, integration, resilience (incl. 2 rate-limit tests) | 166 | 166 | 0 | 0 | no findings |
+| Fuzz (seeded malformed inputs, after the bug below was fixed) | 7 | 7 | 0 | 0 | no findings |
+| Chaos: latency, 5xx, dropped connections, payload bursts, database outage and freeze | 16 | 15 | 1 | 0 | **1 MEDIUM**: with the database frozen, requests failed after about 5.0 s |
+| **All tests** | **189** | **188** | **1** | **0** | report verdict FAIL (1 MEDIUM) |
+| k6 load, stress, spike, 30-minute soak (GET endpoints only) | 4 profiles | 4 | 0 | 0 | 0 failed requests, p95 2.8 to 4.7 ms |
 
-The real finding: `GET /api/v1/software-engineers?page=2147483647` returned 500, because page times size overflowed Spring Data's integer
-offset. It was confirmed by hand and fixed in the demo project. After the fix the fuzz run passed 7 of 7.
+The 189 are the pytest and chaos tests; the k6 profiles are reported separately with their thresholds, none crossed.
+
+An earlier fuzz run found a real bug: `GET /api/v1/software-engineers?page=2147483647` returned 500, because page times size overflowed Spring Data's
+integer offset. It was fixed in the demo project, and the fuzz run above passed 7 of 7 afterwards. The chaos finding is not fixed: a frozen database
+takes about 5 s to fail instead of failing fast, which suggests the demo sets no read timeout on its database connection (the cause was not investigated).
+That is "at the limit" of the 5 s default, not a measured hang (see [docs/evals.md](docs/evals.md)).
 
 What was not done on this target, so you can judge the numbers:
-- k6 ran **GET endpoints only, at the default rates** (5 to 25 req/s, up to 50 virtual users). The soak was **shortened to 5 minutes**
-  (the default is 30). This shows the demo is comfortable at that rate on a small machine. It is not a capacity limit.
+- k6 ran **GET endpoints only, at the default rates** (about 4 to 10 req/s on average, up to 50 virtual users). That shows the demo is comfortable
+  at that rate on a small machine. It is not a capacity limit.
+- The rate-limit tests ran without pacing, the rest at 40 req/s, because the skill skips its burst probes when a rate cap is set.
 - Writes and intrusive probes ran only because the database was disposable. HTTPS and authentication were not covered (the demo has none).
-- The sample HTML report above combines the functional run, the fuzz run after the fix and the four k6 runs. The chaos run's own result
-  files are not part of it.
+- Chaos cases show no request or response bodies in the report (they are not captured through HTTP).
 
 ### Four public sandbox APIs (read-only)
 
-JSONPlaceholder, ReqRes, HTTPBin and Webhook.site, with `APITEST_TARGET_ENV=production` so that only reads were sent, a 0.3 s pause between
-tests, no credentials, and no load, fuzz, stress, spike, soak or chaos.
+Rerun on 2026-11-14 with the current version: JSONPlaceholder, ReqRes, HTTPBin and Webhook.site, with `APITEST_READ_ONLY=yes` (only GET, HEAD and OPTIONS),
+a 0.3 s pause between requests, no credentials, and no load, fuzz, stress, spike, soak, chaos or resilience tests. Reports and specs: [examples/public-sandbox](examples/public-sandbox/README.md).
 
-| | Tests | Pass | Fail | Skip |
-|---|---|---|---|---|
-| Total across the four APIs | 1098 | 257 | 52 | 789 |
+| API | Tests | Pass | Fail | Skip | Findings |
+|---|---|---|---|---|---|
+| JSONPlaceholder | 378 | 24 | 2 | 352 | 1 HIGH (CORS reflects any origin with credentials), 1 LOW (no HSTS, `X-Powered-By`) |
+| ReqRes | 192 | 21 | 11 | 160 | 10 MEDIUM (the list endpoints accept invalid `page` and `per_page`), 1 LOW (`X-Powered-By`) |
+| HTTPBin | 413 | 139 | 8 | 266 | 3 HIGH (CORS reflects any origin with credentials; `/cookies/set` and `/cookies/delete` answer 302 where the spec says 200), 4 MEDIUM (the same cookie mismatch), 1 LOW (no HSTS) |
+| Webhook.site | 55 | 2 | 0 | 53 | none |
+| **Total** | **1038** | **186** | **21** | **831** | |
 
-72% of the tests were skipped, almost all by the safety gate, so this run says little about writes. Most failures were false positives that
-this run exposed in the skill (redirect-only endpoints, guessed sample values, ids for non-id path parameters). They were fixed afterwards.
-The real findings were a CORS policy that reflects any origin with credentials, missing HSTS and a spec mismatch on HTTPBin's cookie endpoints.
-Specs for three of the four APIs were written by hand.
+80% of the tests were skipped, all by design: read-only mode never sends writes (320 skips) or active probes (406), and the rest need ids or data
+the run did not have. So this run says little about writes and nothing about load. The first run on 2026-11-12 (1098 tests, 52 failures) had many false
+positives; those were fixed in the skill, and the failures that remain are the API's behaviour or mistakes in the hand-written specs (the cookie mismatch,
+the strict `page` rules). Whether the CORS and header findings matter for a public demo API is your call. Three of the four specs were written by hand.
 
 ### Seeded flaws and tests of the skill itself
 - On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 3 findings, and data exposure, 1 finding). The other 3 failures come from
   using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 7.
-- Against local mocks with 14 seeded REST flaws and 9 GraphQL flaws, the matching generated test fails on each flaw and the clean variant
-  passes. The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
+- 27 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
+  9 in a GraphQL mock). The matching generated test failed on 26 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
+  The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
 - The repository's own tests run on Python 3.11, 3.12 and 3.13 in CI.
 
 What this does not show: detection rates on real third-party APIs, behaviour under production load, or anything about APIs that need OAuth flows
@@ -107,11 +121,11 @@ Pick one. Every route ends with the same folder: `api-testing/` containing `SKIL
 **1. Claude Code, as a plugin** (this repository is also a one-plugin marketplace):
 ```
 /plugin marketplace add pankajkumar-codes/api-test-pilot-skill
-/plugin install api-test-pilot@api-test-pilot
+/plugin install api-test-pilot-skill@api-test-pilot-skill
 ```
 The first line registers the marketplace, the second installs the plugin (the part after `@` is the marketplace name).
 From a shell the same steps are `claude plugin marketplace add pankajkumar-codes/api-test-pilot-skill` and
-`claude plugin install api-test-pilot@api-test-pilot`. These commands only work once the repository is public on GitHub.
+`claude plugin install api-test-pilot-skill@api-test-pilot-skill`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
 The skill then loads automatically when you ask to test an API.
 
 **2. Claude Code, as plain files** (works for any checkout, no plugin system needed):
@@ -121,7 +135,7 @@ mkdir -p ~/.claude/skills && cp -r api-test-pilot-skill/skills/api-testing ~/.cl
 # or, for one project: mkdir -p .claude/skills && cp -r .../skills/api-testing .claude/skills/
 ```
 
-**3. Claude app (claude.ai), as an uploaded skill:** build the zip and upload it in Settings, Capabilities, Skills. Menu names
+**3. Claude app (claude.ai), as an uploaded skill:** from the repository root, build the zip and upload it in Settings, Capabilities, Skills. Menu names
 change between releases; see Anthropic's [Using Skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude) if they differ.
 ```bash
 python tools/build_skill_zip.py        # validates first, writes dist/api-testing-0.1.0.zip with one top-level api-testing/ folder
@@ -133,7 +147,7 @@ The folder follows the open specification (`name` equals the folder name, `descr
 
 ## Quick start
 
-1. Install the skill (next section) and install the test libraries: `pip install pytest requests`.
+1. Install the skill (see Install above) and install the test libraries: `pip install pytest requests`.
 2. Put the API's spec (OpenAPI/Swagger, GraphQL schema or introspection JSON, Postman collection, or a file of curl commands) in your project.
 3. Start your agent and say what you want:
 
@@ -228,8 +242,14 @@ The full list is in `skills/api-testing/references/` (one file per test type).
 
 `summarize_results.py` writes `reports/report.html`: a single file with no external assets, so it opens offline and can be attached to a ticket
 or a CI run. It has the pass/fail verdict, a chart and totals, results per test type (click a type to see every test with its status, reason, the request sent and the response received; secrets are redacted), findings ranked by severity (each with what happened,
-what was expected and a command to reproduce it), k6 numbers with threshold results, per-endpoint coverage, skip reasons and limitations. It follows
+what was expected and a command to reproduce it), k6 numbers with threshold results, per-endpoint coverage, skip reasons and limitations. Chaos runs show up as their own test type
+(`chaos_run.py` writes a JUnit file you pass with `--junit`; chaos cases have no request or response bodies). It follows
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
+
+Exit codes, for scripts and CI: pytest exits 0 when every test passed, 1 when any failed, and 4 when the safety gate stops a remote target that has no
+`APITEST_TARGET_ENV`. `run_k6.py` exits 3 when the gate refuses the target, 4 when k6 is not installed, otherwise with k6's own code (99 when a threshold is crossed).
+`chaos_run.py` exits 0 (all passed or skipped), 1 (an experiment found a problem), 2 (bad input), 3 (gate refused) or 4 (cut short by a signal; partial results are written).
+`summarize_results.py` exits 0 whenever it wrote the report, **even when the verdict is FAIL**; fail your pipeline on the test runs' exit codes, not on the report script.
 
 Notes on running generated suites:
 - Tests that delete or overwrite data are marked `destructive`, need `APITEST_ALLOW_DESTRUCTIVE=yes`, and run last.
@@ -285,8 +305,10 @@ Wrote reports/report.json
 Wrote reports/report.html (7 findings, 261 tests, 0 k6 summaries)
 ```
 
-The report opens with `FAIL: 7 finding(s): HIGH 5, MEDIUM 2.` The BOLA and data-exposure failures are the seeded
-flaws. The three `/admin/stats` failures come from using a non-admin token on an admin endpoint; they are not seeded flaws.
+The demo API is **deliberately flawed** (that is what `--bugs bola,leak` switches on), so this report is supposed to fail. It opens with
+`FAIL: 7 finding(s): HIGH 5, MEDIUM 2.` (verified by rerunning the commands above: 239 passed, 7 failed, 15 skipped). Four of the seven are the seeded flaws:
+three BOLA findings (HIGH) and one data exposure (HIGH). The other three are all `GET /admin/stats` returning 403 (one HIGH smoke test, two MEDIUM),
+because the run uses a non-admin token on an admin endpoint; the mock server is behaving correctly there, so they are not seeded flaws.
 
 The safety stop, on a remote target without `APITEST_TARGET_ENV`:
 ```text
@@ -299,11 +321,12 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (337 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about two and a half minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (449 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
+- Real runs: one local Spring Boot service (all test types, k6 and chaos) and four public sandbox APIs read-only, as described under Results. No real-API detection rates are claimed, and nothing here is "production-tested".
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
 
 ## Develop

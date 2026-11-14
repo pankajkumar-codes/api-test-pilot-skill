@@ -10,7 +10,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
       `SKILL.md` metadata, `plugin.json`, CHANGELOG).
 - [ ] `claude plugin validate .` passes. Known, accepted output: a warning that `CLAUDE.md` at the plugin root is not loaded
       (it is repository instructions, not plugin content), and a directory advice that no `icon` is set (see "Icon" below).
-- [ ] Install from a clean directory: `claude plugin marketplace add .` then `claude plugin install api-test-pilot@api-test-pilot`
+- [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot-skill@api-test-pilot-skill`
       with a scratch `HOME`; `claude plugin list` shows version 0.1.0.
 - [ ] `python tools/build_skill_zip.py`; unzip into an empty folder, create a fresh virtualenv with `pip install pytest requests`,
       and run the README example (intake, generate, run, report) against `examples/demo_server.py`.
@@ -24,8 +24,8 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 ## Tag and release (outward-facing, maintainer only)
 - [ ] Repository is public and its visibility, description and topics are set (suggested topics: `agent-skills`, `claude-code`,
       `api-testing`, `openapi`, `graphql`, `pytest`, `k6`, `owasp`).
-- [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
-      `api-test-pilot--v0.1.0`, which is only needed when other plugins depend on a version range.)
+- [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot-skill 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
+      `api-test-pilot-skill--v0.1.0`, which is only needed when other plugins depend on a version range.)
 - [ ] GitHub release for `v0.1.0`: notes from CHANGELOG; attach `dist/api-testing-0.1.0.zip` and its SHA-256 (printed by the zip tool).
 - [ ] Bump `version` in `SKILL.md` metadata, `.claude-plugin/plugin.json` and CHANGELOG together for every later release.
       `plugin.json` sets `version`, so users only receive an update when it changes.

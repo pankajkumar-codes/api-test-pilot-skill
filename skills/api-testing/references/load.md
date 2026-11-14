@@ -29,7 +29,7 @@ APITEST_TARGET_ENV=staging APITEST_AUTHORIZED=yes APITEST_BEARERAUTH_TOKEN=... \
   Credentials come from the env vars the intake lists. Endpoints missing an id or credential are skipped and named in a warning
   (names only, never values); if nothing is left the run aborts before sending a request.
 - GraphQL: query operations only, selections without secret-looking fields; HTTP 200 with a non-empty `errors` array counts as a failure.
-- Requests: 10 s timeout, no redirects (a redirect cannot lead the run to another host), header `X-Load-Test: api-test-pilot`.
+- Requests: 10 s timeout, no redirects (a redirect cannot lead the run to another host), header `X-Load-Test: api-test-pilot-skill`.
 - Every request is tagged `endpoint:<id>` and `stage:<label>`, so the summary shows per-endpoint and per-stage numbers.
 
 ## Caps and limits (generator and script)

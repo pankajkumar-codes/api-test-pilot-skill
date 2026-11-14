@@ -1,0 +1,164 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "Webhook.site API (hand-written subset)",
+  "version": "1"
+ },
+ "servers": [
+  {
+   "url": "https://webhook.site"
+  }
+ ],
+ "paths": {
+  "/token": {
+   "post": {
+    "operationId": "create_token",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "default_status": {
+          "type": "integer"
+         },
+         "default_content": {
+          "type": "string"
+         },
+         "default_content_type": {
+          "type": "string"
+         }
+        },
+        "required": []
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "uuid": {
+           "type": "string"
+          },
+          "default_status": {
+           "type": "integer"
+          }
+         },
+         "required": [
+          "uuid"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/token/{tokenId}": {
+   "get": {
+    "operationId": "get_token",
+    "parameters": [
+     {
+      "name": "tokenId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "uuid": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "uuid"
+         ]
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "nf"
+     }
+    }
+   },
+   "delete": {
+    "operationId": "delete_token",
+    "parameters": [
+     {
+      "name": "tokenId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "deleted"
+     }
+    }
+   }
+  },
+  "/token/{tokenId}/requests": {
+   "get": {
+    "operationId": "list_requests",
+    "parameters": [
+     {
+      "name": "tokenId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "format": "uuid"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "array",
+           "items": {
+            "type": "object"
+           }
+          },
+          "total": {
+           "type": "integer"
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

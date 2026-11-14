@@ -1,20 +1,312 @@
-{"openapi":"3.0.3","info":{"title":"spring-boot-demo","version":"1.0"},"servers":[{"url":"http://localhost:8080"}],
-"components":{"schemas":{
- "Engineer":{"type":"object","required":["id","name","techStack"],"properties":{"id":{"type":"integer","readOnly":true},"name":{"type":"string","maxLength":100},"techStack":{"type":"string","maxLength":100}}},
- "EngineerRequest":{"type":"object","required":["name","techStack"],"properties":{"name":{"type":"string","minLength":1,"maxLength":100},"techStack":{"type":"string","minLength":1,"maxLength":100}}}}},
-"paths":{
-"/api/v1/software-engineers":{
- "get":{"parameters":[{"name":"page","in":"query","schema":{"type":"integer","minimum":0}},{"name":"size","in":"query","schema":{"type":"integer","minimum":1,"maximum":100}}],
-  "responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Engineer"}}}}},"400":{"description":"bad"}}},
- "post":{"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EngineerRequest"}}}},
-  "responses":{"201":{"description":"created","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engineer"}}}},"400":{"description":"bad"}}}},
-"/api/v1/software-engineers/{id}":{
- "parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"integer"}}],
- "get":{"responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engineer"}}}},"404":{"description":"nf"},"400":{"description":"bad"}}},
- "put":{"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/EngineerRequest"}}}},
-  "responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Engineer"}}}},"404":{"description":"nf"},"400":{"description":"bad"}}},
- "delete":{"responses":{"204":{"description":"deleted"},"404":{"description":"nf"},"400":{"description":"bad"}}}},
-"/api/v1/software-engineers/search":{"get":{"parameters":[{"name":"name","in":"query","required":true,"schema":{"type":"string","maxLength":100}}],
- "responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Engineer"}}}}},"400":{"description":"bad"}}}},
-"/api/v1/software-engineers/filter":{"get":{"parameters":[{"name":"techStack","in":"query","required":true,"schema":{"type":"string","maxLength":100}}],
- "responses":{"200":{"description":"ok","content":{"application/json":{"schema":{"type":"array","items":{"$ref":"#/components/schemas/Engineer"}}}}},"400":{"description":"bad"}}}}}}
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "spring-boot-demo software engineers API",
+  "version": "2"
+ },
+ "servers": [
+  {
+   "url": "http://localhost:8080"
+  }
+ ],
+ "paths": {
+  "/api/v1/software-engineers": {
+   "get": {
+    "operationId": "getEngineers",
+    "parameters": [
+     {
+      "name": "page",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 0
+      }
+     },
+     {
+      "name": "size",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SoftwareEngineer"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "invalid parameter"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   },
+   "post": {
+    "operationId": "addNewSoftwareEngineer",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SoftwareEngineerRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "created",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SoftwareEngineer"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "invalid body"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   }
+  },
+  "/api/v1/software-engineers/{id}": {
+   "get": {
+    "operationId": "getEngineerById",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SoftwareEngineer"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "not found"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   },
+   "put": {
+    "operationId": "replaceEngineer",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SoftwareEngineerRequest"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SoftwareEngineer"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "invalid body"
+     },
+     "404": {
+      "description": "not found"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   },
+   "delete": {
+    "operationId": "deleteEngineer",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "deleted"
+     },
+     "404": {
+      "description": "not found"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   }
+  },
+  "/api/v1/software-engineers/search": {
+   "get": {
+    "operationId": "searchByName",
+    "parameters": [
+     {
+      "name": "name",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 100
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SoftwareEngineer"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "invalid parameter"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   }
+  },
+  "/api/v1/software-engineers/filter": {
+   "get": {
+    "operationId": "filterByTechStack",
+    "parameters": [
+     {
+      "name": "techStack",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 100
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/SoftwareEngineer"
+         }
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "invalid parameter"
+     },
+     "429": {
+      "description": "Too many requests from this client; retry after the Retry-After seconds"
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "SoftwareEngineer": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "techStack": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "techStack"
+    ]
+   },
+   "SoftwareEngineerRequest": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+     },
+     "techStack": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+     }
+    },
+    "required": [
+     "name",
+     "techStack"
+    ]
+   }
+  }
+ }
+}

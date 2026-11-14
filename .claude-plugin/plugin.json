@@ -1,6 +1,6 @@
 {
-  "name": "api-test-pilot",
-  "displayName": "API Test Pilot",
+  "name": "api-test-pilot-skill",
+  "displayName": "API Test Pilot Skill",
   "version": "0.1.0",
   "description": "Plan, generate and run API tests from an OpenAPI spec, GraphQL schema, Postman collection or curl examples: functional, contract, security (OWASP API Top 10), load, fuzz and chaos plans.",
   "author": {

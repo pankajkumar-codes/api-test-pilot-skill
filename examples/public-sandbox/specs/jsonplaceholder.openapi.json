@@ -1,0 +1,788 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "JSONPlaceholder (hand-written subset)",
+  "version": "1.0"
+ },
+ "servers": [
+  {
+   "url": "https://jsonplaceholder.typicode.com"
+  }
+ ],
+ "paths": {
+  "/posts": {
+   "get": {
+    "tags": [
+     "Post"
+    ],
+    "operationId": "list_posts",
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Post"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Post"
+    ],
+    "operationId": "create_posts",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PostInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/posts/{id}": {
+   "get": {
+    "tags": [
+     "Post"
+    ],
+    "operationId": "get_posts",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Post"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "not found"
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "Post"
+    ],
+    "operationId": "replace_posts",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/PostInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Post"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Post"
+    ],
+    "operationId": "delete_posts",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok"
+     }
+    }
+   }
+  },
+  "/comments": {
+   "get": {
+    "tags": [
+     "Comment"
+    ],
+    "operationId": "list_comments",
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Comment"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Comment"
+    ],
+    "operationId": "create_comments",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CommentInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Comment"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/comments/{id}": {
+   "get": {
+    "tags": [
+     "Comment"
+    ],
+    "operationId": "get_comments",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Comment"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "not found"
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "Comment"
+    ],
+    "operationId": "replace_comments",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CommentInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Comment"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Comment"
+    ],
+    "operationId": "delete_comments",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok"
+     }
+    }
+   }
+  },
+  "/users": {
+   "get": {
+    "tags": [
+     "User"
+    ],
+    "operationId": "list_users",
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/User"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "User"
+    ],
+    "operationId": "create_users",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/User"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/users/{id}": {
+   "get": {
+    "tags": [
+     "User"
+    ],
+    "operationId": "get_users",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/User"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "not found"
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "User"
+    ],
+    "operationId": "replace_users",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/UserInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/User"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "User"
+    ],
+    "operationId": "delete_users",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok"
+     }
+    }
+   }
+  },
+  "/todos": {
+   "get": {
+    "tags": [
+     "Todo"
+    ],
+    "operationId": "list_todos",
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "array",
+         "items": {
+          "$ref": "#/components/schemas/Todo"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "tags": [
+     "Todo"
+    ],
+    "operationId": "create_todos",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TodoInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Todo"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/todos/{id}": {
+   "get": {
+    "tags": [
+     "Todo"
+    ],
+    "operationId": "get_todos",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Todo"
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "not found"
+     }
+    }
+   },
+   "put": {
+    "tags": [
+     "Todo"
+    ],
+    "operationId": "replace_todos",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/TodoInput"
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Todo"
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "Todo"
+    ],
+    "operationId": "delete_todos",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok"
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "schemas": {
+   "Post": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "integer"
+     },
+     "id": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "userId",
+     "id",
+     "title",
+     "body"
+    ]
+   },
+   "PostInput": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "userId",
+     "title",
+     "body"
+    ]
+   },
+   "Comment": {
+    "type": "object",
+    "properties": {
+     "postId": {
+      "type": "integer"
+     },
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string",
+      "format": "email"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "postId",
+     "id",
+     "name",
+     "email",
+     "body"
+    ]
+   },
+   "CommentInput": {
+    "type": "object",
+    "properties": {
+     "postId": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string",
+      "format": "email"
+     },
+     "body": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "postId",
+     "name",
+     "email",
+     "body"
+    ]
+   },
+   "User": {
+    "type": "object",
+    "properties": {
+     "id": {
+      "type": "integer"
+     },
+     "name": {
+      "type": "string"
+     },
+     "username": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string",
+      "format": "email"
+     },
+     "phone": {
+      "type": "string"
+     },
+     "website": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "name",
+     "username",
+     "email"
+    ]
+   },
+   "UserInput": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "username": {
+      "type": "string"
+     },
+     "email": {
+      "type": "string",
+      "format": "email"
+     }
+    },
+    "required": [
+     "name",
+     "username",
+     "email"
+    ]
+   },
+   "Todo": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "integer"
+     },
+     "id": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "completed": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "userId",
+     "id",
+     "title",
+     "completed"
+    ]
+   },
+   "TodoInput": {
+    "type": "object",
+    "properties": {
+     "userId": {
+      "type": "integer"
+     },
+     "title": {
+      "type": "string"
+     },
+     "completed": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "userId",
+     "title",
+     "completed"
+    ]
+   }
+  }
+ }
+}

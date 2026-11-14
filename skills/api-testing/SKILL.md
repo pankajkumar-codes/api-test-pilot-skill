@@ -73,4 +73,4 @@ Report what was run and what was skipped; never state results the files do not c
 - `references/fuzzing.md` — malformed-input fuzzing
 
 ## Not covered
-UI accessibility testing (separate concern).
+UI accessibility and mobile app testing (not API testing), a hosted service, and gRPC (planned for v2).

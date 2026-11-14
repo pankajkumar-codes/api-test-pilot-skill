@@ -242,3 +242,14 @@ and the 5.0 s observed sits right at it, so treat these two as "at the limit", n
 The chaos results were turned into a report with `summarize_results.py` (type `chaos`, two MEDIUM findings, each with the `chaos_run.py` rerun command).
 
 Not verified: HTTPS upstreams (the proxy code supports them; no run), IPv6, chunked request bodies through the proxy (answered 411 by design), remote targets, Windows.
+
+## Final spring-boot-demo run and public sandbox rerun (2026-11-14)
+**spring-boot-demo** (`b443602`, after two fixes in the demo), throwaway PostgreSQL 16, skill at `e49353d`: 189 tests in one report, 188 passed, 1 failed, 0 skipped
+(functional 166 of 166 including 2 rate-limit tests, fuzz 7 of 7, chaos 15 of 16). The one failure is the chaos `dep-slow` finding (MEDIUM): with PostgreSQL frozen, requests fail after about 5.0 s
+(limit 5.0 s), same as the earlier run; the demo was not changed for it. k6 load, stress, spike and a full 30-minute soak on the GET endpoints: 0 failed requests, p95 2.8 to 4.7 ms. The report is `examples/spring-boot-demo/report.html`.
+The earlier fuzz finding (`page=2147483647` returned 500) was fixed in the demo, and fuzz passes 7 of 7.
+
+**Public sandbox APIs**, read-only (`APITEST_READ_ONLY=yes`, 0.3 s between requests, no credentials, no resilience tests): JSONPlaceholder 378 tests (24 pass, 2 fail, 352 skip), ReqRes 192 (21, 11, 160),
+HTTPBin 413 (139, 8, 266), Webhook.site 55 (2, 0, 53); total 1038 (186 pass, 21 fail, 831 skip). The failures are CORS reflecting any origin with credentials (JSONPlaceholder, HTTPBin), missing HSTS and
+`X-Powered-By` headers, ReqRes accepting invalid `page` and `per_page` values, and HTTPBin's `/cookies/set` and `/cookies/delete` answering 302 where the hand-written spec says 200. No finding was checked
+against the providers beyond what the report shows. Reports and specs: `examples/public-sandbox/`. These runs show nothing about writes (skipped by design), load or real-API detection rates.
