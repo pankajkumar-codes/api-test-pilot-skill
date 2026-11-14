@@ -4,8 +4,8 @@ Plain facts only; every claim below is true of version 0.1.0 and is backed by th
 Do not add claims about detection rates on real third-party targets until those runs exist.
 
 ## Names
-- Display name: **API Test Pilot**
-- Plugin and marketplace id: `api-test-pilot`; skill folder and skill name: `api-testing`
+- Display name: **API Test Pilot Skill**
+- Plugin and marketplace id: `api-test-pilot-skill`; skill folder and skill name: `api-testing`
 - Repository: https://github.com/pankajkumar-codes/api-test-pilot-skill
 - License: MIT
 - Category: testing (tags: api, testing, openapi, graphql, security, pytest, k6)
@@ -19,7 +19,7 @@ k6 files, covers functional, contract, security (OWASP API Top 10), load and fuz
 Heavy tests only run against targets you confirm are non-production.
 
 ## Long description
-API Test Pilot is an Agent Skill for testing HTTP APIs. Give your agent an OpenAPI or Swagger spec, a GraphQL schema, a Postman
+API Test Pilot Skill is an Agent Skill for testing HTTP APIs. Give your agent an OpenAPI or Swagger spec, a GraphQL schema, a Postman
 collection or a few curl commands, plus a base URL, and it walks through intake, a test plan you approve, generation, a run and a report.
 
 What you get:
@@ -43,7 +43,7 @@ and DVGA (26 of 27 seeded flaws found; VAmPI mass assignment is a known gap). Ru
 ## Install lines
 ```
 /plugin marketplace add pankajkumar-codes/api-test-pilot-skill
-/plugin install api-test-pilot@api-test-pilot
+/plugin install api-test-pilot-skill@api-test-pilot-skill
 ```
 Plain files: copy `skills/api-testing/` to `~/.claude/skills/`. Claude app: upload `dist/api-testing-<version>.zip`
 (`python tools/build_skill_zip.py`).

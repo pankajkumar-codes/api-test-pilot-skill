@@ -1,0 +1,537 @@
+{
+ "openapi": "3.0.3",
+ "info": {
+  "title": "ReqRes (hand-written subset)",
+  "version": "1"
+ },
+ "servers": [
+  {
+   "url": "https://reqres.in/api"
+  }
+ ],
+ "paths": {
+  "/users": {
+   "get": {
+    "operationId": "list_users",
+    "parameters": [
+     {
+      "name": "page",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     },
+     {
+      "name": "per_page",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 12
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "page": {
+           "type": "integer"
+          },
+          "per_page": {
+           "type": "integer"
+          },
+          "total": {
+           "type": "integer"
+          },
+          "total_pages": {
+           "type": "integer"
+          },
+          "data": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "integer"
+             },
+             "email": {
+              "type": "string"
+             },
+             "first_name": {
+              "type": "string"
+             },
+             "last_name": {
+              "type": "string"
+             },
+             "avatar": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "email",
+             "first_name",
+             "last_name"
+            ]
+           }
+          }
+         },
+         "required": [
+          "page",
+          "per_page",
+          "total",
+          "total_pages",
+          "data"
+         ]
+        }
+       }
+      }
+     }
+    }
+   },
+   "post": {
+    "operationId": "create_user",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "job": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "name",
+         "job"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "201": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "string"
+          },
+          "name": {
+           "type": "string"
+          },
+          "job": {
+           "type": "string"
+          },
+          "createdAt": {
+           "type": "string"
+          }
+         },
+         "required": []
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/users/{id}": {
+   "get": {
+    "operationId": "get_user",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "integer"
+            },
+            "email": {
+             "type": "string"
+            },
+            "first_name": {
+             "type": "string"
+            },
+            "last_name": {
+             "type": "string"
+            },
+            "avatar": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "email",
+            "first_name",
+            "last_name"
+           ]
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "nf"
+     }
+    }
+   },
+   "put": {
+    "operationId": "update_user",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "name": {
+          "type": "string"
+         },
+         "job": {
+          "type": "string"
+         }
+        },
+        "required": []
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "name": {
+           "type": "string"
+          },
+          "job": {
+           "type": "string"
+          },
+          "updatedAt": {
+           "type": "string"
+          }
+         },
+         "required": []
+        }
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "operationId": "delete_user",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "204": {
+      "description": "deleted"
+     }
+    }
+   }
+  },
+  "/unknown": {
+   "get": {
+    "operationId": "list_resources",
+    "parameters": [
+     {
+      "name": "page",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     },
+     {
+      "name": "per_page",
+      "in": "query",
+      "schema": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 12
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "page": {
+           "type": "integer"
+          },
+          "per_page": {
+           "type": "integer"
+          },
+          "total": {
+           "type": "integer"
+          },
+          "total_pages": {
+           "type": "integer"
+          },
+          "data": {
+           "type": "array",
+           "items": {
+            "type": "object",
+            "properties": {
+             "id": {
+              "type": "integer"
+             },
+             "name": {
+              "type": "string"
+             },
+             "year": {
+              "type": "integer"
+             },
+             "color": {
+              "type": "string"
+             },
+             "pantone_value": {
+              "type": "string"
+             }
+            },
+            "required": [
+             "id",
+             "name",
+             "year"
+            ]
+           }
+          }
+         },
+         "required": [
+          "page",
+          "per_page",
+          "total",
+          "total_pages",
+          "data"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/unknown/{id}": {
+   "get": {
+    "operationId": "get_resource",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "integer",
+       "minimum": 1
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "data": {
+           "type": "object",
+           "properties": {
+            "id": {
+             "type": "integer"
+            },
+            "name": {
+             "type": "string"
+            },
+            "year": {
+             "type": "integer"
+            },
+            "color": {
+             "type": "string"
+            },
+            "pantone_value": {
+             "type": "string"
+            }
+           },
+           "required": [
+            "id",
+            "name",
+            "year"
+           ]
+          }
+         },
+         "required": [
+          "data"
+         ]
+        }
+       }
+      }
+     },
+     "404": {
+      "description": "nf"
+     }
+    }
+   }
+  },
+  "/register": {
+   "post": {
+    "operationId": "register",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "email": {
+          "type": "string"
+         },
+         "password": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "email",
+         "password"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "id": {
+           "type": "integer"
+          },
+          "token": {
+           "type": "string"
+          }
+         },
+         "required": []
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "bad"
+     }
+    }
+   }
+  },
+  "/login": {
+   "post": {
+    "operationId": "login",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "email": {
+          "type": "string"
+         },
+         "password": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "email",
+         "password"
+        ]
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "ok",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "properties": {
+          "token": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "token"
+         ]
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "bad"
+     }
+    }
+   }
+  }
+ }
+}

@@ -1,4 +1,4 @@
-# CLAUDE.md — api-test-pilot
+# CLAUDE.md — api-test-pilot-skill
 
 ## What this repo is
 An Agent Skill (`skills/api-testing/`) that plans, generates and runs API tests

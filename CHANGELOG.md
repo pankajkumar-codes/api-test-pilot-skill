@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (naming and README audit, 2026-11-14)
+- Plugin, marketplace and display name are now `api-test-pilot-skill` / "API Test Pilot Skill" (README, plugin.json, marketplace.json, listing copy, release checklist). The k6 template header is `X-Load-Test: api-test-pilot-skill` and its user agent `api-test-pilot-skill-k6`. The skill folder stays `api-testing`.
+- README: scope wording (gRPC planned for v2; accessibility, mobile and hosted service outside the skill), status line, results tables match the final runs, exit codes, install notes.
+- Samples: the spring-boot-demo report is the final run (189 tests); the sample report title marks the demo API as deliberately flawed; new `examples/public-sandbox/` with the four read-only public API reports and specs.
+- Fixed: `docs/RELEASE.md` said `claude plugin marketplace add .`, which Claude Code rejects; it is `./`.
+
 ### Added (request and response in reports, 2026-11-14)
 - Generated suites record the first three requests of each test (method, URL, status, time, headers, bodies; secrets redacted, bodies clipped) into the JUnit file; the HTML and JSON reports show them under each test case.
 

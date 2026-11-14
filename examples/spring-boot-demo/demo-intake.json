@@ -5,8 +5,8 @@
     "file": "openapi.json"
   },
   "info": {
-    "title": "spring-boot-demo",
-    "version": "1.0"
+    "title": "spring-boot-demo software engineers API",
+    "version": "2"
   },
   "servers": [
     "http://localhost:8080"
@@ -14,7 +14,7 @@
   "security_schemes": {},
   "endpoints": [
     {
-      "id": "GET_api_v1_software_engineers",
+      "id": "getEngineers",
       "method": "GET",
       "path": "/api/v1/software-engineers",
       "summary": "",
@@ -59,29 +59,29 @@
               ],
               "properties": {
                 "id": {
-                  "type": "integer",
-                  "readOnly": true
+                  "type": "integer"
                 },
                 "name": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 },
                 "techStack": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 }
               },
-              "$name": "Engineer"
+              "$name": "SoftwareEngineer"
             }
           }
         },
         "400": {
-          "description": "bad"
+          "description": "invalid parameter"
+        },
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "POST_api_v1_software_engineers",
+      "id": "addNewSoftwareEngineer",
       "method": "POST",
       "path": "/api/v1/software-engineers",
       "summary": "",
@@ -111,7 +111,7 @@
               "maxLength": 100
             }
           },
-          "$name": "EngineerRequest"
+          "$name": "SoftwareEngineerRequest"
         }
       },
       "responses": {
@@ -127,28 +127,28 @@
             ],
             "properties": {
               "id": {
-                "type": "integer",
-                "readOnly": true
+                "type": "integer"
               },
               "name": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               },
               "techStack": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               }
             },
-            "$name": "Engineer"
+            "$name": "SoftwareEngineer"
           }
         },
         "400": {
-          "description": "bad"
+          "description": "invalid body"
+        },
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "GET_api_v1_software_engineers_id",
+      "id": "getEngineerById",
       "method": "GET",
       "path": "/api/v1/software-engineers/{id}",
       "summary": "",
@@ -162,7 +162,8 @@
           "in": "path",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           }
         }
       ],
@@ -180,31 +181,28 @@
             ],
             "properties": {
               "id": {
-                "type": "integer",
-                "readOnly": true
+                "type": "integer"
               },
               "name": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               },
               "techStack": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               }
             },
-            "$name": "Engineer"
+            "$name": "SoftwareEngineer"
           }
         },
         "404": {
-          "description": "nf"
+          "description": "not found"
         },
-        "400": {
-          "description": "bad"
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "PUT_api_v1_software_engineers_id",
+      "id": "replaceEngineer",
       "method": "PUT",
       "path": "/api/v1/software-engineers/{id}",
       "summary": "",
@@ -218,7 +216,8 @@
           "in": "path",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           }
         }
       ],
@@ -243,7 +242,7 @@
               "maxLength": 100
             }
           },
-          "$name": "EngineerRequest"
+          "$name": "SoftwareEngineerRequest"
         }
       },
       "responses": {
@@ -259,31 +258,31 @@
             ],
             "properties": {
               "id": {
-                "type": "integer",
-                "readOnly": true
+                "type": "integer"
               },
               "name": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               },
               "techStack": {
-                "type": "string",
-                "maxLength": 100
+                "type": "string"
               }
             },
-            "$name": "Engineer"
+            "$name": "SoftwareEngineer"
           }
         },
-        "404": {
-          "description": "nf"
-        },
         "400": {
-          "description": "bad"
+          "description": "invalid body"
+        },
+        "404": {
+          "description": "not found"
+        },
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "DELETE_api_v1_software_engineers_id",
+      "id": "deleteEngineer",
       "method": "DELETE",
       "path": "/api/v1/software-engineers/{id}",
       "summary": "",
@@ -297,7 +296,8 @@
           "in": "path",
           "required": true,
           "schema": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 1
           }
         }
       ],
@@ -307,15 +307,15 @@
           "description": "deleted"
         },
         "404": {
-          "description": "nf"
+          "description": "not found"
         },
-        "400": {
-          "description": "bad"
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "GET_api_v1_software_engineers_search",
+      "id": "searchByName",
       "method": "GET",
       "path": "/api/v1/software-engineers/search",
       "summary": "",
@@ -330,6 +330,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 100
           }
         }
@@ -350,29 +351,29 @@
               ],
               "properties": {
                 "id": {
-                  "type": "integer",
-                  "readOnly": true
+                  "type": "integer"
                 },
                 "name": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 },
                 "techStack": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 }
               },
-              "$name": "Engineer"
+              "$name": "SoftwareEngineer"
             }
           }
         },
         "400": {
-          "description": "bad"
+          "description": "invalid parameter"
+        },
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     },
     {
-      "id": "GET_api_v1_software_engineers_filter",
+      "id": "filterByTechStack",
       "method": "GET",
       "path": "/api/v1/software-engineers/filter",
       "summary": "",
@@ -387,6 +388,7 @@
           "required": true,
           "schema": {
             "type": "string",
+            "minLength": 1,
             "maxLength": 100
           }
         }
@@ -407,35 +409,27 @@
               ],
               "properties": {
                 "id": {
-                  "type": "integer",
-                  "readOnly": true
+                  "type": "integer"
                 },
                 "name": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 },
                 "techStack": {
-                  "type": "string",
-                  "maxLength": 100
+                  "type": "string"
                 }
               },
-              "$name": "Engineer"
+              "$name": "SoftwareEngineer"
             }
           }
         },
         "400": {
-          "description": "bad"
+          "description": "invalid parameter"
+        },
+        "429": {
+          "description": "Too many requests from this client; retry after the Retry-After seconds"
         }
       }
     }
   ],
-  "warnings": [
-    "GET /api/v1/software-engineers: no operationId (generated id 'GET_api_v1_software_engineers')",
-    "POST /api/v1/software-engineers: no operationId (generated id 'POST_api_v1_software_engineers')",
-    "GET /api/v1/software-engineers/{id}: no operationId (generated id 'GET_api_v1_software_engineers_id')",
-    "PUT /api/v1/software-engineers/{id}: no operationId (generated id 'PUT_api_v1_software_engineers_id')",
-    "DELETE /api/v1/software-engineers/{id}: no operationId (generated id 'DELETE_api_v1_software_engineers_id')",
-    "GET /api/v1/software-engineers/search: no operationId (generated id 'GET_api_v1_software_engineers_search')",
-    "GET /api/v1/software-engineers/filter: no operationId (generated id 'GET_api_v1_software_engineers_filter')"
-  ]
+  "warnings": []
 }

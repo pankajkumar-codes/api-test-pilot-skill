@@ -70,7 +70,7 @@ Preparation is done on a branch; the outward-facing steps need the maintainer (s
 - [ ] CI green on GitHub (first run happens on the pull request)
 
 ## Out of scope for v1
-UI accessibility testing (separate skill), mobile, gRPC (v2), hosted service (revisit only if the skill gains traction).
+gRPC is deferred to v2. Not part of this skill at all (see DECISIONS.md, 2026-11-14): UI accessibility testing (a possible separate skill), mobile app testing, a hosted service.
 
 ## Phase 8 — Executable chaos and skill gaps (2026-11-13)
 - [x] DECISIONS.md: chaos is no longer plan-only (overrides the Phase 0 decision)
