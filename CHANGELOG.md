@@ -10,6 +10,8 @@ First release candidate, built in phases (see PLAN.md).
 ### Fixed (review nits, 2026-11-14)
 - Name-based sample values: a hinted email, url or phone number cut by `maxLength` falls back to `sample-<name>` instead of becoming invalid; the hint patterns are narrower (`email_template`, `phone_type`, `order_status` get no hint; `homepageURL` does).
 - `chaos_run.py`: a second signal during cleanup no longer skips writing the results; the run still exits 4. `references/chaos.md` reworded.
+### Changed (demo fix, 2026-11-14)
+- Docs: the chaos `dep-slow` finding is fixed in spring-boot-demo (PR #5, JDBC socket timeout, 503 in 2 to 3 s); README and `docs/evals.md` say so. The chaos suite and report are not rerun yet.
 
 ### Changed (naming and README audit, 2026-11-14)
 - Plugin, marketplace and display name are now `api-test-pilot-skill` / "API Test Pilot Skill" (README, plugin.json, marketplace.json, listing copy, release checklist). The k6 template header is `X-Load-Test: api-test-pilot-skill` and its user agent `api-test-pilot-skill-k6`. The skill folder stays `api-testing`.

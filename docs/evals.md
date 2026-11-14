@@ -237,8 +237,8 @@ Probe: `GET /api/v1/software-engineers` (reads the database), 5 req/s.
 | `dep-blackhole` | proxy swallows the bytes, connections stay open | **finding (MEDIUM)**: 8 of 8 probes failed after about 5.0 s; recovered 3.7 s after the fault was removed |
 
 What the two findings mean: the app fails fast (about 3 s) when the database is *down* (connection refused) but takes about 5 s, and not 3, when the database is *hung or
-silent*. The cause was not investigated beyond this run; a JDBC `socketTimeout` and a query timeout are the usual way to bound it. The limit (`--fail-fast-ms`, default 5000) is a default, not a standard,
-and the 5.0 s observed sits right at it, so treat these two as "at the limit", not as a measured hang. Each fault was bounded, so unbounded hanging was not measured.
+silent*. The cause was not investigated in this run (it was later traced to a missing JDBC socket timeout and fixed in spring-boot-demo#5, see the follow-up under the final run below; this section shows the pre-fix run and `dep-blackhole` was not rechecked). A JDBC `socketTimeout` and a query timeout are the usual way to bound it. The limit (`--fail-fast-ms`, default 5000) is a default, not a standard,
+and the 5.0 s observed sits right at it, so treat these two as "at the limit", not as a measured hang. Each fault was bounded (the freeze lasted 8 s), so unbounded hanging was not measured in this run; the hand check in the follow-up below did measure it.
 The chaos results were turned into a report with `summarize_results.py` (type `chaos`, two MEDIUM findings, each with the `chaos_run.py` rerun command).
 
 Not verified: HTTPS upstreams (the proxy code supports them; no run), IPv6, chunked request bodies through the proxy (answered 411 by design), remote targets, Windows.
@@ -246,8 +246,11 @@ Not verified: HTTPS upstreams (the proxy code supports them; no run), IPv6, chun
 ## Final spring-boot-demo run and public sandbox rerun (2026-11-14)
 **spring-boot-demo** (`b443602`, after two fixes in the demo), throwaway PostgreSQL 16, skill at `e49353d`: 189 tests in one report, 188 passed, 1 failed, 0 skipped
 (functional 166 of 166 including 2 rate-limit tests, fuzz 7 of 7, chaos 15 of 16). The one failure is the chaos `dep-slow` finding (MEDIUM): with PostgreSQL frozen, requests fail after about 5.0 s
-(limit 5.0 s), same as the earlier run; the demo was not changed for it. k6 load, stress, spike and a full 30-minute soak on the GET endpoints: 0 failed requests, p95 2.8 to 4.7 ms. The report is `examples/spring-boot-demo/report.html`.
+(limit 5.0 s), same as the earlier run; the demo was not changed before this run. k6 load, stress, spike and a full 30-minute soak on the GET endpoints: 0 failed requests, p95 2.8 to 4.7 ms. The report is `examples/spring-boot-demo/report.html`.
 The earlier fuzz finding (`page=2147483647` returned 500) was fixed in the demo, and fuzz passes 7 of 7.
+
+**Follow-up, dep-slow fix (2026-11-14):** the demo now sets JDBC connect, login and socket timeouts (2 s) and maps the resulting dead-connection errors to its existing 503 + `Retry-After`
+(spring-boot-demo PR #5, merge commit `0acc5b5`). Checked by hand against a throwaway PostgreSQL 16 frozen with SIGSTOP: the first request answered 503 in 2.1 s and later ones in 3.0 s, and the API recovered at once after SIGCONT. Before the fix the same hand check, with the timeouts switched off and PostgreSQL kept frozen, got no answer from the first request within the 30 s cap of the `curl` used. That differs from the roughly 5.0 s in the chaos run above: there the freeze lasted only 8 s and the probe timeout (default 10 s) was not the cutoff, so where exactly the 5.0 s came from was not established. `dep-blackhole` (proxy that swallows bytes) was **not** rechecked after the fix. The chaos suite itself was **not** rerun; that rerun and a refreshed report are planned for the final run, so the report and tables above still show the finding.
 
 **Public sandbox APIs**, read-only (`APITEST_READ_ONLY=yes`, 0.3 s between requests, no credentials, no resilience tests): JSONPlaceholder 378 tests (24 pass, 2 fail, 352 skip), ReqRes 192 (21, 11, 160),
 HTTPBin 413 (139, 8, 266), Webhook.site 55 (2, 0, 53); total 1038 (186 pass, 21 fail, 831 skip). The failures are CORS reflecting any origin with credentials (JSONPlaceholder, HTTPBin), missing HSTS and
