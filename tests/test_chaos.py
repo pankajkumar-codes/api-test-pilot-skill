@@ -599,6 +599,8 @@ def test_the_dependency_is_restored_when_the_runner_is_signalled(tmp_path, upstr
     assert not flag.exists(), "the dependency was left down"
     assert p.returncode == chaos_run.EXIT_INTERRUPTED == 4, "a run cut short must not exit 0 or 1"
     assert "INCOMPLETE" in p.stderr.read()
+    # a second signal during cleanup must not skip the results
+    assert (tmp_path / "res" / "chaos.json").exists() and (tmp_path / "res" / "chaos.xml").exists()
 
 
 def test_a_failing_dependency_command_is_a_failed_experiment_not_a_traceback(tmp_path, upstream):
@@ -617,3 +619,29 @@ def test_proxy_survives_a_bad_content_length(upstream):
         assert s.recv(100).startswith(b"HTTP/1.")
         s.close()
         assert get(f"http://127.0.0.1:{px.port}/x")[0] == 200
+
+
+def test_results_are_written_when_a_signal_lands_during_the_final_cleanup(tmp_path, upstream, monkeypatch):
+    """The cleanup in main()'s finally block holds signals and re-raises one afterwards. That re-raise used to escape
+    before write_outputs ran, so a run cut short at that moment left no chaos.json or chaos.xml."""
+    import signal
+    marker = tmp_path / "undone"
+    out = tmp_path / "res"
+
+    def interrupted_run(self, names, deps):
+        self.hooks.pending_undo.append(("db", [sys.executable, "-c", f"import time; time.sleep(0.8); open({str(marker)!r}, 'w')"]))
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(chaos_run.Runner, "run", interrupted_run)
+    saved = {s: signal.getsignal(s) for s in chaos_run.STOP_SIGNALS}
+    threading.Timer(0.4, lambda: os.kill(os.getpid(), signal.SIGINT)).start()   # lands while undo_all is running
+    try:
+        for k in [k for k in os.environ if k.startswith("APITEST_")]:
+            monkeypatch.delenv(k)
+        code = chaos_run.main([intake_for(tmp_path), "--base-url", upstream, "--experiments", "proxy-latency", "--out", str(out)])
+    finally:
+        for s, h in saved.items():
+            signal.signal(s, h)
+    assert code == chaos_run.EXIT_INTERRUPTED
+    assert marker.exists(), "the fault was not undone"
+    assert (out / "chaos.json").exists() and (out / "chaos.xml").exists()

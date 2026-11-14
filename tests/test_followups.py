@@ -311,7 +311,10 @@ def test_gate_skip_for_a_remote_target_without_authorization_is_one_line_too(moc
     ("email", "string", "apitest@example.com"), ("owner_email", "string", "apitest@example.com"),
     ("default_status", "integer", 200), ("status_code", "integer", 200), ("statusCode", "integer", 200),
     ("callback_url", "string", "https://example.com/apitest"), ("homepage", "string", "https://example.com/apitest"),
-    ("port", "integer", 8080), ("name", "string", None), ("status_text", "string", None), ("page", "integer", None)])
+    ("port", "integer", 8080), ("name", "string", None), ("status_text", "string", None), ("page", "integer", None),
+    ("email_template", "string", None), ("phone_type", "string", None), ("order_status", "integer", None),
+    ("homepageURL", "string", "https://example.com/apitest"), ("phone_number", "string", "+15555550100"),
+    ("curl", "string", None)])
 def test_name_hints(name, kind, expected):
     assert gen_common.name_hint(name, kind) == expected
 
@@ -324,6 +327,12 @@ def test_sample_uses_name_hints_only_when_the_spec_gives_nothing_better():
     assert S({"type": "integer", "default": 404}, "default_status") == 404
     assert S({"type": "string", "pattern": "^x+$"}, "email") == "sample-email"                # a pattern: do not override
     assert S({"type": "string"}, "label") == "sample-label"
+
+
+def test_a_hinted_value_cut_by_max_length_falls_back_to_a_plain_string():
+    S = gen_common.sample
+    assert S({"type": "string", "maxLength": 10}, "email") == "sample-ema"
+    assert S({"type": "string", "maxLength": 10}, "label") == "sample-lab"
 
 
 def test_hinted_values_are_still_marked_as_guesses():
