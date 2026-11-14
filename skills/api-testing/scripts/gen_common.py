@@ -136,12 +136,12 @@ _FORMAT_SAMPLES = {
 
 
 _NAME_HINT_STR = (
-    (re.compile(r"e-?mail", re.I), "apitest@example.com"),
-    (re.compile(r"(^|[_-])(url|uri|link|href|website|homepage|callback|webhook)(s)?$|(Url|Uri|Link|Href)$"), "https://example.com/apitest"),
-    (re.compile(r"phone|mobile", re.I), "+15555550100"),
+    (re.compile(r"(^|[_-])e-?mail([_-]?(address|addr))?$|E-?mail(Address)?$", re.I), "apitest@example.com"),
+    (re.compile(r"(^|[_-])(url|uri|link|href|website|homepage|callback|webhook)(s)?$|(Url|Uri|Link|Href|URL|URI)$"), "https://example.com/apitest"),
+    (re.compile(r"(^|[_-])(phone|mobile)([_-]?(number|no|num))?$|(Phone|Mobile)(Number)?$"), "+15555550100"),
 )
 _NAME_HINT_INT = (
-    (re.compile(r"(^|[_-])status([_-]?code)?$|(Status|StatusCode)$", re.I), 200),   # 1 is not a valid HTTP status
+    (re.compile(r"^status([_-]?code)?$|(^|[_-])(http|response|expected|default)[_-]?status([_-]?code)?$|StatusCode$", re.I), 200),   # 1 is not a valid HTTP status
     (re.compile(r"(^|[_-])port$", re.I), 8080),
 )
 
@@ -185,7 +185,9 @@ def sample(schema: Any, name: str = "", depth: int = 0) -> Any:
         if isinstance(lo, int) and len(s) < lo:
             s = s + "x" * (lo - len(s))
         if isinstance(hi, int) and len(s) > hi:
-            s = s[:hi] if not fmt else s
+            if not fmt:
+                # a cut-off email, url or phone number is no longer valid, so hinted values fall back to a plain string
+                s = s[:hi] if s.startswith("sample") else f"sample-{name}"[:hi]
         return s
     if t in ("integer", "number"):
         lo, hi = schema.get("minimum"), schema.get("maximum")

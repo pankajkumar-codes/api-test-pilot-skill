@@ -799,10 +799,17 @@ def main(argv: list[str] | None = None) -> int:
         interrupted = True
         print("interrupted: undoing faults", file=sys.stderr)
     finally:
-        runner.hooks.undo_all()
-        if runner.dep_proxy:
-            runner.dep_proxy.stop()
-        write_outputs(Path(a.out), runner.results, rerun, base)
+        # a second signal during cleanup must not skip the remaining steps; it only marks the run as cut short
+        for step in (runner.hooks.undo_all, lambda: runner.dep_proxy and runner.dep_proxy.stop(),
+                     lambda: write_outputs(Path(a.out), runner.results, rerun, base)):
+            try:
+                step()
+            except KeyboardInterrupt:
+                interrupted = True
+                try:
+                    step()
+                except KeyboardInterrupt:
+                    pass
     for line in runner.hooks.log:
         print(f"  hook: {line}")
     bad = [r for r in runner.results if r.status == "failed"]
