@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Turn pytest (JUnit XML) and k6 (--summary-export JSON) results into one Markdown report. Stdlib only, offline.
+"""Turn pytest (JUnit XML) and k6 (--summary-export JSON) results into one report: self-contained HTML plus JSON (or Markdown). Stdlib only, offline.
 
 Usage:
   python summarize_results.py --junit results/pytest.xml [--k6 results/load-summary.json ...]
          [--intake intake.json] [--title NAME] [--base-url URL] [--tests-dir api_tests] [--k6-dir k6_tests]
-         [-o reports/report.md | -o -] [--max-findings 100] [--date YYYY-MM-DD]
+         [-o reports/report.html | -o report.md | -o -] [--format html|md] [--no-json] [--max-findings 100] [--date YYYY-MM-DD]
 
 Produce the inputs with:
   python -m pytest api_tests -p no:cacheprovider --junitxml=results/pytest.xml
@@ -40,6 +40,7 @@ from xml.parsers import expat
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402  (shared redaction helper)
+import report_html  # noqa: E402
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "report.md"
 MAX_XML_BYTES = 25 * 1024 * 1024
@@ -51,7 +52,7 @@ MAX_METRICS = 5_000
 MAX_CHECKS = 200
 RANK = {"passed": 0, "skipped": 1, "error": 2, "failed": 3}
 SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
-# Used when a failing test carries no [SEVERITY] tag of its own; the report says "default rating" for these.
+# For failing tests with no [SEVERITY] tag. The report marks these as a default rating.
 DEFAULT_SEVERITY = {"smoke": "HIGH", "security": "HIGH", "fuzz": "HIGH", "positive": "MEDIUM", "negative": "MEDIUM",
                     "contract": "MEDIUM", "integration": "MEDIUM", "data-validation": "MEDIUM", "edge": "LOW", "resilience": "LOW", "chaos": "MEDIUM"}
 INTRUSIVE_TYPES = {"security", "fuzz", "resilience", "load", "stress", "spike", "soak", "chaos"}
@@ -477,7 +478,7 @@ class Report:
 
     def _pytest_finding(self, rec: dict, raw: str, raw_name: str, request) -> Finding:
         sev, owasp, verdict, detail, repros = split_message(raw)
-        if rec["type"] == "chaos":   # the rerun line is parsed below, never shown as text
+        if rec["type"] == "chaos":   # the rerun line is parsed further down, not shown
             detail = [d for d in detail if not d.startswith("rerun:")]
         rating = "tagged by the test" if sev else "default for this test type"
         sev = sev or DEFAULT_SEVERITY.get(rec["type"], "MEDIUM")
@@ -485,8 +486,8 @@ class Report:
         prefix = base_prefix(self.args.base_url)
         stem_file = f"{tests_dir}/{rec['stem']}.py"
         chaos_note = ""
-        if rec["type"] == "chaos":   # chaos results come from chaos_run.py, not pytest. The command is REBUILT from validated parts,
-            # never copied from the result file: that text is untrusted (env prefixes, script paths and flags such as --allow-hooks are dropped)
+        if rec["type"] == "chaos":   # chaos results come from chaos_run.py, not pytest. Rebuild the command from checked parts instead of
+            # copying it, because the result file is untrusted (env prefixes, script paths and flags like --allow-hooks are dropped)
             m = CHAOS_RERUN_LINE_RE.search(raw)
             names = m.group(2).split(",") if m else []
             if m and SAFE_DIR_RE.match(m.group(1)) and names and all(n in CHAOS_EXPERIMENTS for n in names):
@@ -498,7 +499,7 @@ class Report:
                 cmd = "python scripts/chaos_run.py <intake.json> --experiments <name> (the result file's rerun line was missing or not in the expected shape)"
         elif rec["name"] == raw_name and SAFE_STEM_RE.match(rec["stem"]):
             cmd = f"{prefix} python -m pytest {shlex.quote(stem_file + '::' + rec['name'])} -v"
-        elif SAFE_STEM_RE.match(rec["stem"]):   # a truncated or scrubbed name is not a valid node id: run the whole file
+        elif SAFE_STEM_RE.match(rec["stem"]):   # a truncated or scrubbed name isn't a valid node id, so run the whole file
             cmd = f"{prefix} python -m pytest {shlex.quote(stem_file)} -v"
         else:
             cmd = f"{prefix} python -m pytest {shlex.quote(tests_dir)} -v"
@@ -595,7 +596,7 @@ class Report:
             metric = t["metric"]
             sev = "HIGH" if (metric.startswith("http_req_failed") or metric.startswith("checks")) else "MEDIUM"
             if profile == "stress":
-                sev = "MEDIUM"   # stress runs push past the limit on purpose; the finding marks where it broke
+                sev = "MEDIUM"   # stress runs go past the limit on purpose; the finding shows where it broke
             sub = K6_SUB_RE.match(metric)
             ep = self.index.by_k6_tag(sub.group(3)) if sub and sub.group(2) == "endpoint" else None
             where = ep_key(ep) if ep else (f"{sub.group(2)} {sub.group(3)}" if sub else "(whole run)")
@@ -622,28 +623,48 @@ def table(header: list[str], rows: list[list[str]]) -> str:
     return "\n".join(out)
 
 
-def render_summary(r: Report) -> tuple[str, str]:
+def tally(r: Report) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
     by: dict[str, dict[str, int]] = {}
     for c in r.cases:
         row = by.setdefault(c["type"], {"passed": 0, "failed": 0, "skipped": 0, "error": 0})
         row[c["status"]] += 1
     tot = {k: sum(v[k] for v in by.values()) for k in ("passed", "failed", "skipped", "error")}
+    return by, tot
+
+
+def verdict_info(r: Report) -> tuple[str, str]:
+    """(status, sentence). Status is FAIL, INCOMPLETE, INCONCLUSIVE or PASS; the sentence has no markup."""
+    _, tot = tally(r)
     sev_counts = {s: sum(1 for f in r.findings if f.severity == s) for s in SEVERITIES}
     sev_txt = ", ".join(f"{s} {n}" for s, n in sev_counts.items() if n)
     if r.findings:
-        verdict = f"**Result: FAIL** — {len(r.findings)} finding(s): {sev_txt}."
+        status, text = "FAIL", f"{len(r.findings)} finding(s): {sev_txt}."
     elif tot["error"]:
-        verdict = "**Result: INCOMPLETE** — no findings, but some tests errored before running (see Run problems)."
+        status, text = "INCOMPLETE", "no findings, but some tests errored before running (see Run problems)."
     elif not (tot["passed"] or any((k["overall"]["requests"] or 0) > 0 for k in r.k6)):
-        verdict = ("**Result: INCONCLUSIVE** — nothing was executed: no passing test and no k6 requests "
-                   f"({tot['skipped']} skipped). This is not a pass.")
+        status, text = "INCONCLUSIVE", f"nothing was executed: no passing test and no k6 requests ({tot['skipped']} skipped). This is not a pass."
     else:
-        verdict = "**Result: PASS** — no failing tests or crossed thresholds in the supplied results (see limitations for what was not run)."
+        status, text = "PASS", "no failing tests or crossed thresholds in the supplied results (see limitations for what was not run)."
     if r.cases:
-        verdict += f" {tot['passed']} passed, {tot['failed']} failed, {tot['skipped']} skipped, {tot['error']} errored of {len(r.cases)} tests."
-        if tot["skipped"] * 2 > len(r.cases):
-            verdict += (f" **Warning: {tot['skipped']} of {len(r.cases)} tests were skipped (over half).** Read this result as covering only "
-                        "the tests that ran; the skip reasons (missing credentials, ids, gate variables) say what to configure.")
+        text += f" {tot['passed']} passed, {tot['failed']} failed, {tot['skipped']} skipped, {tot['error']} errored of {len(r.cases)} tests."
+    return status, text
+
+
+def skip_warning(r: Report) -> str:
+    _, tot = tally(r)
+    if r.cases and tot["skipped"] * 2 > len(r.cases):
+        return (f"Warning: {tot['skipped']} of {len(r.cases)} tests were skipped (over half). Read this result as covering only "
+                "the tests that ran; the skip reasons (missing credentials, ids, gate variables) say what to configure.")
+    return ""
+
+
+def render_summary(r: Report) -> tuple[str, str]:
+    by, tot = tally(r)
+    status, text = verdict_info(r)
+    verdict = f"**Result: {status}** — {text}"
+    warn = skip_warning(r)
+    if warn:
+        verdict += f" **{warn.split('.')[0]}.**" + warn[len(warn.split('.')[0]) + 1:]
     parts = []
     if by:
         rows = [[esc(t), str(v["passed"]), str(v["failed"]), str(v["skipped"]), str(v["error"]), str(sum(v.values()))] for t, v in sorted(by.items())]
@@ -658,7 +679,7 @@ def render_summary(r: Report) -> tuple[str, str]:
     return verdict, "\n\n".join(parts) or "No results supplied."
 
 
-def render_coverage(r: Report) -> str:
+def coverage_rows(r: Report) -> list[tuple[str, dict]]:
     rows: dict[str, dict] = {}
     order = [ep_key(e) for e in r.index.eps]
     for key in order:
@@ -674,14 +695,18 @@ def render_coverage(r: Report) -> str:
             row = rows.setdefault(key, {"types": set(), "passed": 0, "failed": 0, "skipped": 0, "error": 0, "k6": ""})
             row["types"].add(k["profile"])
             row["k6"] += f"{plain(k['profile'], 20)} p95 {fmt(v.get('p95'), ' ms')}; "
-    if not rows:
-        return "No per-endpoint data."
     keys = [k for k in order if k in rows] + sorted(k for k in rows if k not in order)
+    return [(plain(k, 200), rows[k]) for k in keys]
+
+
+def render_coverage(r: Report) -> str:
+    data = coverage_rows(r)
+    if not data:
+        return "No per-endpoint data."
     body = []
-    for key in keys:
-        v = rows[key]
+    for key, v in data:
         types = ", ".join(sorted(v["types"])) or "none run"
-        body.append([esc(plain(key, 200)), esc(types), str(v["passed"]), str(v["failed"]), str(v["skipped"] + v["error"]), esc(v["k6"].rstrip("; "))])
+        body.append([esc(key), esc(types), str(v["passed"]), str(v["failed"]), str(v["skipped"] + v["error"]), esc(v["k6"].rstrip("; "))])
     note = "" if r.index.eps else ("\n\nNo `--intake` file was given, so only endpoints that appear in a failing request are named; "
                                    "pass the intake JSON for full per-endpoint coverage.")
     return table(["Endpoint", "Types run", "Pass", "Fail", "Skipped/error", "k6"], body) + note
@@ -720,7 +745,7 @@ def render_findings(r: Report, limit: int) -> str:
                    f"- Endpoint: {esc(plain(f.endpoint, 200))}\n- {' · '.join(meta)}\n\n"
                    f"**What happened vs expected**\n\n{fence(chr(10).join(f.lines) or '(no detail in the result file)')}\n\n"
                    f"**Reproduce**\n\n{fence(chr(10).join(f.commands))}"
-                   + (f"\n\n{f.note}" if f.note else ""))   # constant text from this file, not input
+                   + (f"\n\n{f.note}" if f.note else ""))   # fixed text from this file, not input
     if len(ordered) > limit:
         out.append(f"{len(ordered) - limit} more finding(s) not shown (least severe last); raise `--max-findings` to list them.")
     return "\n\n".join(out)
@@ -772,7 +797,7 @@ def build_command(args) -> str:
         if v:
             parts += [flag, v]
     parts += ["--tests-dir", args.tests_dir, "--k6-dir", args.k6_dir]
-    return plain(" ".join(shlex.quote(p) for p in parts), 4000)   # scrubbed: --title or a path could carry a secret
+    return plain(" ".join(shlex.quote(p) for p in parts), 4000)   # scrubbed, since --title or a path could hold a secret
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -784,7 +809,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--base-url", help="target used in the rerun commands (default: $APITEST_BASE_URL at rerun time)")
     ap.add_argument("--tests-dir", default="api_tests", help="folder holding the generated pytest files (default: api_tests)")
     ap.add_argument("--k6-dir", default="k6_tests", help="folder holding the generated k6 scripts (default: k6_tests)")
-    ap.add_argument("-o", "--output", default="reports/report.md", help="report path, or - for stdout (default: reports/report.md)")
+    ap.add_argument("-o", "--output", default="reports/report.html",
+                    help="report path, or - for stdout (default: reports/report.html; a .md path writes Markdown)")
+    ap.add_argument("--format", choices=["html", "md"], help="html or md (default: from the -o extension; md for stdout)")
+    ap.add_argument("--no-json", action="store_true", help="do not write the machine-readable JSON next to an HTML report")
     ap.add_argument("--max-findings", type=int, default=100, help="findings listed in full (default 100)")
     ap.add_argument("--date", help="date in the heading, YYYY-MM-DD (default: today, UTC)")
     args = ap.parse_args(argv)
@@ -811,12 +839,21 @@ def main(argv: list[str] | None = None) -> int:
         for p in args.k6:
             r.add_k6(p)
         title = args.title or (plain((doc.get("info") or {}).get("title"), 80) if isinstance(doc, dict) and isinstance(doc.get("info"), dict) else "") or "API"
-        verdict, summary = render_summary(r)
-        text = fill_template(TEMPLATE.read_text(encoding="utf-8"), {
-            "title": esc(plain(title, 80)), "date": args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "verdict": verdict, "summary": summary, "coverage": render_coverage(r), "k6": render_k6(r),
-            "findings": render_findings(r, args.max_findings), "problems": render_problems(r),
-            "limitations": render_limitations(r), "provenance": render_provenance(r, build_command(args))})
+        fmt_ = args.format or ("html" if args.output != "-" and args.output.lower().endswith((".html", ".htm")) else "md")
+        date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        title_s = plain(title, 80)
+        json_text = ""
+        if fmt_ == "html":
+            data = report_html.build_data(r, title_s, date, build_command(args), args.max_findings, sys.modules[__name__])
+            text = report_html.render_html(data)
+            json_text = report_html.to_json(data)
+        else:
+            verdict, summary = render_summary(r)
+            text = fill_template(TEMPLATE.read_text(encoding="utf-8"), {
+                "title": esc(title_s), "date": date,
+                "verdict": verdict, "summary": summary, "coverage": render_coverage(r), "k6": render_k6(r),
+                "findings": render_findings(r, args.max_findings), "problems": render_problems(r),
+                "limitations": render_limitations(r), "provenance": render_provenance(r, build_command(args))})
     except ReportError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -826,6 +863,10 @@ def main(argv: list[str] | None = None) -> int:
         out = Path(args.output)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(text, encoding="utf-8")
+        if json_text and not args.no_json:
+            jpath = out.with_suffix(".json")
+            jpath.write_text(json_text, encoding="utf-8")
+            print(f"Wrote {jpath}", file=sys.stderr)
         print(f"Wrote {out} ({len(r.findings)} findings, {len(r.cases)} tests, {len(r.k6)} k6 summaries)", file=sys.stderr)
         print(f"Rerun with:\n  {build_command(args)}", file=sys.stderr)
     return 0

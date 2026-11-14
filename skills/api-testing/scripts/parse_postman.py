@@ -69,7 +69,7 @@ def _auth(a: dict | None, schemes: dict) -> list[list[str]]:
         name = "apiKeyAuth"
         info = {"type": "apiKey", "in": kv.get("in", "header"), "name": "(see collection)",
                 "env": [env_name("apiKeyAuth", "KEY")]}
-        # the apikey 'key' entry is the header NAME, 'value' is the secret; keep the name only
+        # for apikey, 'key' is the header name and 'value' is the secret; keep the name only
         for x in a.get("apikey", []):
             if x.get("key") == "key" and isinstance(x.get("value"), str):
                 info["name"] = x["value"]
@@ -110,7 +110,7 @@ def parse(doc: Any, filename: str = "") -> dict:
                 continue
             key = h.get("key", "")
             if key.lower() in SECRET_HEADERS:
-                continue  # value never recorded; auth is modeled via security_schemes
+                continue  # the value is not recorded; auth goes through security_schemes
             params.append({"name": key, "in": "header", "required": False, "schema": {}})
 
         body = None
@@ -134,7 +134,7 @@ def parse(doc: Any, filename: str = "") -> dict:
                     "schema": {"type": "object", "properties": {f.get("key", ""): {"type": "string", **({"format": "binary"} if f.get("type") == "file" else {})} for f in fields}}}
         elif mode == "graphql":
             body = {"content_type": "application/json", "required": True, "schema": {}, "graphql": True}
-            warnings.append(f"{method} {path}: GraphQL request; use the GraphQL flow (Phase 2) for these.")
+            warnings.append(f"{method} {path}: GraphQL request; use the GraphQL flow (see references/graphql.md) for these.")
 
         item_auth = _auth(req.get("auth"), schemes) if "auth" in req else coll_auth
         if "auth" in req and (req["auth"] or {}).get("type") == "noauth":
@@ -161,7 +161,7 @@ def parse(doc: Any, filename: str = "") -> dict:
             warnings.append(f"{method} {path}: no saved responses; expected statuses unknown")
         endpoints.append(ep)
 
-    # collection variable baseUrl is a hint only
+    # the baseUrl collection variable is only a hint
     base_vars = {v.get("key"): v.get("value") for v in doc.get("variable", []) if isinstance(v, dict)}
     servers = origins
     for k in ("baseUrl", "base_url", "host"):

@@ -97,7 +97,7 @@ class _Base:
     def _current(self) -> Fault:
         with self._lock:
             if self._deadline is not None and time.monotonic() > self._deadline:
-                self._fault, self._deadline = NO_FAULT, None   # the bound expired: back to pass-through
+                self._fault, self._deadline = NO_FAULT, None   # time is up: back to pass-through
             return self._fault
 
     def _hit(self, fault: Fault) -> bool:
@@ -170,7 +170,7 @@ class HttpFaultProxy(_Base):
         class Handler(http.server.BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"
 
-            def log_message(self, *_a):   # no request log: paths and headers can carry secrets
+            def log_message(self, *_a):   # no request log, paths and headers can hold secrets
                 pass
 
             def handle_one_request(self):
@@ -324,7 +324,7 @@ class TcpFaultProxy(_Base):
         self._server = Server(("127.0.0.1", listen_port), Handler)
 
     def _on_fault_change(self, fault: Fault) -> None:
-        if fault.kind == "reset":   # break connections that are already open (pools keep them alive)
+        if fault.kind == "reset":   # cut connections that are already open, since pools keep them alive
             with self._lock:
                 socks = list(self._open)
             for s in socks:
@@ -343,13 +343,13 @@ class TcpFaultProxy(_Base):
                 hit = self._hit(fault)
                 if hit and fault.kind == "blackhole":
                     self._count("fault_blackhole")
-                    continue                       # swallow the bytes; the connection stays open
+                    continue                       # drop the bytes but keep the connection open
                 if hit and fault.kind == "latency":
                     self._count("fault_latency")
                     time.sleep(fault.latency_ms / 1000)
                 self._count("bytes", len(data))
                 dst.sendall(data)
-        except (OSError, ValueError):   # ValueError: the socket was closed under us by a reset fault
+        except (OSError, ValueError):   # ValueError: a reset fault closed the socket under us
             pass
         finally:
             stop.set()

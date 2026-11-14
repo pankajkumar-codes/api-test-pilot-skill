@@ -58,7 +58,7 @@ def _api2(doc: dict, eps: list[dict], mod: Module) -> None:
         if not ep.get("auth_required"):
             continue
         ids = ""
-        if path_params(ep):  # auth must be evaluated before existence; probe with an unknown id
+        if path_params(ep):  # auth should be checked before existence, so probe with an unknown id
             ids = ", path={" + ", ".join(f'{p["name"]!r}: api.missing_id({((p.get("schema") or {}).get("type") or "string")!r}, None)'
                                           for p in path_params(ep)) + "}"
         mod.add("@pytest.mark.intrusive\n"
@@ -204,13 +204,13 @@ def _injection(eps: list[dict], mod: Module) -> None:
                     cases += [(f"body_{k}[{i}]", {"body": Expr(f"{{**_ep.body, {k!r}: {pl!r}}}")})
                               for i, pl in enumerate(INJECTION)]
         for p in path_params(ep)[:1]:
-            # the last payload is `x' OR '1'='1` percent-encoded: a quote in a path segment reaches a query built from it
+            # the last payload is `x' OR '1'='1` percent-encoded; a quote in a path segment can reach a query built from it
             for i, pl in enumerate(("../../../../etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd", "1 OR 1=1", "x%27%20OR%20%271%27%3D%271")):
                 cases.append((f"path_{p['name']}[{i}]", {"path": Expr(f"{{{p['name']!r}: rt.RawPath({pl!r})}}")}))
         if not cases:
             continue
         table = mod.unique("INJECT_" + ep["id"])
-        # case values are expressions evaluated at import time against EP[...]
+        # case values are expressions, evaluated at import time against EP[...]
         rows = ",\n".join(f"    ({c[0]!r}, {_render_kw(c[1])})" for c in cases)
         mod.add(f'_ep = {_ref(ep)}\n{table} = [\n{rows},\n]\n', is_test=False)
         mod.add("@pytest.mark.intrusive\n"

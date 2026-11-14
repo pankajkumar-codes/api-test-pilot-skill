@@ -36,7 +36,7 @@ def main() -> int:
     req = urllib.request.Request(a.url, data=json.dumps({"query": QUERY}).encode(), headers=headers)
     try:
         body = json.load(urllib.request.urlopen(req, timeout=30))
-    except Exception as exc:  # network, HTTP or JSON problem: say which, never echo headers
+    except Exception as exc:  # network, HTTP or JSON problem: say which, without echoing headers
         print(f"error: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
     if not isinstance(body, dict) or "data" not in body or not (body["data"] or {}).get("__schema"):

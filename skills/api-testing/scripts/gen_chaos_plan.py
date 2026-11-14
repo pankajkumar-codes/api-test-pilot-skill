@@ -111,7 +111,7 @@ def pick_endpoints(doc: dict, only: list[str] | None, limit: int) -> list[dict]:
             raise _common.IntakeError("Unknown endpoint id(s): " + ", ".join(safe(m, 40) for m in missing))
         return chosen[:limit]
 
-    def score(e: dict) -> tuple:  # writes and authenticated endpoints first: failures there cost the most
+    def score(e: dict) -> tuple:  # writes and authenticated endpoints first, since failures there cost the most
         return (0 if e["method"] in ("POST", "PUT", "PATCH", "DELETE") else 1, 0 if e.get("auth_required") else 1, e["path"])
     return sorted(eps, key=score)[:limit]
 

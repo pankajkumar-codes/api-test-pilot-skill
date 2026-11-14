@@ -58,7 +58,7 @@ HARD_MAX_PAYLOAD = 1024 * 1024
 HARD_MAX_BURST = 100
 HARD_MAX_OUTAGE_S = 60
 HARD_MAX_RECOVERY_WAIT_S = 120
-STREAK = 5            # consecutive healthy answers that count as "recovered"
+STREAK = 5            # healthy answers in a row that count as "recovered"
 PROXY_EXPERIMENTS = ["proxy-latency", "proxy-5xx", "proxy-drop", "proxy-truncate", "proxy-blackhole"]
 DEP_PROXY_EXPERIMENTS = ["dep-latency", "dep-blackhole", "dep-reset"]
 HOOK_EXPERIMENTS = ["dep-outage", "dep-slow"]
@@ -378,7 +378,7 @@ class Runner:
     def load(self, base: str | None = None) -> Load:
         return Load(base or self.base, self.probes, self.headers, self.args.rps, self.args.timeout_s)
 
-    # one fault window with steady load around it
+    # one fault window, with steady load before and after
     def fault_window(self, res: Result, *, apply, revert, fault_s: float, base: str | None = None,
                      dependency: bool = False, proxy: bool = False, settle_s: float = 0.0) -> Load | None:
         a = self.args
@@ -546,7 +546,7 @@ class Runner:
                     try:
                         if make is None and scheme == "https":
                             out = "skipped_tls"
-                        elif make is None:   # promise 5000 bytes, send 20, close: the server must not hang or crash
+                        elif make is None:   # claim 5000 bytes, send 20, then close; the server should not hang or crash
                             s = socket.create_connection((host, port), timeout=a.timeout_s)
                             s.sendall(f"{method} {prefix}{path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\n"
                                       f"Content-Length: 5000\r\nConnection: close\r\n\r\n{{\"name\":\"trunc".encode())
@@ -762,7 +762,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.allow_hooks and a.dependency_config:
         parts.append("--allow-hooks")
     for p in a.probe:
-        parts += ["--probe", shlex.quote(p.split("?")[0])]   # a probe's query string can carry a secret: never echoed
+        parts += ["--probe", shlex.quote(p.split("?")[0])]   # a probe's query string can hold a secret, so don't echo it
     parts += ["--fault-s", f"{a.fault_s:g}", "--rps", f"{a.rps:g}"]
     rerun = " ".join(parts)
     print(f"target: {safe_target(base)}  (gate passed; any query string of the target is not echoed)")
@@ -811,7 +811,7 @@ def main(argv: list[str] | None = None) -> int:
     for r in bad:
         print(f"  FAILED [{r.severity}] {r.name}: {r.title}")
     print(f"Report: python {shlex.quote(str(Path(sys.argv[0]).with_name('summarize_results.py')))} --junit {shlex.quote(a.out)}/chaos.xml "
-          f"--intake {shlex.quote(a.intake)} -o reports/chaos-report.md")
+          f"--intake {shlex.quote(a.intake)} -o reports/chaos-report.html")
     if interrupted:
         print(f"INCOMPLETE: a signal (Ctrl-C/SIGTERM/SIGHUP) cut the run short; faults were undone, results above are partial. "
               f"Exit code {EXIT_INTERRUPTED}.", file=sys.stderr)

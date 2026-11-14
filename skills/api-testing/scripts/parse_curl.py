@@ -89,11 +89,11 @@ def parse_command(cmd: str) -> dict:
             form = True
             i += 2
         elif t == "--oauth2-bearer":
-            bearer, i = True, i + 2  # token discarded; modeled as bearer auth via env var
+            bearer, i = True, i + 2  # token dropped; treated as bearer auth read from an env var
         elif t in ("-u", "--user"):
             user, i = arg, i + 2
         elif t in ("-b", "--cookie"):
-            i += 2  # never recorded
+            i += 2  # not recorded
         elif t == "--url":
             url, i = arg, i + 2
         elif t in ("-G", "--get"):
@@ -107,7 +107,7 @@ def parse_command(cmd: str) -> dict:
         else:
             positional.append(t)
             i += 1
-    if not url:  # only a token that looks like a URL can be the URL; stray arguments never win
+    if not url:  # only something that looks like a URL counts as the URL
         url = next((x for x in positional if re.match(r"^[a-z][a-z0-9+.-]*://", x, re.I)), None) or \
             next((x for x in positional if re.match(r"^(localhost|[\w.-]+\.[a-z]{2,}|\d{1,3}(\.\d{1,3}){3})(:\d+)?(/|$)", x, re.I)), None)
     if not url:
@@ -217,7 +217,7 @@ def parse_text(text: str, filename: str = "") -> dict:
             "tags": [], "deprecated": False, "auth_required": bool(security), "security": security,
             "parameters": params, "request_body": body, "responses": {},
         }
-        if key in endpoints:  # merge: keep first, add new params/auth
+        if key in endpoints:  # merge: keep the first, add new params and auth
             prev = endpoints[key]
             seen = {(p["name"], p["in"]) for p in prev["parameters"]}
             prev["parameters"] += [p for p in params if (p["name"], p["in"]) not in seen]

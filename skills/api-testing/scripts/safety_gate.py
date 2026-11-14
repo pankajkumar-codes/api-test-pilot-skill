@@ -22,7 +22,7 @@ NON_PROD_ENVS = {"local", "dev", "development", "test", "testing", "staging", "s
 PROD_ENVS = {"prod", "production", "live"}
 TRUTHY = {"1", "true", "yes", "y", "on"}
 
-# Hard ceilings (a user may lower them with CLI flags or env vars, never raise them).
+# Hard limits. Flags and env vars can lower them but not raise them.
 HARD_MAX_RPS = 100
 HARD_MAX_VUS = 200
 HARD_MAX_DURATION_S = 4 * 3600

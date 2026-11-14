@@ -1,0 +1,441 @@
+{
+  "source": {
+    "type": "openapi",
+    "version": "3.0.3",
+    "file": "openapi.json"
+  },
+  "info": {
+    "title": "spring-boot-demo",
+    "version": "1.0"
+  },
+  "servers": [
+    "http://localhost:8080"
+  ],
+  "security_schemes": {},
+  "endpoints": [
+    {
+      "id": "GET_api_v1_software_engineers",
+      "method": "GET",
+      "path": "/api/v1/software-engineers",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        {
+          "name": "size",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": {
+        "200": {
+          "description": "ok",
+          "content_type": "application/json",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "techStack"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "readOnly": true
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "techStack": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "$name": "Engineer"
+            }
+          }
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "POST_api_v1_software_engineers",
+      "method": "POST",
+      "path": "/api/v1/software-engineers",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [],
+      "request_body": {
+        "content_type": "application/json",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "required": [
+            "name",
+            "techStack"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "techStack": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "$name": "EngineerRequest"
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "created",
+          "content_type": "application/json",
+          "schema": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "techStack"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "readOnly": true
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "techStack": {
+                "type": "string",
+                "maxLength": 100
+              }
+            },
+            "$name": "Engineer"
+          }
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "GET_api_v1_software_engineers_id",
+      "method": "GET",
+      "path": "/api/v1/software-engineers/{id}",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": {
+        "200": {
+          "description": "ok",
+          "content_type": "application/json",
+          "schema": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "techStack"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "readOnly": true
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "techStack": {
+                "type": "string",
+                "maxLength": 100
+              }
+            },
+            "$name": "Engineer"
+          }
+        },
+        "404": {
+          "description": "nf"
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "PUT_api_v1_software_engineers_id",
+      "method": "PUT",
+      "path": "/api/v1/software-engineers/{id}",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "request_body": {
+        "content_type": "application/json",
+        "required": true,
+        "schema": {
+          "type": "object",
+          "required": [
+            "name",
+            "techStack"
+          ],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "techStack": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "$name": "EngineerRequest"
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "ok",
+          "content_type": "application/json",
+          "schema": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "techStack"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "readOnly": true
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "techStack": {
+                "type": "string",
+                "maxLength": 100
+              }
+            },
+            "$name": "Engineer"
+          }
+        },
+        "404": {
+          "description": "nf"
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "DELETE_api_v1_software_engineers_id",
+      "method": "DELETE",
+      "path": "/api/v1/software-engineers/{id}",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": {
+        "204": {
+          "description": "deleted"
+        },
+        "404": {
+          "description": "nf"
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "GET_api_v1_software_engineers_search",
+      "method": "GET",
+      "path": "/api/v1/software-engineers/search",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "name",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 100
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": {
+        "200": {
+          "description": "ok",
+          "content_type": "application/json",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "techStack"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "readOnly": true
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "techStack": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "$name": "Engineer"
+            }
+          }
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    },
+    {
+      "id": "GET_api_v1_software_engineers_filter",
+      "method": "GET",
+      "path": "/api/v1/software-engineers/filter",
+      "summary": "",
+      "tags": [],
+      "deprecated": false,
+      "auth_required": false,
+      "security": [],
+      "parameters": [
+        {
+          "name": "techStack",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "maxLength": 100
+          }
+        }
+      ],
+      "request_body": null,
+      "responses": {
+        "200": {
+          "description": "ok",
+          "content_type": "application/json",
+          "schema": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "techStack"
+              ],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "readOnly": true
+                },
+                "name": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "techStack": {
+                  "type": "string",
+                  "maxLength": 100
+                }
+              },
+              "$name": "Engineer"
+            }
+          }
+        },
+        "400": {
+          "description": "bad"
+        }
+      }
+    }
+  ],
+  "warnings": [
+    "GET /api/v1/software-engineers: no operationId (generated id 'GET_api_v1_software_engineers')",
+    "POST /api/v1/software-engineers: no operationId (generated id 'POST_api_v1_software_engineers')",
+    "GET /api/v1/software-engineers/{id}: no operationId (generated id 'GET_api_v1_software_engineers_id')",
+    "PUT /api/v1/software-engineers/{id}: no operationId (generated id 'PUT_api_v1_software_engineers_id')",
+    "DELETE /api/v1/software-engineers/{id}: no operationId (generated id 'DELETE_api_v1_software_engineers_id')",
+    "GET /api/v1/software-engineers/search: no operationId (generated id 'GET_api_v1_software_engineers_search')",
+    "GET /api/v1/software-engineers/filter: no operationId (generated id 'GET_api_v1_software_engineers_filter')"
+  ]
+}

@@ -1,0 +1,440 @@
+{
+  "schema_version": 1,
+  "title": "Mock Pets API",
+  "date": "2026-11-14",
+  "result": {
+    "status": "FAIL",
+    "summary": "7 finding(s): HIGH 5, MEDIUM 2. 239 passed, 7 failed, 15 skipped, 0 errored of 261 tests.",
+    "warning": ""
+  },
+  "totals": {
+    "passed": 239,
+    "failed": 7,
+    "skipped": 15,
+    "error": 0,
+    "total": 261,
+    "test_seconds": 0.32
+  },
+  "by_type": {
+    "contract": {
+      "passed": 12,
+      "failed": 1,
+      "skipped": 0,
+      "error": 0,
+      "total": 13
+    },
+    "data-validation": {
+      "passed": 42,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 42
+    },
+    "edge": {
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 35
+    },
+    "integration": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 2
+    },
+    "negative": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 2,
+      "error": 0,
+      "total": 26
+    },
+    "positive": {
+      "passed": 10,
+      "failed": 1,
+      "skipped": 2,
+      "error": 0,
+      "total": 13
+    },
+    "resilience": {
+      "passed": 21,
+      "failed": 0,
+      "skipped": 2,
+      "error": 0,
+      "total": 23
+    },
+    "security": {
+      "passed": 87,
+      "failed": 4,
+      "skipped": 9,
+      "error": 0,
+      "total": 100
+    },
+    "smoke": {
+      "passed": 6,
+      "failed": 1,
+      "skipped": 0,
+      "error": 0,
+      "total": 7
+    }
+  },
+  "severity_counts": {
+    "CRITICAL": 0,
+    "HIGH": 5,
+    "MEDIUM": 2,
+    "LOW": 0,
+    "INFO": 0
+  },
+  "findings": [
+    {
+      "severity": "HIGH",
+      "title": "smoke: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "smoke",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_smoke.py::test_smoke_adminStats -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API3:2023 excessive data exposure] response exposes sensitive fields: ['$[0].password_hash', '$[1].password_hash', '$[2].password_hash', '$[3].password_hash', '$[4].password_hash']",
+      "endpoint": "GET /pets  (listPets)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets -> 200 (0 ms)",
+        "body: [{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>…"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api3_no_sensitive_fields_listPets -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2 -> 200 (0 ms)",
+        "body: {\"id\": 2, \"name\": \"Fido\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 2, \"password_hash\": \"<redacted>\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2 -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_getPet -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2/toys -> 200 (0 ms)",
+        "body: [{\"id\": 8, \"label\": \"bone\", \"pet_id\": 2}]"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2/toys -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_listToys -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2/toys/8 -> 200 (0 ms)",
+        "body: {\"id\": 8, \"label\": \"bone\", \"pet_id\": 2}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2/toys/8 -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_getToy -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=yes yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "MEDIUM",
+      "title": "request with valid input should succeed: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "contract",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_contract.py::test_adminStats_response_contract -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "MEDIUM",
+      "title": "request with valid input should succeed: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "positive",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_positive.py::test_adminStats_valid_request -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    }
+  ],
+  "findings_total": 7,
+  "coverage": [
+    {
+      "endpoint": "GET /health  (health)",
+      "types": [
+        "contract",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets  (listPets)",
+      "types": [
+        "contract",
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 24,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "POST /pets  (createPet)",
+      "types": [
+        "contract",
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "security"
+      ],
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 15,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "types": [
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 52,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "types": [
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 7,
+      "failed": 0,
+      "skipped": 4,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 13,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "types": [
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "security"
+      ],
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 15,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "types": [
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 8,
+      "failed": 0,
+      "skipped": 4,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "types": [
+        "contract",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 5,
+      "failed": 3,
+      "skipped": 1,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /preview  (preview)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "(API-wide)",
+      "types": [
+        "integration",
+        "resilience",
+        "security"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "skipped": 5,
+      "errors": 0,
+      "k6": ""
+    }
+  ],
+  "endpoints_without_results": [],
+  "has_intake": true,
+  "k6": [],
+  "run_problems": {},
+  "skips": {
+    "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose": 9,
+    "bearer token is not a JWT": 3,
+    "set APITEST_EXPIRED_TOKEN to an expired token for this check": 1,
+    "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes": 1,
+    "confirm the configured credentials belong to an ordinary, non-admin user: set APITEST_ASSUME_NON_ADMIN=yes": 1
+  },
+  "inputs": [
+    {
+      "kind": "junit",
+      "file": "pytest.xml",
+      "sha256_prefix": "b87b67d19ed7"
+    }
+  ],
+  "command": "python scripts/summarize_results.py --junit pytest.xml --intake intake.json --title 'Mock Pets API' --base-url http://127.0.0.1:8080 --tests-dir api_tests --k6-dir k6_tests"
+}
