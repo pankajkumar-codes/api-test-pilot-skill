@@ -246,8 +246,12 @@ Not verified: HTTPS upstreams (the proxy code supports them; no run), IPv6, chun
 ## Final spring-boot-demo run and public sandbox rerun (2026-11-14)
 **spring-boot-demo** (`b443602`, after two fixes in the demo), throwaway PostgreSQL 16, skill at `e49353d`: 189 tests in one report, 188 passed, 1 failed, 0 skipped
 (functional 166 of 166 including 2 rate-limit tests, fuzz 7 of 7, chaos 15 of 16). The one failure is the chaos `dep-slow` finding (MEDIUM): with PostgreSQL frozen, requests fail after about 5.0 s
-(limit 5.0 s), same as the earlier run; the demo was not changed for it. k6 load, stress, spike and a full 30-minute soak on the GET endpoints: 0 failed requests, p95 2.8 to 4.7 ms. The report is `examples/spring-boot-demo/report.html`.
+(limit 5.0 s), same as the earlier run; the demo was not changed before this run. k6 load, stress, spike and a full 30-minute soak on the GET endpoints: 0 failed requests, p95 2.8 to 4.7 ms. The report is `examples/spring-boot-demo/report.html`.
 The earlier fuzz finding (`page=2147483647` returned 500) was fixed in the demo, and fuzz passes 7 of 7.
+
+**Follow-up, dep-slow fix (2026-11-14):** the demo now sets JDBC connect, login and socket timeouts (2 s) and maps the resulting dead-connection errors to its existing 503 + `Retry-After`
+(spring-boot-demo PR #5, merge commit `0acc5b5`). Checked by hand against a throwaway PostgreSQL 16 frozen with SIGSTOP: the first request answered 503 in 2.1 s (before: no answer in 30 s),
+later ones in 3.0 s, and the API recovered at once after SIGCONT. The chaos suite itself was **not** rerun; that rerun and a refreshed report are planned for the final run, so the report and tables above still show the finding.
 
 **Public sandbox APIs**, read-only (`APITEST_READ_ONLY=yes`, 0.3 s between requests, no credentials, no resilience tests): JSONPlaceholder 378 tests (24 pass, 2 fail, 352 skip), ReqRes 192 (21, 11, 160),
 HTTPBin 413 (139, 8, 266), Webhook.site 55 (2, 0, 53); total 1038 (186 pass, 21 fail, 831 skip). The failures are CORS reflecting any origin with credentials (JSONPlaceholder, HTTPBin), missing HSTS and

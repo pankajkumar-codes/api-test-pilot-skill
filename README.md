@@ -51,9 +51,10 @@ before it; one report covers all of it: [report.html](examples/spring-boot-demo/
 The 189 are the pytest and chaos tests; the k6 profiles are reported separately with their thresholds, none crossed.
 
 An earlier fuzz run found a real bug: `GET /api/v1/software-engineers?page=2147483647` returned 500, because page times size overflowed Spring Data's
-integer offset. It was fixed in the demo project, and the fuzz run above passed 7 of 7 afterwards. The chaos finding is not fixed: a frozen database
-takes about 5 s to fail instead of failing fast, which suggests the demo sets no read timeout on its database connection (the cause was not investigated).
-That is "at the limit" of the 5 s default, not a measured hang (see [docs/evals.md](docs/evals.md)).
+integer offset. It was fixed in the demo project, and the fuzz run above passed 7 of 7 afterwards. The chaos finding was a frozen database taking about 5 s to fail instead of failing fast: the demo set no read timeout on its database connection.
+That was "at the limit" of the 5 s default, not a measured hang (see [docs/evals.md](docs/evals.md)). It is now fixed in the demo
+([spring-boot-demo#5](https://github.com/pankajkumar-codes/spring-boot-demo/pull/5): JDBC socket timeout, frozen database answers 503 in about 2 s). The table and report above are the run
+before that fix; the chaos suite has not been rerun against the fixed demo yet, so the fix is checked by hand only.
 
 What was not done on this target, so you can judge the numbers:
 - k6 ran **GET endpoints only, at the default rates** (about 4 to 10 req/s on average, up to 50 virtual users). That shows the demo is comfortable
