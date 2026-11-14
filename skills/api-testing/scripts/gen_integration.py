@@ -126,7 +126,7 @@ def generate(doc: dict, mod: Module) -> list[str]:
                 L.append(f"    cleanup.add(lambda p=dict(ids): api.send(EP[{c['delete']['id']!r}], path=p))")
             if i < len(chain) - 1:
                 L.append("")
-        L += ["    created_body = ep.body", "", "    # read it back", f"    rd = EP[{r['read']['id']!r}]",
+        L += ["    created_body = rt.sent_body(resp, ep)", "", "    # read it back", f"    rd = EP[{r['read']['id']!r}]",
               "    resp = api.send(rd, path=dict(ids))", "    rt.expect_ok(resp, rd)", "    rt.expect_contract(resp, rd)"]
         keys = _echo_keys(r["create"], r["read"])
         if keys:

@@ -434,6 +434,7 @@ class Endpoint:
     guessed: tuple = ()                              # required query params / body fields ("body.name") whose baseline value is invented
     headers: dict = field(default_factory=dict)      # baseline valid headers (required params)
     body: Any = UNSET                                # baseline valid JSON body
+    unique: dict = field(default_factory=dict)       # body fields that get a run tag on baseline creates: name -> {"max": maxLength}
     content_type: str | None = None
     responses: dict = field(default_factory=dict)    # "200" -> {"content_type", "schema"}
     tags: list = field(default_factory=list)
@@ -442,6 +443,42 @@ class Endpoint:
     def response_schema(self, status: int) -> Any:
         r = self.responses.get(str(status)) or self.responses.get("default") or {}
         return r.get("schema")
+
+
+# --------------------------------------------------------------------------- unique create bodies
+_RUN_ID = (os.environ.get("APITEST_RUN_ID") or uuid.uuid4().hex)[:4]
+_calls = {"n": 0}
+
+
+def _tagged(value: str, meta: dict) -> str:
+    _calls["n"] += 1
+    tag = f"{_RUN_ID}{_calls['n']:x}"
+    local, at, domain = value.partition("@")
+    room = meta.get("max")
+    if room is not None:
+        room = room - len(tag) - 1 - (len(at) + len(domain))
+        if room < 1:
+            return value   # the tag does not fit; keep the baseline value
+        local = local[:room]
+    return f"{local}-{tag}{at}{domain}"
+
+
+def unique_body(ep: Endpoint, payload: Any) -> Any:
+    """The baseline create body with a run tag on fields the server may keep unique, so each create is a new record.
+    APITEST_UNIQUE_BODIES=no sends the body untouched; APITEST_RUN_ID pins the tag prefix."""
+    if not ep.unique or not isinstance(payload, dict) or os.environ.get("APITEST_UNIQUE_BODIES", "").lower() in ("no", "0", "false"):
+        return payload
+    out = dict(payload)
+    for name, meta in ep.unique.items():
+        if isinstance(out.get(name), str) and out[name]:
+            out[name] = _tagged(out[name], meta)
+    return out
+
+
+def sent_body(resp: Any, ep: Endpoint) -> Any:
+    """The body a send() call actually put on the wire (the baseline with its run tags), for echo checks."""
+    sent = getattr(resp, "_sent_body", UNSET)
+    return ep.body if sent is UNSET else sent
 
 
 def json_of(resp: requests.Response) -> Any:
@@ -1072,7 +1109,7 @@ class Api:
             kwargs["data"] = raw
             h["Content-Type"] = ctype or "application/json"
         else:
-            payload = ep.body if body is UNSET else body
+            payload = unique_body(ep, ep.body) if body is UNSET else body
             if payload is not UNSET:
                 if ctype and "x-www-form-urlencoded" in ctype:
                     kwargs["data"] = payload
@@ -1085,6 +1122,7 @@ class Api:
                         h["Content-Type"] = ctype
         resp = self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
                              timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
+        resp._sent_body = kwargs.get("json", kwargs.get("data", UNSET)) if raw is None else UNSET  # type: ignore[attr-defined]
         resp._guessed = tuple(  # type: ignore[attr-defined]
             n for n in ep.guessed
             if (n.startswith("body.") and body is UNSET and raw is None) or (n in q and q[n] == ep.query.get(n)))
