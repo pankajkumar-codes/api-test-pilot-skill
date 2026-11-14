@@ -29,7 +29,7 @@ import gen_integration  # noqa: E402
 import gen_resilience  # noqa: E402
 import gen_security  # noqa: E402
 import gen_validation  # noqa: E402
-from gen_common import Module, baseline, expected_ok_codes, guessed_body, guessed_query, py, sample_body, error_codes, supported_body  # noqa: E402
+from gen_common import Module, baseline, expected_ok_codes, guessed_body, guessed_query, py, unique_body_fields, sample_body, error_codes, supported_body  # noqa: E402
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUNTIME_TEMPLATE = SKILL_DIR / "templates" / "pytest" / "apitest_runtime.py"
@@ -258,6 +258,7 @@ def endpoints_source(doc: dict) -> str:
             "responses": scrub(ep.get("responses") or {}), "tags": ep.get("tags") or [],
             "deprecated": bool(ep.get("deprecated")),
         }
+        args["unique"] = unique_body_fields(ep) if has_body else {}
         args["guessed"] = tuple(guessed_query(ep)) + (tuple(guessed_body(ep)) if has_body else ())
         parts = [f"{k}={py(v)}" for k, v in args.items() if v not in ([], {}, (), None, False) or k in ("id", "method", "path")]
         if has_body and body is not None:

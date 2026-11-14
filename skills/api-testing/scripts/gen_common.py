@@ -313,6 +313,30 @@ def guessed_body(ep: dict) -> list[str]:
             and is_guessed({"name": k, "schema": sch["properties"][k]})]
 
 
+_UNIQUE_NAME_RE = re.compile(
+    r"(^|[_-])(e-?mail|username|user[_-]?name|login|handle|slug|sku|code|name|reference)$|(Email|Username|UserName|Login|Handle|Slug|Sku|SKU|Code|Name|Reference)$",
+    re.I)
+
+
+_CREDENTIAL_PATH_RE = re.compile(r"login|log-in|signin|sign-in|auth|token|session", re.I)
+
+
+def unique_body_fields(ep: dict) -> dict:
+    """Top-level string fields of a create body that a server often keeps unique (email, username, slug, name ...).
+    The runtime adds a short run tag to them so repeated creates do not collide. Fields with an enum, a pattern or a
+    format other than email are left alone, because a tagged value could be rejected. Login and token endpoints are skipped:
+    they need a username that already exists."""
+    sch = body_schema(ep)
+    if ep.get("method") != "POST" or _CREDENTIAL_PATH_RE.search(ep.get("path") or "") or not sch or not isinstance(sch.get("properties"), dict) or not has_json_body(ep):
+        return {}
+    out = {}
+    for k, v in sch["properties"].items():
+        if (isinstance(v, dict) and _first_type(v) == "string" and _UNIQUE_NAME_RE.search(k) and not v.get("readOnly")
+                and not is_secret_name(k) and "enum" not in v and "pattern" not in v and v.get("format") in (None, "", "email")):
+            out[k] = {"max": v["maxLength"]} if isinstance(v.get("maxLength"), int) else {}
+    return out
+
+
 def writable_props(schema: dict | None) -> dict:
     if not schema or not isinstance(schema.get("properties"), dict):
         return {}
