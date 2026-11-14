@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (demo fix, 2026-11-14)
+- Docs: the chaos `dep-slow` finding is fixed in spring-boot-demo (PR #5, JDBC socket timeout, 503 in 2 to 3 s); README and `docs/evals.md` say so. The chaos suite and report are not rerun yet.
+
 ### Changed (naming and README audit, 2026-11-14)
 - Plugin, marketplace and display name are now `api-test-pilot-skill` / "API Test Pilot Skill" (README, plugin.json, marketplace.json, listing copy, release checklist). The k6 template header is `X-Load-Test: api-test-pilot-skill` and its user agent `api-test-pilot-skill-k6`. The skill folder stays `api-testing`.
 - README: scope wording (gRPC planned for v2; accessibility, mobile and hosted service outside the skill), status line, results tables match the final runs, exit codes, install notes.
