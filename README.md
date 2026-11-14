@@ -227,7 +227,7 @@ The full list is in `skills/api-testing/references/` (one file per test type).
 ### The report
 
 `summarize_results.py` writes `reports/report.html`: a single file with no external assets, so it opens offline and can be attached to a ticket
-or a CI run. It has the pass/fail verdict, a chart and totals, results per test type (click a type to see every test with its status and reason), findings ranked by severity (each with what happened,
+or a CI run. It has the pass/fail verdict, a chart and totals, results per test type (click a type to see every test with its status, reason, the request sent and the response received; secrets are redacted), findings ranked by severity (each with what happened,
 what was expected and a command to reproduce it), k6 numbers with threshold results, per-endpoint coverage, skip reasons and limitations. It follows
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
 

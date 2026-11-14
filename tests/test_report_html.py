@@ -110,3 +110,57 @@ def test_html_cannot_overwrite_itself_with_json(tmp_path):
     out = tmp_path / "r.json"
     proc = summarize("--junit", junit(tmp_path, [("a.test_x", "test_y", "pass", "", "")]), "-o", out, "--format", "html", expect=2)
     assert "overwrite" in proc.stderr and not out.exists()
+
+
+# ---- request and response bodies per test
+import gen_pytest  # noqa: E402
+import parse_openapi  # noqa: E402
+from conftest import FIXTURES  # noqa: E402
+from mock_rest import running as rest_server  # noqa: E402
+from suite_runner import REST_ENV, run_suite  # noqa: E402
+
+
+def test_generated_suite_records_exchanges_and_report_shows_them_redacted(tmp_path):
+    doc = parse_openapi.build(str(FIXTURES / "mockapi.yaml"))
+    suite = tmp_path / "api_tests"
+    gen_pytest.generate(doc, suite, ["smoke", "positive", "negative"])
+    intake = tmp_path / "intake.json"
+    intake.write_text(json.dumps(doc), encoding="utf-8")
+    junit_file = tmp_path / "j.xml"
+    env = dict(REST_ENV, APITEST_BEARERAUTH_TOKEN=CANARY)
+    with rest_server(set()) as url:
+        run_suite(suite, url, env, junit=junit_file)
+    xml = junit_file.read_text(encoding="utf-8")
+    assert "apitest.http" in xml and CANARY not in xml
+    out = tmp_path / "r.html"
+    summarize("--junit", junit_file, "--intake", intake, "-o", out, "--date", "2026-11-14", env={"APITEST_BEARERAUTH_TOKEN": CANARY})
+    html_text = out.read_text(encoding="utf-8")
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    with_http = [c for c in data["cases"] if c["http"]["items"]]
+    assert len(with_http) > 5
+    first = with_http[0]["http"]["items"][0]
+    assert first["method"] in ("GET", "POST", "PUT", "DELETE", "PATCH") and first["status"] and first["url"].startswith("http://127.0.0.1")
+    assert any(x["response_body"] for c in with_http for x in c["http"]["items"])
+    assert any(x["request_headers"].get("Authorization") == "<redacted>" for c in with_http for x in c["http"]["items"])
+    assert "Request and response" in html_text and CANARY not in html_text and CANARY not in json.dumps(data)
+
+
+def test_hostile_exchange_property_is_escaped_scrubbed_and_bounded(tmp_path):
+    evil = {"total": 99, "items": [
+        {"method": "GET", "url": f"http://127.0.0.1/x?token={CANARY}", "status": 500, "ms": 3,
+         "request_headers": {"Authorization": f"Bearer {CANARY}"}, "request_body": XSS * 60,
+         "response_headers": {"X": 5}, "response_body": f'{{"password": "{CANARY}"}} {XSS}'},
+        "junk", {"method": "<script>", "status": "x"}, {}, {}]}
+    from xml.sax.saxutils import quoteattr
+    xml = ('<testsuites><testsuite name="p"><testcase classname="api_tests.test_edge" name="test_a" time="0.1">'
+           f'<properties><property name="apitest.http" value={quoteattr(json.dumps(evil))}/></properties></testcase></testsuite></testsuites>')
+    p = tmp_path / "e.xml"
+    p.write_text(xml, encoding="utf-8")
+    out = tmp_path / "e.html"
+    summarize("--junit", p, "-o", out, env={"APITEST_BEARERAUTH_TOKEN": CANARY})
+    text = out.read_text(encoding="utf-8")
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    items = data["cases"][0]["http"]["items"]
+    assert len(items) <= 3 and items[0]["status"] == 500 and items[1:] and items[1]["method"] == ""
+    assert len(items[0]["request_body"]) <= 2000 and "script" in items[0]["request_body"]
+    assert CANARY not in text and "<script>alert" not in text and "<img src=x" not in text

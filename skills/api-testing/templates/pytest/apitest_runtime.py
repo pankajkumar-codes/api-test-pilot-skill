@@ -181,6 +181,83 @@ def curl_of(resp: requests.Response) -> str:
     return " ".join(parts)
 
 
+# ---- exchange log: what each test sent and got back, for the report. Secrets are redacted here, bodies are clipped, and
+# only the first few exchanges of a test are kept.
+MAX_EXCHANGES = 3
+MAX_BODY_CHARS = 1500
+MAX_PARSE_BYTES = 100_000          # a JSON body larger than this is omitted, not half-redacted
+KEEP_RESPONSE_HEADERS = ("content-type", "content-length", "location", "retry-after", "cache-control", "allow")
+EXCHANGES: list[dict] = []
+_exchange_count = [0]
+
+
+def reset_exchanges() -> None:
+    EXCHANGES.clear()
+    _exchange_count[0] = 0
+
+
+def _clip(text: str) -> str:
+    return text if len(text) <= MAX_BODY_CHARS else text[:MAX_BODY_CHARS] + f"... ({len(text) - MAX_BODY_CHARS} more characters)"
+
+
+def _body_for_report(raw: bytes | str | None) -> str:
+    if not raw:
+        return ""
+    if isinstance(raw, bytes):
+        if len(raw) > MAX_PARSE_BYTES:
+            return f"<body omitted: {len(raw)} bytes>"
+        text = raw.decode("utf-8", "replace")
+    else:
+        text = raw
+        if len(text) > MAX_PARSE_BYTES:
+            return f"<body omitted: {len(text)} characters>"
+    try:
+        return _clip(json.dumps(redact(json.loads(text)), ensure_ascii=False))
+    except RecursionError:
+        return BODY_OMITTED
+    except ValueError:      # not JSON: kept as text (the report scrubs it again)
+        return _clip(text)
+
+
+def record_exchange(resp: requests.Response) -> None:
+    _exchange_count[0] += 1
+    if len(EXCHANGES) >= MAX_EXCHANGES:
+        return
+    try:
+        req = resp.request
+        req_headers = {}
+        for k, v in req.headers.items():
+            if k.lower() in ("user-agent", "accept-encoding", "connection", "content-length", "accept"):
+                continue
+            req_headers[k] = "<redacted>" if (k.lower() in SECRET_HEADERS or SECRET_KEY_RE.search(k)) else str(v)[:200]
+        resp_headers = {k: (_redact_url(v) if k.lower() == "location" else str(v)[:200])
+                        for k, v in resp.headers.items() if k.lower() in KEEP_RESPONSE_HEADERS}
+        EXCHANGES.append({
+            "method": req.method, "url": _redact_url(req.url), "request_headers": req_headers,
+            "request_body": _body_for_report(req.body), "status": resp.status_code,
+            "ms": int(resp.elapsed.total_seconds() * 1000), "response_headers": resp_headers,
+            "response_body": _body_for_report(resp.content),
+        })
+    except Exception:       # the log is a convenience; it must never change a test result
+        pass
+
+
+def take_exchanges() -> str:
+    """JSON for the JUnit property, or "" when nothing was recorded. Shrinks bodies until it fits in 20 000 characters."""
+    if not EXCHANGES:
+        return ""
+    items = [dict(e) for e in EXCHANGES]
+    limit = MAX_BODY_CHARS
+    while True:
+        out = json.dumps({"total": _exchange_count[0], "items": items}, ensure_ascii=False)
+        if len(out) <= 20_000 or limit < 50:
+            return out if len(out) <= 20_000 else ""
+        limit //= 2
+        for e in items:
+            for k in ("request_body", "response_body"):
+                e[k] = e[k][:limit]
+
+
 def describe(resp: requests.Response) -> str:
     ms = int(resp.elapsed.total_seconds() * 1000)
     body = resp.text[:300].replace("\n", " ")
@@ -893,7 +970,9 @@ class Api:
         for attempt in range(attempts):
             self._pace()
             try:
-                return self.session.request(method, url, **kw)
+                resp = self.session.request(method, url, **kw)
+                record_exchange(resp)
+                return resp
             except requests.exceptions.RequestException as exc:
                 if transient != "skip":
                     raise

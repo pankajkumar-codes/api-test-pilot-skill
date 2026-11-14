@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import math
 import os
 import re
@@ -48,6 +49,7 @@ MAX_JSON_BYTES = 10 * 1024 * 1024
 MAX_CASES = 100_000
 MAX_XML_DEPTH = 32
 MAX_FIELD_CHARS = 20_000      # per attribute / element text kept from a result file
+MAX_PROP_CHARS = 30_000       # the apitest.http property a generated suite attaches to a test
 MAX_METRICS = 5_000
 MAX_CHECKS = 200
 RANK = {"passed": 0, "skipped": 1, "error": 2, "failed": 3}
@@ -202,8 +204,11 @@ def parse_junit(path: str) -> tuple[list[dict], str]:
             except ValueError:
                 pass
             state["case"] = {"classname": attrs.get("classname", "")[:300], "name": attrs.get("name", "")[:500],
-                             "time": time_s, "status": "passed", "message": "", "text": ""}
+                             "time": time_s, "status": "passed", "message": "", "text": "", "http_raw": ""}
             state["case_depth"] = state["depth"]
+        elif (tag == "property" and state["case"] is not None and state["depth"] == state["case_depth"] + 2
+              and attrs.get("name") == "apitest.http" and len(attrs.get("value", "")) <= MAX_PROP_CHARS):
+            state["case"]["http_raw"] = attrs["value"]
         elif state["case"] is not None and state["depth"] == state["case_depth"] + 1 and tag in ("failure", "error", "skipped"):
             state["child"] = tag
             state["parts"] = []
@@ -244,6 +249,46 @@ def parse_junit(path: str) -> tuple[list[dict], str]:
     except expat.ExpatError as e:
         raise ReportError(f"{plain(path, 120)} is not valid XML ({expat.ErrorString(e.code)})") from None
     return cases, hashlib.sha256(data).hexdigest()[:12]
+
+
+def _text(v: Any, limit: int) -> str:
+    return plain(v, limit, keep_newlines=True) if isinstance(v, str) else ""
+
+
+def _headers(v: Any) -> dict[str, str]:
+    if not isinstance(v, dict):
+        return {}
+    return {plain(k, 60): plain(x, 200) for k, x in list(v.items())[:20] if isinstance(k, str) and isinstance(x, str)}
+
+
+def parse_exchanges(raw: str) -> dict:
+    """The apitest.http property is untrusted like everything else in the file: parsed as plain JSON, checked field by field,
+    bounded, and scrubbed again here. Anything that is not the expected shape is dropped."""
+    if not raw:
+        return {"total": 0, "items": []}
+    try:
+        doc = json.loads(raw)
+    except (ValueError, RecursionError):
+        return {"total": 0, "items": []}
+    if not isinstance(doc, dict) or not isinstance(doc.get("items"), list):
+        return {"total": 0, "items": []}
+    items = []
+    for e in doc["items"][:3]:
+        if not isinstance(e, dict):
+            continue
+        method = e.get("method")
+        status = e.get("status")
+        ms = e.get("ms")
+        items.append({
+            "method": method if method in METHODS else "",
+            "url": _text(e.get("url"), 400),
+            "status": status if isinstance(status, int) and not isinstance(status, bool) and 0 <= status < 1000 else None,
+            "ms": ms if isinstance(ms, int) and not isinstance(ms, bool) and 0 <= ms < 10**9 else None,
+            "request_headers": _headers(e.get("request_headers")), "request_body": _text(e.get("request_body"), 2000),
+            "response_headers": _headers(e.get("response_headers")), "response_body": _text(e.get("response_body"), 2000),
+        })
+    total = doc.get("total")
+    return {"total": total if isinstance(total, int) and not isinstance(total, bool) and 0 <= total < 10**9 else len(items), "items": items}
 
 
 # --------------------------------------------------------------------------- intake (endpoint names only)
@@ -463,7 +508,8 @@ class Report:
                 label = f"{request.group(1)} {plain(urllib.parse.urlsplit(request.group(2)).path or '/', 120)}"
             else:
                 label = "(API-wide)"
-            rec = {"type": ctype, "stem": stem, "name": name, "status": c["status"], "endpoint": label, "time": c["time"]}
+            rec = {"type": ctype, "stem": stem, "name": name, "status": c["status"], "endpoint": label, "time": c["time"],
+                   "http": parse_exchanges(c.get("http_raw", ""))}
             self.cases.append(rec)
             rec["reason"] = ""
             if c["status"] == "skipped":
