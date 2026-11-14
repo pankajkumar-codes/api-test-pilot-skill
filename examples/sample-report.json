@@ -13,7 +13,7 @@
     "skipped": 15,
     "error": 0,
     "total": 261,
-    "test_seconds": 0.57
+    "test_seconds": 0.8
   },
   "cases": [
     {
@@ -21,7 +21,7 @@
       "name": "test_adminStats_response_contract",
       "status": "failed",
       "endpoint": "GET /admin/stats  (adminStats)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "[MEDIUM] request with valid input should succeed: expected [200], got 403",
       "http": {
         "total": 1,
@@ -30,7 +30,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/admin/stats",
             "status": 403,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -49,7 +49,7 @@
       "name": "test_createPet_error_contract_401",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -77,7 +77,7 @@
       "name": "test_createPet_response_contract",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -86,7 +86,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -107,7 +107,7 @@
       "name": "test_getPet_error_contract_401",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -116,7 +116,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000",
             "status": 401,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -133,7 +133,7 @@
       "name": "test_getPet_error_contract_404",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -142,7 +142,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -161,7 +161,7 @@
       "name": "test_getPet_response_contract",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -170,7 +170,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -189,7 +189,7 @@
       "name": "test_getToy_error_contract_404",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -198,7 +198,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys/2147483000",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -217,7 +217,7 @@
       "name": "test_getToy_response_contract",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -226,7 +226,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys/7",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -245,7 +245,7 @@
       "name": "test_health_response_contract",
       "status": "passed",
       "endpoint": "GET /health  (health)",
-      "seconds": 0.004,
+      "seconds": 0.006,
       "reason": "",
       "http": {
         "total": 1,
@@ -254,7 +254,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 1,
+            "ms": 2,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -271,7 +271,7 @@
       "name": "test_listPets_error_contract_401",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -280,7 +280,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 401,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -297,7 +297,7 @@
       "name": "test_listPets_response_contract",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -325,7 +325,7 @@
       "name": "test_listToys_response_contract",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -334,7 +334,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -353,7 +353,7 @@
       "name": "test_preview_response_contract",
       "status": "passed",
       "endpoint": "GET /preview  (preview)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -381,7 +381,7 @@
       "name": "test_createPet_rejects_invalid_input[age_above_maximum]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -410,7 +410,7 @@
       "name": "test_createPet_rejects_invalid_input[age_below_minimum]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -419,7 +419,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -439,7 +439,7 @@
       "name": "test_createPet_rejects_invalid_input[age_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -448,7 +448,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -497,7 +497,7 @@
       "name": "test_createPet_rejects_invalid_input[contact_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -526,7 +526,7 @@
       "name": "test_createPet_rejects_invalid_input[missing_name]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -535,7 +535,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -555,7 +555,7 @@
       "name": "test_createPet_rejects_invalid_input[name_above_max_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -564,7 +564,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -584,7 +584,7 @@
       "name": "test_createPet_rejects_invalid_input[name_below_min_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -593,7 +593,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -613,7 +613,7 @@
       "name": "test_createPet_rejects_invalid_input[name_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -642,7 +642,7 @@
       "name": "test_createPet_rejects_invalid_input[tag_above_max_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -671,7 +671,7 @@
       "name": "test_createPet_rejects_invalid_input[tag_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -680,7 +680,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -700,7 +700,7 @@
       "name": "test_createToy_rejects_invalid_input[label_above_max_length]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -729,7 +729,7 @@
       "name": "test_createToy_rejects_invalid_input[label_below_min_length]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -758,7 +758,7 @@
       "name": "test_createToy_rejects_invalid_input[label_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -767,7 +767,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -787,7 +787,7 @@
       "name": "test_createToy_rejects_invalid_input[missing_label]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -796,7 +796,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -816,7 +816,7 @@
       "name": "test_createToy_rejects_invalid_input[path_petId_wrong_type]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -825,7 +825,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/not-a-number/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -845,7 +845,7 @@
       "name": "test_deletePet_rejects_invalid_input[path_petId_wrong_type]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}  (deletePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -854,7 +854,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/not-a-number",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -966,7 +966,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/not-a-number/toys/7",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1041,7 +1041,7 @@
       "name": "test_listPets_rejects_invalid_input[query_limit_below_minimum]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1050,7 +1050,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?limit=0",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1069,7 +1069,7 @@
       "name": "test_listPets_rejects_invalid_input[query_limit_wrong_type]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1097,7 +1097,7 @@
       "name": "test_listPets_rejects_invalid_input[query_offset_below_minimum]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1106,7 +1106,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?offset=-1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1125,7 +1125,7 @@
       "name": "test_listPets_rejects_invalid_input[query_offset_wrong_type]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1134,7 +1134,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?offset=not-a-number",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1153,7 +1153,7 @@
       "name": "test_listPets_rejects_invalid_input[query_status_not_in_enum]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1162,7 +1162,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?status=__not_in_enum__",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1181,7 +1181,7 @@
       "name": "test_listToys_rejects_invalid_input[path_petId_wrong_type]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1190,7 +1190,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/not-a-number/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -1237,7 +1237,7 @@
       "name": "test_updatePet_rejects_invalid_input[age_above_maximum]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1246,7 +1246,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1295,7 +1295,7 @@
       "name": "test_updatePet_rejects_invalid_input[age_wrong_type]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1324,7 +1324,7 @@
       "name": "test_updatePet_rejects_invalid_input[contact_bad_email]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1353,7 +1353,7 @@
       "name": "test_updatePet_rejects_invalid_input[contact_wrong_type]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1382,7 +1382,7 @@
       "name": "test_updatePet_rejects_invalid_input[missing_name]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1440,7 +1440,7 @@
       "name": "test_updatePet_rejects_invalid_input[name_below_min_length]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1469,7 +1469,7 @@
       "name": "test_updatePet_rejects_invalid_input[name_wrong_type]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1498,7 +1498,7 @@
       "name": "test_updatePet_rejects_invalid_input[path_petId_wrong_type]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1527,7 +1527,7 @@
       "name": "test_updatePet_rejects_invalid_input[tag_above_max_length]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1536,7 +1536,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1556,7 +1556,7 @@
       "name": "test_updatePet_rejects_invalid_input[tag_wrong_type]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1585,7 +1585,7 @@
       "name": "test_createPet_edge[age_int64_overflow]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1594,7 +1594,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1614,7 +1614,7 @@
       "name": "test_createPet_edge[age_max_boundary]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1623,7 +1623,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1644,7 +1644,7 @@
       "name": "test_createPet_edge[age_min_boundary]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1674,7 +1674,7 @@
       "name": "test_createPet_edge[name_empty_string]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1683,7 +1683,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1703,7 +1703,7 @@
       "name": "test_createPet_edge[name_max_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1733,7 +1733,7 @@
       "name": "test_createPet_edge[name_min_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1742,7 +1742,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1763,7 +1763,7 @@
       "name": "test_createPet_edge[name_null]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1772,7 +1772,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1792,7 +1792,7 @@
       "name": "test_createPet_edge[name_special_chars]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1801,7 +1801,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1822,7 +1822,7 @@
       "name": "test_createPet_edge[name_unicode]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1831,7 +1831,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1852,7 +1852,7 @@
       "name": "test_createPet_edge[tag_empty_string]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1882,7 +1882,7 @@
       "name": "test_createPet_edge[tag_max_length]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1891,7 +1891,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1912,7 +1912,7 @@
       "name": "test_createPet_edge[tag_special_chars]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -1921,7 +1921,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1942,7 +1942,7 @@
       "name": "test_createPet_edge[tag_unicode]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -1951,7 +1951,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -1972,7 +1972,7 @@
       "name": "test_createToy_edge[label_empty_string]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2001,7 +2001,7 @@
       "name": "test_createToy_edge[label_max_length]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2030,7 +2030,7 @@
       "name": "test_createToy_edge[label_min_length]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2059,7 +2059,7 @@
       "name": "test_createToy_edge[label_null]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2068,7 +2068,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2088,7 +2088,7 @@
       "name": "test_createToy_edge[label_special_chars]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2097,7 +2097,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2117,7 +2117,7 @@
       "name": "test_createToy_edge[label_unicode]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2146,7 +2146,7 @@
       "name": "test_listPets_edge[query_limit_max_boundary]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2174,7 +2174,7 @@
       "name": "test_listPets_edge[query_limit_min_boundary]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2202,7 +2202,7 @@
       "name": "test_listPets_edge[query_offset_min_boundary]",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2230,7 +2230,7 @@
       "name": "test_updatePet_edge[age_int64_overflow]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2259,7 +2259,7 @@
       "name": "test_updatePet_edge[age_max_boundary]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2268,7 +2268,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2288,7 +2288,7 @@
       "name": "test_updatePet_edge[age_min_boundary]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2297,7 +2297,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2317,7 +2317,7 @@
       "name": "test_updatePet_edge[name_empty_string]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2326,7 +2326,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2346,7 +2346,7 @@
       "name": "test_updatePet_edge[name_max_length]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -2355,7 +2355,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2375,7 +2375,7 @@
       "name": "test_updatePet_edge[name_min_length]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -2384,7 +2384,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2404,7 +2404,7 @@
       "name": "test_updatePet_edge[name_null]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -2413,7 +2413,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2433,7 +2433,7 @@
       "name": "test_updatePet_edge[name_special_chars]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2462,7 +2462,7 @@
       "name": "test_updatePet_edge[name_unicode]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -2471,7 +2471,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2491,7 +2491,7 @@
       "name": "test_updatePet_edge[tag_empty_string]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2520,7 +2520,7 @@
       "name": "test_updatePet_edge[tag_max_length]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2549,7 +2549,7 @@
       "name": "test_updatePet_edge[tag_special_chars]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2558,7 +2558,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2578,7 +2578,7 @@
       "name": "test_updatePet_edge[tag_unicode]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -2587,7 +2587,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2607,7 +2607,7 @@
       "name": "test_flow_pets_lifecycle",
       "status": "passed",
       "endpoint": "(API-wide)",
-      "seconds": 0.01,
+      "seconds": 0.014,
       "reason": "",
       "http": {
         "total": 7,
@@ -2633,7 +2633,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/115",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -2657,7 +2657,7 @@
               "Content-Type": "application/json",
               "Content-Length": "1740"
             },
-            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<reda... (103 more characters)"
+            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"... (108 more characters)"
           }
         ]
       }
@@ -2667,7 +2667,7 @@
       "name": "test_flow_pets_petId_toys_lifecycle",
       "status": "passed",
       "endpoint": "(API-wide)",
-      "seconds": 0.011,
+      "seconds": 0.016,
       "reason": "",
       "http": {
         "total": 6,
@@ -2807,7 +2807,7 @@
       "name": "test_createPet_malformed_requests[malformed_json]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2816,12 +2816,12 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
             },
-            "request_body": "{\"broken\": ",
+            "request_body": "<body omitted: invalid JSON, 11 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "40"
@@ -2850,7 +2850,7 @@
               "Authorization": "<redacted>",
               "Content-Type": "text/plain"
             },
-            "request_body": "name=x",
+            "request_body": "<body omitted: text/plain, 6 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "65"
@@ -2865,7 +2865,7 @@
       "name": "test_createPet_rejects_missing_credentials",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2893,7 +2893,7 @@
       "name": "test_createToy_malformed_requests[empty_body]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2902,7 +2902,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -2922,7 +2922,7 @@
       "name": "test_createToy_malformed_requests[malformed_json]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -2931,12 +2931,12 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
             },
-            "request_body": "{\"broken\": ",
+            "request_body": "<body omitted: invalid JSON, 11 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "40"
@@ -2965,7 +2965,7 @@
               "Authorization": "<redacted>",
               "Content-Type": "text/plain"
             },
-            "request_body": "name=x",
+            "request_body": "<body omitted: text/plain, 6 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "65"
@@ -2980,7 +2980,7 @@
       "name": "test_createToy_rejects_missing_credentials",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3043,7 +3043,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys/2147483000",
             "status": 401,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -3123,7 +3123,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys/2147483000",
             "status": 401,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -3168,7 +3168,7 @@
       "name": "test_listPets_rejects_missing_credentials",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3177,7 +3177,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 401,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -3303,7 +3303,7 @@
       "name": "test_updatePet_malformed_requests[malformed_json]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3317,7 +3317,7 @@
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
             },
-            "request_body": "{\"broken\": ",
+            "request_body": "<body omitted: invalid JSON, 11 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "40"
@@ -3341,12 +3341,12 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 415,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "text/plain"
             },
-            "request_body": "name=x",
+            "request_body": "<body omitted: text/plain, 6 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "65"
@@ -3361,7 +3361,7 @@
       "name": "test_updatePet_rejects_missing_credentials",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3389,7 +3389,7 @@
       "name": "test_updatePet_unknown_id_not_found",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3398,7 +3398,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/2147483000",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -3458,7 +3458,7 @@
       "name": "test_deleteToy_valid_request",
       "status": "skipped",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0,
+      "seconds": 0.001,
       "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose",
       "http": {
         "total": 0,
@@ -3470,7 +3470,7 @@
       "name": "test_createPet_valid_request",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3479,7 +3479,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -3500,7 +3500,7 @@
       "name": "test_createToy_valid_request",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -3629,7 +3629,7 @@
               "Content-Type": "application/json",
               "Content-Length": "1640"
             },
-            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<reda... (8 more characters)"
+            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"... (13 more characters)"
           }
         ]
       }
@@ -3667,7 +3667,7 @@
       "name": "test_listToys_valid_request",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.006,
       "reason": "",
       "http": {
         "total": 1,
@@ -3704,7 +3704,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/preview?url=https%3A%2F%2Fexample.com%2Fapitest",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -3776,7 +3776,7 @@
       "name": "test_adminStats_is_repeatable",
       "status": "passed",
       "endpoint": "GET /admin/stats  (adminStats)",
-      "seconds": 0.003,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 2,
@@ -3847,7 +3847,7 @@
       "name": "test_getPet_is_repeatable",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.003,
+      "seconds": 0.005,
       "reason": "",
       "http": {
         "total": 2,
@@ -3856,7 +3856,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -3918,7 +3918,7 @@
       "name": "test_getToy_is_repeatable",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.003,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 2,
@@ -3927,7 +3927,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys/7",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -3989,7 +3989,7 @@
       "name": "test_health_is_repeatable",
       "status": "passed",
       "endpoint": "GET /health  (health)",
-      "seconds": 0.003,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 2,
@@ -4028,7 +4028,7 @@
       "name": "test_health_responds_within_budget",
       "status": "passed",
       "endpoint": "GET /health  (health)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -4037,7 +4037,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 0,
+            "ms": 3,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -4091,7 +4091,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?limit=0",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4110,7 +4110,7 @@
       "name": "test_listPets_is_repeatable",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.003,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 2,
@@ -4119,7 +4119,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4162,7 +4162,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?limit=1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4181,7 +4181,7 @@
       "name": "test_listPets_pages_do_not_overlap",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.003,
+      "seconds": 0.005,
       "reason": "",
       "http": {
         "total": 2,
@@ -4205,7 +4205,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?limit=1&offset=1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4224,7 +4224,7 @@
       "name": "test_listPets_past_the_end_is_empty",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -4233,7 +4233,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets?limit=1&offset=10000000",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4252,7 +4252,7 @@
       "name": "test_listPets_responds_within_budget",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -4261,7 +4261,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4280,7 +4280,7 @@
       "name": "test_listToys_is_repeatable",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.003,
+      "seconds": 0.007,
       "reason": "",
       "http": {
         "total": 2,
@@ -4289,7 +4289,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 200,
-            "ms": 0,
+            "ms": 2,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4304,7 +4304,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4323,7 +4323,7 @@
       "name": "test_listToys_responds_within_budget",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -4332,7 +4332,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4351,7 +4351,7 @@
       "name": "test_preview_is_repeatable",
       "status": "passed",
       "endpoint": "GET /preview  (preview)",
-      "seconds": 0.003,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 2,
@@ -4360,7 +4360,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/preview?url=https%3A%2F%2Fexample.com%2Fapitest",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4422,11 +4422,26 @@
       "name": "test_rate_limit_behaviour",
       "status": "passed",
       "endpoint": "(API-wide)",
-      "seconds": 0.037,
+      "seconds": 0.039,
       "reason": "",
       "http": {
         "total": 30,
         "items": [
+          {
+            "method": "GET",
+            "url": "http://127.0.0.1:8080/pets",
+            "status": 200,
+            "ms": 0,
+            "request_headers": {
+              "Authorization": "<redacted>"
+            },
+            "request_body": "",
+            "response_headers": {
+              "Content-Type": "application/json",
+              "Content-Length": "1729"
+            },
+            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"... (92 more characters)"
+          },
           {
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
@@ -4446,22 +4461,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 200,
-            "ms": 0,
-            "request_headers": {
-              "Authorization": "<redacted>"
-            },
-            "request_body": "",
-            "response_headers": {
-              "Content-Type": "application/json",
-              "Content-Length": "1729"
-            },
-            "response_body": "[{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 4, \"name\": \"Kit\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 100, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 101, \"name\": \"Zoë 🐶 日本語\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 102, \"name\": \"!@#$%^&*()_+-={}[]|\\\\:;\\\"'<>,.?/~`\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 103, \"name\": \"a\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 104, \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 105, \"name\": \"sample-name\", \"tag\": \"Zoë 🐶 日本語\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 106, \"name\": \"sample-name\", \"tag\": \"!@#$%^&*()_+-={}[]|\\\\\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 107, \"name\": \"sample-name\", \"tag\": \"\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 108, \"name\": \"sample-name\", \"tag\": \"aaaaaaaaaaaaaaaaaaaa\", \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 109, \"name\": \"sample-name\", \"tag\": null, \"age\": 0, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 110, \"name\": \"sample-name\", \"tag\": null, \"age\": 30, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"... (92 more characters)"
-          },
-          {
-            "method": "GET",
-            "url": "http://127.0.0.1:8080/pets",
-            "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4480,7 +4480,7 @@
       "name": "test_updatePet_put_is_idempotent",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.003,
+      "seconds": 0.005,
       "reason": "",
       "http": {
         "total": 2,
@@ -4489,7 +4489,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -4505,7 +4505,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -4534,7 +4534,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4562,7 +4562,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2/toys/8",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4618,7 +4618,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4673,7 +4673,7 @@
       "name": "test_api2_expired_token_rejected",
       "status": "skipped",
       "endpoint": "(API-wide)",
-      "seconds": 0.001,
+      "seconds": 0,
       "reason": "set APITEST_EXPIRED_TOKEN to an expired token for this check",
       "http": {
         "total": 0,
@@ -4685,7 +4685,7 @@
       "name": "test_api2_tampered_jwt_rejected[alg_none]",
       "status": "skipped",
       "endpoint": "(API-wide)",
-      "seconds": 0.001,
+      "seconds": 0,
       "reason": "bearer token is not a JWT",
       "http": {
         "total": 0,
@@ -4811,7 +4811,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys",
             "status": 401,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -4859,7 +4859,7 @@
       "name": "test_api2_invalid_credentials_rejected_deleteToy",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -4887,7 +4887,7 @@
       "name": "test_api2_invalid_credentials_rejected_getPet",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -4896,7 +4896,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000",
             "status": 401,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4924,7 +4924,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys/2147483000",
             "status": 401,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4943,7 +4943,7 @@
       "name": "test_api2_invalid_credentials_rejected_listPets",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.003,
+      "seconds": 0.002,
       "reason": "",
       "http": {
         "total": 1,
@@ -4952,7 +4952,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 401,
-            "ms": 2,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -4980,7 +4980,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/2147483000/toys",
             "status": 401,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -5027,7 +5027,7 @@
       "name": "test_api2_invalid_credentials_rejected_updatePet",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5056,7 +5056,7 @@
       "name": "test_api3_mass_assignment_createPet",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5086,7 +5086,7 @@
       "name": "test_api3_mass_assignment_createToy",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5124,7 +5124,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5153,7 +5153,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/admin/stats",
             "status": 403,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -5181,7 +5181,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -5207,7 +5207,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/preview?url=https%3A%2F%2Fexample.com%2Fapitest",
             "status": 200,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -5254,7 +5254,7 @@
       "name": "test_api7_ssrf_preview_url[file:///etc/passwd]",
       "status": "passed",
       "endpoint": "GET /preview  (preview)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5282,7 +5282,7 @@
       "name": "test_api7_ssrf_preview_url[http://127.0.0.1:22/]",
       "status": "passed",
       "endpoint": "GET /preview  (preview)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5310,7 +5310,7 @@
       "name": "test_api7_ssrf_preview_url[http://169.254.169.254/latest/meta-data/]",
       "status": "passed",
       "endpoint": "GET /preview  (preview)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5347,7 +5347,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Origin": "https://untrusted.example"
             },
@@ -5366,7 +5366,7 @@
       "name": "test_api8_errors_do_not_leak_internals",
       "status": "passed",
       "endpoint": "(API-wide)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5380,7 +5380,7 @@
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
             },
-            "request_body": "{\"broken\": ",
+            "request_body": "<body omitted: invalid JSON, 11 bytes>",
             "response_headers": {
               "Content-Type": "application/json",
               "Content-Length": "40"
@@ -5404,7 +5404,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -5421,7 +5421,7 @@
       "name": "test_injection_createPet[body_name[0]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5430,7 +5430,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5451,7 +5451,7 @@
       "name": "test_injection_createPet[body_name[1]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5460,7 +5460,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5481,7 +5481,7 @@
       "name": "test_injection_createPet[body_name[2]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5490,7 +5490,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5511,7 +5511,7 @@
       "name": "test_injection_createPet[body_name[3]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -5520,7 +5520,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5541,7 +5541,7 @@
       "name": "test_injection_createPet[body_name[4]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5550,7 +5550,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5571,7 +5571,7 @@
       "name": "test_injection_createPet[body_name[5]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5580,7 +5580,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5601,7 +5601,7 @@
       "name": "test_injection_createPet[body_name[6]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5610,7 +5610,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5631,7 +5631,7 @@
       "name": "test_injection_createPet[body_tag[0]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5640,7 +5640,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5661,7 +5661,7 @@
       "name": "test_injection_createPet[body_tag[1]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5691,7 +5691,7 @@
       "name": "test_injection_createPet[body_tag[2]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5700,7 +5700,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5721,7 +5721,7 @@
       "name": "test_injection_createPet[body_tag[3]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5780,7 +5780,7 @@
       "name": "test_injection_createPet[body_tag[5]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5809,7 +5809,7 @@
       "name": "test_injection_createPet[body_tag[6]]",
       "status": "passed",
       "endpoint": "POST /pets  (createPet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5818,7 +5818,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5839,7 +5839,7 @@
       "name": "test_injection_createToy[body_label[0]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5848,7 +5848,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5868,7 +5868,7 @@
       "name": "test_injection_createToy[body_label[1]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5877,7 +5877,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5897,7 +5897,7 @@
       "name": "test_injection_createToy[body_label[2]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5906,7 +5906,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5926,7 +5926,7 @@
       "name": "test_injection_createToy[body_label[3]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5935,7 +5935,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5955,7 +5955,7 @@
       "name": "test_injection_createToy[body_label[4]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5964,7 +5964,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -5984,7 +5984,7 @@
       "name": "test_injection_createToy[body_label[5]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -5993,7 +5993,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6013,7 +6013,7 @@
       "name": "test_injection_createToy[body_label[6]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6022,7 +6022,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 201,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6042,7 +6042,7 @@
       "name": "test_injection_createToy[path_petId[0]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6071,7 +6071,7 @@
       "name": "test_injection_createToy[path_petId[1]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6080,7 +6080,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd/toys",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6100,7 +6100,7 @@
       "name": "test_injection_createToy[path_petId[2]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6109,7 +6109,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/1%20OR%201=1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6129,7 +6129,7 @@
       "name": "test_injection_createToy[path_petId[3]]",
       "status": "passed",
       "endpoint": "POST /pets/{petId}/toys  (createToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6138,7 +6138,7 @@
             "method": "POST",
             "url": "http://127.0.0.1:8080/pets/x%27%20OR%20%271%27%3D%271/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6167,7 +6167,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/etc/passwd",
             "status": 404,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6195,7 +6195,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6214,7 +6214,7 @@
       "name": "test_injection_deletePet[path_petId[2]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}  (deletePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6223,7 +6223,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/1%20OR%201=1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6242,7 +6242,7 @@
       "name": "test_injection_deletePet[path_petId[3]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}  (deletePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6270,7 +6270,7 @@
       "name": "test_injection_deleteToy[path_petId[0]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6279,7 +6279,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/etc/passwd/toys/7",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6298,7 +6298,7 @@
       "name": "test_injection_deleteToy[path_petId[1]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6307,7 +6307,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd/toys/7",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6326,7 +6326,7 @@
       "name": "test_injection_deleteToy[path_petId[2]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6335,7 +6335,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/1%20OR%201=1/toys/7",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6354,7 +6354,7 @@
       "name": "test_injection_deleteToy[path_petId[3]]",
       "status": "passed",
       "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6363,7 +6363,7 @@
             "method": "DELETE",
             "url": "http://127.0.0.1:8080/pets/x%27%20OR%20%271%27%3D%271/toys/7",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6391,7 +6391,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/etc/passwd",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6410,7 +6410,7 @@
       "name": "test_injection_getPet[path_petId[1]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.002,
+      "seconds": 0.005,
       "reason": "",
       "http": {
         "total": 1,
@@ -6419,7 +6419,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd",
             "status": 400,
-            "ms": 0,
+            "ms": 3,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6475,7 +6475,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/x%27%20OR%20%271%27%3D%271",
             "status": 400,
-            "ms": 1,
+            "ms": 0,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6494,7 +6494,7 @@
       "name": "test_injection_getToy[path_petId[0]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6503,7 +6503,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/etc/passwd/toys/7",
             "status": 404,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6522,7 +6522,7 @@
       "name": "test_injection_getToy[path_petId[1]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6578,7 +6578,7 @@
       "name": "test_injection_getToy[path_petId[3]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -6587,7 +6587,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/x%27%20OR%20%271%27%3D%271/toys/7",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6606,7 +6606,7 @@
       "name": "test_injection_listToys[path_petId[0]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6634,7 +6634,7 @@
       "name": "test_injection_listToys[path_petId[1]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6643,7 +6643,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6662,7 +6662,7 @@
       "name": "test_injection_listToys[path_petId[2]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6671,7 +6671,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1%20OR%201=1/toys",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -6690,7 +6690,7 @@
       "name": "test_injection_listToys[path_petId[3]]",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6718,7 +6718,7 @@
       "name": "test_injection_updatePet[body_name[0]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6747,7 +6747,7 @@
       "name": "test_injection_updatePet[body_name[1]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6756,7 +6756,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6776,7 +6776,7 @@
       "name": "test_injection_updatePet[body_name[2]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6805,7 +6805,7 @@
       "name": "test_injection_updatePet[body_name[3]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.004,
       "reason": "",
       "http": {
         "total": 1,
@@ -6814,7 +6814,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6834,7 +6834,7 @@
       "name": "test_injection_updatePet[body_name[4]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6843,7 +6843,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6863,7 +6863,7 @@
       "name": "test_injection_updatePet[body_name[5]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6872,7 +6872,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6892,7 +6892,7 @@
       "name": "test_injection_updatePet[body_name[6]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6901,7 +6901,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6921,7 +6921,7 @@
       "name": "test_injection_updatePet[body_tag[0]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6950,7 +6950,7 @@
       "name": "test_injection_updatePet[body_tag[1]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6959,7 +6959,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -6979,7 +6979,7 @@
       "name": "test_injection_updatePet[body_tag[2]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -6988,7 +6988,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7008,7 +7008,7 @@
       "name": "test_injection_updatePet[body_tag[3]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7017,7 +7017,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7037,7 +7037,7 @@
       "name": "test_injection_updatePet[body_tag[4]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7046,7 +7046,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7066,7 +7066,7 @@
       "name": "test_injection_updatePet[body_tag[5]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7075,7 +7075,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7095,7 +7095,7 @@
       "name": "test_injection_updatePet[body_tag[6]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7104,7 +7104,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7124,7 +7124,7 @@
       "name": "test_injection_updatePet[path_petId[0]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.004,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7133,7 +7133,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/etc/passwd",
             "status": 404,
-            "ms": 3,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7153,7 +7153,7 @@
       "name": "test_injection_updatePet[path_petId[1]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7162,7 +7162,7 @@
             "method": "PUT",
             "url": "http://127.0.0.1:8080/pets/..%2F..%2Fetc%2Fpasswd",
             "status": 400,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>",
               "Content-Type": "application/json"
@@ -7211,7 +7211,7 @@
       "name": "test_injection_updatePet[path_petId[3]]",
       "status": "passed",
       "endpoint": "PUT /pets/{petId}  (updatePet)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7249,7 +7249,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/admin/stats",
             "status": 403,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -7268,7 +7268,7 @@
       "name": "test_smoke_getPet",
       "status": "passed",
       "endpoint": "GET /pets/{petId}  (getPet)",
-      "seconds": 0.001,
+      "seconds": 0.002,
       "reason": "",
       "http": {
         "total": 1,
@@ -7277,7 +7277,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -7333,7 +7333,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/health",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {},
             "request_body": "",
             "response_headers": {
@@ -7350,7 +7350,7 @@
       "name": "test_smoke_listPets",
       "status": "passed",
       "endpoint": "GET /pets  (listPets)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7359,7 +7359,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -7378,7 +7378,7 @@
       "name": "test_smoke_listToys",
       "status": "passed",
       "endpoint": "GET /pets/{petId}/toys  (listToys)",
-      "seconds": 0.002,
+      "seconds": 0.003,
       "reason": "",
       "http": {
         "total": 1,
@@ -7387,7 +7387,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/pets/1/toys",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -7415,7 +7415,7 @@
             "method": "GET",
             "url": "http://127.0.0.1:8080/preview?url=https%3A%2F%2Fexample.com%2Fapitest",
             "status": 200,
-            "ms": 0,
+            "ms": 1,
             "request_headers": {
               "Authorization": "<redacted>"
             },
@@ -7511,7 +7511,7 @@
       "rating": "default for this test type",
       "owasp": "",
       "detail": [
-        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (1 ms)",
         "body: {\"code\": 403, \"message\": \"admin only\"}"
       ],
       "reproduce": [
@@ -7528,7 +7528,7 @@
       "rating": "tagged by the test",
       "owasp": "",
       "detail": [
-        "GET http://127.0.0.1:8080/pets -> 200 (0 ms)",
+        "GET http://127.0.0.1:8080/pets -> 200 (1 ms)",
         "body: [{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>…"
       ],
       "reproduce": [
@@ -7545,7 +7545,7 @@
       "rating": "tagged by the test",
       "owasp": "",
       "detail": [
-        "GET http://127.0.0.1:8080/pets/2 -> 200 (1 ms)",
+        "GET http://127.0.0.1:8080/pets/2 -> 200 (0 ms)",
         "body: {\"id\": 2, \"name\": \"Fido\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 2, \"password_hash\": \"<redacted>\"}"
       ],
       "reproduce": [
@@ -7579,7 +7579,7 @@
       "rating": "tagged by the test",
       "owasp": "",
       "detail": [
-        "GET http://127.0.0.1:8080/pets/2/toys/8 -> 200 (1 ms)",
+        "GET http://127.0.0.1:8080/pets/2/toys/8 -> 200 (0 ms)",
         "body: {\"id\": 8, \"label\": \"bone\", \"pet_id\": 2}"
       ],
       "reproduce": [
@@ -7596,7 +7596,7 @@
       "rating": "default for this test type",
       "owasp": "",
       "detail": [
-        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (1 ms)",
         "body: {\"code\": 403, \"message\": \"admin only\"}"
       ],
       "reproduce": [
@@ -7848,7 +7848,7 @@
     {
       "kind": "junit",
       "file": "pytest.xml",
-      "sha256_prefix": "eaead2ca0f30"
+      "sha256_prefix": "c2755a73e1cc"
     }
   ],
   "command": "python scripts/summarize_results.py --junit pytest.xml --intake intake.json --title 'Mock Pets API' --base-url http://127.0.0.1:8080 --tests-dir api_tests --k6-dir k6_tests"

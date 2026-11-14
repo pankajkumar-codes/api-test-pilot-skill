@@ -17,7 +17,8 @@ SCHEMA_VERSION = 1
 STATUS_ORDER = {"failed": 0, "error": 1, "skipped": 2, "passed": 3}
 STATUS_LABEL = {"failed": "FAIL", "error": "ERROR", "skipped": "SKIP", "passed": "PASS"}
 MAX_CASES_SHOWN = 3000   # per report; the JSON keeps all of them
-HTTP_BUDGET_CHARS = 4_000_000   # request/response text shown on the page; failures get it first, the JSON keeps all of it
+HTTP_BUDGET_CHARS = 4_000_000   # request/response text shown on the page; failures get it first
+JSON_HTTP_BUDGET_CHARS = 20_000_000   # the same limit for report.json, which keeps more than the page
 
 
 def e(value: Any) -> str:
@@ -45,14 +46,19 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
     if r.index.eps:
         seen = {c["endpoint"] for c in r.cases}
         none_run = [mod.ep_key(x) for x in r.index.eps if mod.ep_key(x) not in seen]
+    cases = [{"type": c["type"], "name": c["name"], "status": c["status"], "endpoint": c["endpoint"],
+              "seconds": round(c["time"] or 0, 3), "reason": c.get("reason", ""), "http": c.get("http") or {"total": 0, "items": []}}
+             for c in sorted(r.cases, key=lambda c: (c["type"], STATUS_ORDER[c["status"]], c["name"]))]
+    keep = allocate_http(cases, JSON_HTTP_BUDGET_CHARS)
+    for i, c in enumerate(cases):    # a huge run must not produce a huge JSON file: past the budget, passing tests lose their exchanges
+        if c["http"]["items"] and i not in keep:
+            c["http"] = {"total": c["http"]["total"], "items": [], "omitted": True}
     data = {
         "schema_version": SCHEMA_VERSION,
         "title": title, "date": date,
         "result": {"status": status, "summary": text, "warning": mod.skip_warning(r)},
         "totals": {**tot, "total": len(r.cases), "test_seconds": round(sum(c["time"] or 0 for c in r.cases), 2)},
-        "cases": [{"type": c["type"], "name": c["name"], "status": c["status"], "endpoint": c["endpoint"],
-                   "seconds": round(c["time"] or 0, 3), "reason": c.get("reason", ""), "http": c.get("http") or {"total": 0, "items": []}}
-                  for c in sorted(r.cases, key=lambda c: (c["type"], STATUS_ORDER[c["status"]], c["name"]))],
+        "cases": cases,
         "by_type": {t: {**v, "total": sum(v.values())} for t, v in sorted(by.items())},
         "severity_counts": {s: sum(1 for f in r.findings if f.severity == s) for s in SEV_ORDER},
         "findings": findings, "findings_total": len(r.findings),
@@ -129,6 +135,21 @@ def section_stats(d: dict) -> str:
             f'<div class="cards">{out}</div><ul class="sevlist">{sev}</ul></section>')
 
 
+def exchange_size(http: dict) -> int:
+    return sum(len(x["request_body"]) + len(x["response_body"]) + len(x["url"]) + 600 for x in http["items"])
+
+
+def allocate_http(cases: list[dict], budget: int) -> set[int]:
+    """Indexes of the cases whose request/response text fits in `budget` characters. Failures and errors go first."""
+    keep: set[int] = set()
+    for idx, c in sorted(enumerate(cases), key=lambda t: STATUS_ORDER[t[1]["status"]]):
+        size = exchange_size(c["http"])
+        if c["http"]["items"] and size <= budget:
+            budget -= size
+            keep.add(idx)
+    return keep
+
+
 def _kv(h: dict) -> str:
     return "\n".join(f"{k}: {v}" for k, v in h.items())
 
@@ -157,13 +178,7 @@ def section_types(d: dict) -> str:
     for c in d["cases"]:
         by_type.setdefault(c["type"], []).append(c)
     shown = 0
-    budget = HTTP_BUDGET_CHARS
-    with_http: set[int] = set()
-    for idx, c in sorted(enumerate(d["cases"]), key=lambda t: STATUS_ORDER[t[1]["status"]]):   # failures first
-        size = sum(len(x["request_body"]) + len(x["response_body"]) + len(x["url"]) + 600 for x in c["http"]["items"])
-        if c["http"]["items"] and size <= budget:
-            budget -= size
-            with_http.add(idx)
+    with_http = allocate_http(d["cases"], HTTP_BUDGET_CHARS)
     pos = {id(c): i for i, c in enumerate(d["cases"])}
     blocks = []
     for t, v in d["by_type"].items():

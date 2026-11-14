@@ -155,7 +155,7 @@ def _redact_url(url: str) -> str:
     if parts.username or parts.password:
         parts = parts._replace(netloc=parts.hostname + (f":{parts.port}" if parts.port else ""))
     q = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
-    q = [(k, "<redacted>" if SECRET_KEY_RE.search(k) and v else v) for k, v in q]
+    q = [(k, "<redacted>" if (SECRET_KEY_RE.search(k) or k.lower() in AUTH_NAMES) and v else v) for k, v in q]
     return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(q, safe="<>")))
 
 
@@ -181,14 +181,26 @@ def curl_of(resp: requests.Response) -> str:
     return " ".join(parts)
 
 
-# ---- exchange log: what each test sent and got back, for the report. Secrets are redacted here, bodies are clipped, and
-# only the first few exchanges of a test are kept.
+# ---- exchange log: what each test sent and got back, for the report.
+# Redaction happens here, before anything is stored, and fails closed:
+#   * the exact values of configured credentials (APITEST_* variables that look secret) are removed from URL, headers and bodies,
+#     in plain, URL-encoded and base64 form, wherever they appear;
+#   * headers, query parameters and cookies that carry the spec's credentials are redacted by name, whatever they are called;
+#   * anything shaped like a Bearer/Basic value or a JWT is redacted, whatever it sits in;
+#   * only JSON and form-encoded bodies are kept (parsed, secret-looking keys redacted). Multipart, binary, HTML, plain text,
+#     streamed and unknown bodies are replaced by a note with their type and size.
+# A secret that is neither configured, nor shaped like a token, nor under a secret-looking key (for example a one-off token in
+# a URL path) is not caught. Only the first few exchanges of a test are kept, clipped to a small size.
 MAX_EXCHANGES = 3
 MAX_BODY_CHARS = 1500
-MAX_PARSE_BYTES = 100_000          # a JSON body larger than this is omitted, not half-redacted
+MAX_PARSE_BYTES = 100_000          # a body larger than this is omitted, not half-redacted
 KEEP_RESPONSE_HEADERS = ("content-type", "content-length", "location", "retry-after", "cache-control", "allow")
 EXCHANGES: list[dict] = []
+AUTH_NAMES: set[str] = set()       # lower-case header, query and cookie names that carried a credential in this run
 _exchange_count = [0]
+_PLAIN_VALUES = {"0", "1", "true", "false", "yes", "no", "y", "n", "on", "off"}
+_TOKEN_SHAPES = re.compile(
+    r"(?i)\b(?:bearer|basic)\s+(?=[A-Za-z0-9._~+/=-]*[0-9=._~+/-])[A-Za-z0-9._~+/=-]{8,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{2,}\.[A-Za-z0-9_-]*")
 
 
 def reset_exchanges() -> None:
@@ -196,27 +208,64 @@ def reset_exchanges() -> None:
     _exchange_count[0] = 0
 
 
+def _secret_values() -> list[str]:
+    vals = {v for n, v in os.environ.items()
+            if n.startswith("APITEST_") and len(v) >= 4 and v.strip().lower() not in _PLAIN_VALUES and SECRET_KEY_RE.search(n)}
+    return sorted(vals, key=len, reverse=True)
+
+
+def _scrub_text(text: str) -> str:
+    for v in _secret_values():
+        for variant in {v, urllib.parse.quote(v, safe=""), urllib.parse.quote_plus(v), base64.b64encode(v.encode()).decode()}:
+            text = text.replace(variant, "<redacted>")
+    return _TOKEN_SHAPES.sub("<redacted>", text)
+
+
 def _clip(text: str) -> str:
-    return text if len(text) <= MAX_BODY_CHARS else text[:MAX_BODY_CHARS] + f"... ({len(text) - MAX_BODY_CHARS} more characters)"
+    if len(text) <= MAX_BODY_CHARS:
+        return text
+    cut = text[:MAX_BODY_CHARS]
+    i = cut.rfind("<")
+    if i != -1 and ">" not in cut[i:]:     # do not cut a <redacted> marker in half
+        cut = cut[:i]
+    return cut + f"... ({len(text) - len(cut)} more characters)"
 
 
-def _body_for_report(raw: bytes | str | None) -> str:
-    if not raw:
+def _omitted(why: str, size: int | None = None) -> str:
+    return f"<body omitted: {why}" + (f", {size} bytes>" if size is not None else ">")
+
+
+def _body_for_report(raw: Any, content_type: str | None) -> str:
+    if raw is None or raw == b"" or raw == "":
         return ""
-    if isinstance(raw, bytes):
-        if len(raw) > MAX_PARSE_BYTES:
-            return f"<body omitted: {len(raw)} bytes>"
-        text = raw.decode("utf-8", "replace")
-    else:
-        text = raw
-        if len(text) > MAX_PARSE_BYTES:
-            return f"<body omitted: {len(text)} characters>"
+    if not isinstance(raw, (bytes, str)):
+        return _omitted("streamed body")
+    size = len(raw)
+    ctype = (content_type or "").split(";")[0].strip().lower()
+    is_json = ctype == "application/json" or ctype.endswith("+json")
+    is_form = ctype == "application/x-www-form-urlencoded"
+    if not (is_json or is_form):
+        return _omitted(ctype or "unknown content type", size)
+    if size > MAX_PARSE_BYTES:
+        return _omitted(ctype, size)
+    text = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw
+    if is_form:
+        pairs = urllib.parse.parse_qsl(text, keep_blank_values=True)
+        pairs = [(k, "<redacted>" if (SECRET_KEY_RE.search(k) or k.lower() in AUTH_NAMES) and v else v) for k, v in pairs]
+        return _clip(_scrub_text(urllib.parse.urlencode(pairs, safe="<>")))
     try:
-        return _clip(json.dumps(redact(json.loads(text)), ensure_ascii=False))
+        return _clip(_scrub_text(json.dumps(redact(json.loads(text)), ensure_ascii=False)))
     except RecursionError:
         return BODY_OMITTED
-    except ValueError:      # not JSON: kept as text (the report scrubs it again)
-        return _clip(text)
+    except ValueError:
+        return _omitted("invalid JSON", size)
+
+
+def _header_value(name: str, value: Any) -> str:
+    low = name.lower()
+    if low in SECRET_HEADERS or low in AUTH_NAMES or SECRET_KEY_RE.search(name):
+        return "<redacted>"
+    return _scrub_text(str(value))[:200]
 
 
 def record_exchange(resp: requests.Response) -> None:
@@ -225,18 +274,15 @@ def record_exchange(resp: requests.Response) -> None:
         return
     try:
         req = resp.request
-        req_headers = {}
-        for k, v in req.headers.items():
-            if k.lower() in ("user-agent", "accept-encoding", "connection", "content-length", "accept"):
-                continue
-            req_headers[k] = "<redacted>" if (k.lower() in SECRET_HEADERS or SECRET_KEY_RE.search(k)) else str(v)[:200]
-        resp_headers = {k: (_redact_url(v) if k.lower() == "location" else str(v)[:200])
+        req_headers = {k: _header_value(k, v) for k, v in req.headers.items()
+                       if k.lower() not in ("user-agent", "accept-encoding", "connection", "content-length", "accept")}
+        resp_headers = {k: _scrub_text(_redact_url(v) if k.lower() == "location" else str(v))[:200]
                         for k, v in resp.headers.items() if k.lower() in KEEP_RESPONSE_HEADERS}
         EXCHANGES.append({
-            "method": req.method, "url": _redact_url(req.url), "request_headers": req_headers,
-            "request_body": _body_for_report(req.body), "status": resp.status_code,
+            "method": req.method, "url": _scrub_text(_redact_url(req.url)), "request_headers": req_headers,
+            "request_body": _body_for_report(req.body, req.headers.get("Content-Type")), "status": resp.status_code,
             "ms": int(resp.elapsed.total_seconds() * 1000), "response_headers": resp_headers,
-            "response_body": _body_for_report(resp.content),
+            "response_body": _body_for_report(resp.content, resp.headers.get("Content-Type")),
         })
     except Exception:       # the log is a convenience; it must never change a test result
         pass
@@ -923,6 +969,7 @@ class Api:
             h, q, c = {}, {}, {}
             gaps = [m for s in alt for m in self._apply(s, who, invalid, h, q, c)]
             if not gaps:
+                AUTH_NAMES.update(k.lower() for d in (h, q, c) for k in d)   # so exchanges and curl lines redact them by name
                 return h, q, c
             missing = missing or gaps
         hint = " (the spec declares no security scheme; the credential parameter was recognised by name, so the " \
