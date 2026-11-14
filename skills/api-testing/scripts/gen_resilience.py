@@ -1,7 +1,7 @@
 """Generator for resilience tests: idempotency, pagination, response-time budget, rate-limit behaviour.
 
 The rate-limit burst is small (APITEST_RATE_BURST, default 30), sequential and marked intrusive.
-It is not a load test: sustained or concurrent traffic belongs to Phase 3 and is safety-gated separately.
+It is not a load test: sustained or concurrent traffic is handled by the k6 profiles and is safety-gated separately.
 """
 from __future__ import annotations
 

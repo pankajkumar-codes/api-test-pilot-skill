@@ -29,7 +29,7 @@ def main() -> int:
         return 0
     bugs = {b for b in a.bugs.split(",") if b}
     srv = mock_rest.make_server(bugs, None)
-    # make_server picks a free port; rebind on the requested one
+    # make_server picks a free port, so bind again on the one that was asked for
     srv.server_close()
     handler = srv.RequestHandlerClass
     srv2 = ThreadingHTTPServer(("127.0.0.1", a.port), handler)

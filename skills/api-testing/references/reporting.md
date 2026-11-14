@@ -1,6 +1,6 @@
 # Reporting
 
-Step 6 of the router. One command turns the results of a run into `reports/report.md` (layout: `templates/report.md`).
+Step 6 of the router. One command turns the results of a run into `reports/report.html`, a single self-contained page, plus `reports/report.json` with the same data for tools. Markdown is still available with `-o report.md` (layout: `templates/report.md`).
 
 ## Produce the inputs
 - pytest: `python -m pytest api_tests -p no:cacheprovider --junitxml=results/pytest.xml` (any generated suite; REST, GraphQL, fuzz)
@@ -9,13 +9,18 @@ Step 6 of the router. One command turns the results of a run into `reports/repor
 ## Build the report
 ```
 python scripts/summarize_results.py --junit results/pytest.xml --k6 results/load-summary.json \
-    --intake intake.json --base-url "$APITEST_BASE_URL" -o reports/report.md
+    --intake intake.json --base-url "$APITEST_BASE_URL" -o reports/report.html
 ```
 `--junit` and `--k6` repeat. `--intake` names endpoints and lists endpoints that have no result. `--tests-dir` and `--k6-dir`
-(defaults `api_tests`, `k6_tests`) are used to build the rerun commands. `-o -` prints to stdout. The script never runs a test,
+(defaults `api_tests`, `k6_tests`) are used to build the rerun commands. `-o -` prints Markdown to stdout. The format follows the extension (`.html` or `.md`); `--format` overrides it and `--no-json` skips the JSON file. The script never runs a test,
 never contacts the target and prints the command that regenerates the report.
 
 ## What the report contains
+The HTML page works offline: CSS, a few lines of JS (severity filter, endpoint filter, copy buttons) and the SVG charts are inline, and a
+content security policy blocks anything external. Each test type in "Results by test type" expands to list every test case with its status (pass, fail, error, skip), endpoint and the failure or skip reason, with filter buttons; types with failures open by default. It follows the system light or dark theme and prints cleanly. All text is escaped, so a hostile
+test name cannot inject markup. The JSON (`schema_version` 1) holds `result`, `totals`, `by_type`, `severity_counts`, `findings`, `coverage`, `k6`, `run_problems`, `skips` and `inputs`.
+Samples: `examples/sample-report.html` (seeded flaws) and `examples/spring-boot-demo/report.html` (real run).
+
 - Summary: result line (PASS / FAIL / INCOMPLETE) and counts per test type.
 - Coverage per endpoint: types run, pass, fail, skipped, k6 p95. Without `--intake` only endpoints named in a failing request appear.
 - k6: overall numbers, every threshold with its observed value, per-stage and per-endpoint tables.
@@ -47,5 +52,5 @@ never contacts the target and prints the command that regenerates the report.
 ## Safety of the report itself
 Result files are untrusted. The script does not execute or import anything from them, refuses XML with DOCTYPE or entities, bounds
 size, depth and counts, scrubs secrets (shared `_common.redact_text` plus the values of secret `APITEST_*` variables) before
-truncating, escapes Markdown and puts messages and commands in fenced blocks. Do not paste result files into prompts unreviewed, and
+truncating, escapes Markdown and HTML and puts messages and commands in fenced blocks. Do not paste result files into prompts unreviewed, and
 do not widen what it prints.

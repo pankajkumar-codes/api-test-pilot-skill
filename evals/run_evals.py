@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 5 eval driver: intake -> generate -> run -> report against an eval target, then score expected vs found.
+"""Eval driver: intake -> generate -> run -> report against an eval target, then score expected vs found.
 
 Two modes (never mixed up in the output; every result is labelled with its mode):
 
@@ -216,7 +216,7 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     intake, suite, junit, report = work / "intake.json", work / "suite", work / "junit.xml", work / "report.md"
     if suite.exists():
         shutil.rmtree(suite)
-    for stale in (junit, report):  # a leftover file from an earlier run must never stand in for this run's result
+    for stale in (junit, report):  # a file left over from an earlier run must not pass for this run's result
         stale.unlink(missing_ok=True)
     iargs = [str(SCRIPTS / "intake.py"), str(spec), "-o", str(intake)]
     if cfg["kind"] == "graphql":
@@ -353,7 +353,7 @@ def main() -> int:
         Path(a.json).write_text(json.dumps(results, indent=2) + "\n")
     if a.markdown:
         print("\n\n".join(markdown(r) for r in results))
-    for r in results:  # real mode: skipped intrusive checks mean the gate refused the target; that must not look like a clean run
+    for r in results:  # real mode: skipped intrusive checks mean the gate refused the target, which must not look like a clean run
         for v in r["variants"].values():
             if r["mode"] == "real" and v.get("gate_refused"):
                 print("ERROR: the safety gate refused the intrusive checks, so this run is INCOMPLETE (no injection, BOLA, mass assignment, SSRF "

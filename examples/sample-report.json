@@ -1,0 +1,2530 @@
+{
+  "schema_version": 1,
+  "title": "Mock Pets API",
+  "date": "2026-11-14",
+  "result": {
+    "status": "FAIL",
+    "summary": "7 finding(s): HIGH 5, MEDIUM 2. 239 passed, 7 failed, 15 skipped, 0 errored of 261 tests.",
+    "warning": ""
+  },
+  "totals": {
+    "passed": 239,
+    "failed": 7,
+    "skipped": 15,
+    "error": 0,
+    "total": 261,
+    "test_seconds": 0.32
+  },
+  "cases": [
+    {
+      "type": "contract",
+      "name": "test_adminStats_response_contract",
+      "status": "failed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.002,
+      "reason": "[MEDIUM] request with valid input should succeed: expected [200], got 403"
+    },
+    {
+      "type": "contract",
+      "name": "test_createPet_error_contract_401",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_createPet_response_contract",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getPet_error_contract_401",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getPet_error_contract_404",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getPet_response_contract",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getToy_error_contract_404",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getToy_response_contract",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_health_response_contract",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_listPets_error_contract_401",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_listPets_response_contract",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_listToys_response_contract",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_preview_response_contract",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[age_above_maximum]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[age_below_minimum]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[age_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[contact_bad_email]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[contact_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[tag_above_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createPet_rejects_invalid_input[tag_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createToy_rejects_invalid_input[label_above_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createToy_rejects_invalid_input[label_below_min_length]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createToy_rejects_invalid_input[label_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createToy_rejects_invalid_input[missing_label]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_createToy_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_deletePet_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_deleteToy_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_deleteToy_rejects_invalid_input[path_toyId_wrong_type]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getPet_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getToy_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getToy_rejects_invalid_input[path_toyId_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_limit_above_maximum]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_limit_below_minimum]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_limit_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_offset_below_minimum]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_offset_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listPets_rejects_invalid_input[query_status_not_in_enum]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_listToys_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_preview_rejects_invalid_input[query_url_missing]",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[age_above_maximum]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[age_below_minimum]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[age_wrong_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[contact_bad_email]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[contact_wrong_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[path_petId_wrong_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[tag_above_max_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_updatePet_rejects_invalid_input[tag_wrong_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[age_int64_overflow]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[age_max_boundary]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[age_min_boundary]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_null]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[tag_empty_string]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[tag_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[tag_special_chars]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createPet_edge[tag_unicode]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_empty_string]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_max_length]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_min_length]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_null]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_special_chars]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_createToy_edge[label_unicode]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_listPets_edge[query_limit_max_boundary]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_listPets_edge[query_limit_min_boundary]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_listPets_edge[query_offset_min_boundary]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[age_int64_overflow]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[age_max_boundary]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[age_min_boundary]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_null]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[tag_empty_string]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[tag_max_length]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[tag_special_chars]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_updatePet_edge[tag_unicode]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "integration",
+      "name": "test_flow_pets_lifecycle",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "integration",
+      "name": "test_flow_pets_petId_toys_lifecycle",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_deletePet_unknown_id_not_found",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "negative",
+      "name": "test_deleteToy_unknown_id_not_found",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "negative",
+      "name": "test_adminStats_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createPet_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createPet_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createPet_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createPet_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createToy_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createToy_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createToy_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_createToy_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_deletePet_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_deleteToy_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getPet_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getPet_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getToy_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getToy_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_listPets_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_listToys_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_listToys_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_preview_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_updatePet_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_updatePet_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_updatePet_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_updatePet_rejects_missing_credentials",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_updatePet_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_adminStats_valid_request",
+      "status": "failed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": "[MEDIUM] request with valid input should succeed: expected [200], got 403"
+    },
+    {
+      "type": "positive",
+      "name": "test_deletePet_valid_request",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "positive",
+      "name": "test_deleteToy_valid_request",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "positive",
+      "name": "test_createPet_valid_request",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_createToy_valid_request",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getPet_valid_request",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getToy_valid_request",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_health_valid_request",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_listPets_valid_request",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_listPets_with_optional_params",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_listToys_valid_request",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_preview_valid_request",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_updatePet_valid_request",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_deletePet_repeated_delete_is_safe",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "resilience",
+      "name": "test_deleteToy_repeated_delete_is_safe",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "resilience",
+      "name": "test_adminStats_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_adminStats_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getPet_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getPet_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getToy_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getToy_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_health_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_health_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_invalid_limit_is_handled[-1]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_invalid_limit_is_handled[0]",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_limit_one_returns_at_most_one",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_pages_do_not_overlap",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_past_the_end_is_empty",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listPets_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listToys_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_listToys_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_preview_is_repeatable",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_preview_responds_within_budget",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_rate_limit_behaviour",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.023,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_updatePet_put_is_idempotent",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_getPet",
+      "status": "failed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": "[HIGH] [API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)"
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_getToy",
+      "status": "failed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": "[HIGH] [API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)"
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_listToys",
+      "status": "failed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": "[HIGH] [API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)"
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_listPets",
+      "status": "failed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.002,
+      "reason": "[HIGH] [API3:2023 excessive data exposure] response exposes sensitive fields: ['$[0].password_hash', '$[1].password_hash', '$[2].password_hash', '$[3].password_hash', '$[4].password_hash']"
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_deletePet",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_deleteToy",
+      "status": "skipped",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "security",
+      "name": "test_api1_bola_updatePet",
+      "status": "skipped",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0,
+      "reason": "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"
+    },
+    {
+      "type": "security",
+      "name": "test_api2_expired_token_rejected",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0,
+      "reason": "set APITEST_EXPIRED_TOKEN to an expired token for this check"
+    },
+    {
+      "type": "security",
+      "name": "test_api2_tampered_jwt_rejected[alg_none]",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0,
+      "reason": "bearer token is not a JWT"
+    },
+    {
+      "type": "security",
+      "name": "test_api2_tampered_jwt_rejected[bad_signature]",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": "bearer token is not a JWT"
+    },
+    {
+      "type": "security",
+      "name": "test_api2_tampered_jwt_rejected[stripped_signature]",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0,
+      "reason": "bearer token is not a JWT"
+    },
+    {
+      "type": "security",
+      "name": "test_api4_rate_limiting_present",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0,
+      "reason": "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes"
+    },
+    {
+      "type": "security",
+      "name": "test_api5_bfla_adminStats",
+      "status": "skipped",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0,
+      "reason": "confirm the configured credentials belong to an ordinary, non-admin user: set APITEST_ASSUME_NON_ADMIN=yes"
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_adminStats",
+      "status": "passed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_createPet",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_createToy",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_deletePet",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_deleteToy",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_getPet",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_getToy",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_listPets",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_listToys",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_preview",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api2_invalid_credentials_rejected_updatePet",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_createPet",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_createToy",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_updatePet",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_adminStats",
+      "status": "passed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_health",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_preview",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api4_page_size_capped_listPets",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api7_ssrf_preview_url[file:///etc/passwd]",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api7_ssrf_preview_url[http://127.0.0.1:22/]",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api7_ssrf_preview_url[http://169.254.169.254/latest/meta-data/]",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_cors_not_permissive",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_errors_do_not_leak_internals",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_security_headers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[0]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[1]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[2]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[3]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[4]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[5]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_name[6]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[0]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[1]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[2]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[3]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[4]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[5]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createPet[body_tag[6]]",
+      "status": "passed",
+      "endpoint": "POST /pets  (createPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[0]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[1]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[2]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[3]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[4]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[5]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[body_label[6]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_createToy[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deletePet[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deletePet[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deletePet[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deletePet[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteToy[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteToy[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteToy[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteToy[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getPet[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getPet[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getPet[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getPet[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getToy[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getToy[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getToy[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getToy[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_listToys[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_listToys[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_listToys[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_listToys[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[0]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[1]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[2]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[3]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[4]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[5]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_name[6]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[0]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[1]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[2]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[3]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[4]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[5]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[body_tag[6]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[path_petId[0]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[path_petId[1]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[path_petId[2]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_updatePet[path_petId[3]]",
+      "status": "passed",
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_adminStats",
+      "status": "failed",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "seconds": 0.001,
+      "reason": "[HIGH] smoke: expected [200], got 403"
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getPet",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getToy",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_health",
+      "status": "passed",
+      "endpoint": "GET /health  (health)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_listPets",
+      "status": "passed",
+      "endpoint": "GET /pets  (listPets)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_listToys",
+      "status": "passed",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "seconds": 0.001,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_preview",
+      "status": "passed",
+      "endpoint": "GET /preview  (preview)",
+      "seconds": 0.001,
+      "reason": ""
+    }
+  ],
+  "by_type": {
+    "contract": {
+      "passed": 12,
+      "failed": 1,
+      "skipped": 0,
+      "error": 0,
+      "total": 13
+    },
+    "data-validation": {
+      "passed": 42,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 42
+    },
+    "edge": {
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 35
+    },
+    "integration": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 2
+    },
+    "negative": {
+      "passed": 24,
+      "failed": 0,
+      "skipped": 2,
+      "error": 0,
+      "total": 26
+    },
+    "positive": {
+      "passed": 10,
+      "failed": 1,
+      "skipped": 2,
+      "error": 0,
+      "total": 13
+    },
+    "resilience": {
+      "passed": 21,
+      "failed": 0,
+      "skipped": 2,
+      "error": 0,
+      "total": 23
+    },
+    "security": {
+      "passed": 87,
+      "failed": 4,
+      "skipped": 9,
+      "error": 0,
+      "total": 100
+    },
+    "smoke": {
+      "passed": 6,
+      "failed": 1,
+      "skipped": 0,
+      "error": 0,
+      "total": 7
+    }
+  },
+  "severity_counts": {
+    "CRITICAL": 0,
+    "HIGH": 5,
+    "MEDIUM": 2,
+    "LOW": 0,
+    "INFO": 0
+  },
+  "findings": [
+    {
+      "severity": "HIGH",
+      "title": "smoke: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "smoke",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_smoke.py::test_smoke_adminStats -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API3:2023 excessive data exposure] response exposes sensitive fields: ['$[0].password_hash', '$[1].password_hash', '$[2].password_hash', '$[3].password_hash', '$[4].password_hash']",
+      "endpoint": "GET /pets  (listPets)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets -> 200 (0 ms)",
+        "body: [{\"id\": 1, \"name\": \"sample-name\", \"tag\": null, \"owner_id\": 1, \"password_hash\": \"<redacted>\"}, {\"id\": 3, \"name\": \"Tom\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 1, \"password_hash\": \"<redacted>…"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api3_no_sensitive_fields_listPets -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=<redacted> yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2 -> 200 (0 ms)",
+        "body: {\"id\": 2, \"name\": \"Fido\", \"tag\": null, \"age\": 3, \"contact\": \"o@example.com\", \"owner_id\": 2, \"password_hash\": \"<redacted>\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2 -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_getPet -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=<redacted> yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2/toys -> 200 (0 ms)",
+        "body: [{\"id\": 8, \"label\": \"bone\", \"pet_id\": 2}]"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2/toys -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_listToys -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=<redacted> yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "HIGH",
+      "title": "[API1:2023 BOLA] user A can reach an object owned by another user: request was accepted (200)",
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "type": "security",
+      "rating": "tagged by the test",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/pets/2/toys/8 -> 200 (0 ms)",
+        "body: {\"id\": 8, \"label\": \"bone\", \"pet_id\": 2}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/pets/2/toys/8 -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_security.py::test_api1_bola_getToy -v"
+      ],
+      "note": "Needs a non-production target you own or are authorized to test. Export APITEST_TARGET_ENV and APITEST_AUTHORIZED=<redacted> yourself (loopback targets pass without them); production is always refused. The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "MEDIUM",
+      "title": "request with valid input should succeed: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "contract",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_contract.py::test_adminStats_response_contract -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    },
+    {
+      "severity": "MEDIUM",
+      "title": "request with valid input should succeed: expected [200], got 403",
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "type": "positive",
+      "rating": "default for this test type",
+      "owasp": "",
+      "detail": [
+        "GET http://127.0.0.1:8080/admin/stats -> 403 (0 ms)",
+        "body: {\"code\": 403, \"message\": \"admin only\"}"
+      ],
+      "reproduce": [
+        "curl -sS -i -X GET http://127.0.0.1:8080/admin/stats -H 'Authorization: <redacted>'",
+        "APITEST_BASE_URL=http://127.0.0.1:8080 python -m pytest api_tests/test_positive.py::test_adminStats_valid_request -v"
+      ],
+      "note": "The curl line is redacted: replace each `<redacted>` header or value with your own credentials (from your environment, never pasted into a report) before it will work."
+    }
+  ],
+  "findings_total": 7,
+  "coverage": [
+    {
+      "endpoint": "GET /health  (health)",
+      "types": [
+        "contract",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets  (listPets)",
+      "types": [
+        "contract",
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 24,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "POST /pets  (createPet)",
+      "types": [
+        "contract",
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "security"
+      ],
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}  (getPet)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 15,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "PUT /pets/{petId}  (updatePet)",
+      "types": [
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 52,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "DELETE /pets/{petId}  (deletePet)",
+      "types": [
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 7,
+      "failed": 0,
+      "skipped": 4,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}/toys  (listToys)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 13,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "POST /pets/{petId}/toys  (createToy)",
+      "types": [
+        "data-validation",
+        "edge",
+        "negative",
+        "positive",
+        "security"
+      ],
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /pets/{petId}/toys/{toyId}  (getToy)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 15,
+      "failed": 1,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "DELETE /pets/{petId}/toys/{toyId}  (deleteToy)",
+      "types": [
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security"
+      ],
+      "passed": 8,
+      "failed": 0,
+      "skipped": 4,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /admin/stats  (adminStats)",
+      "types": [
+        "contract",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 5,
+      "failed": 3,
+      "skipped": 1,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /preview  (preview)",
+      "types": [
+        "contract",
+        "data-validation",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "(API-wide)",
+      "types": [
+        "integration",
+        "resilience",
+        "security"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "skipped": 5,
+      "errors": 0,
+      "k6": ""
+    }
+  ],
+  "endpoints_without_results": [],
+  "has_intake": true,
+  "k6": [],
+  "run_problems": {},
+  "skips": {
+    "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose": 9,
+    "bearer token is not a JWT": 3,
+    "set APITEST_EXPIRED_TOKEN to an expired token for this check": 1,
+    "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes": 1,
+    "confirm the configured credentials belong to an ordinary, non-admin user: set APITEST_ASSUME_NON_ADMIN=yes": 1
+  },
+  "inputs": [
+    {
+      "kind": "junit",
+      "file": "pytest.xml",
+      "sha256_prefix": "b87b67d19ed7"
+    }
+  ],
+  "command": "python scripts/summarize_results.py --junit pytest.xml --intake intake.json --title 'Mock Pets API' --base-url http://127.0.0.1:8080 --tests-dir api_tests --k6-dir k6_tests"
+}

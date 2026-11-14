@@ -1,0 +1,2096 @@
+{
+  "schema_version": 1,
+  "title": "spring-boot-demo",
+  "date": "2026-11-14",
+  "result": {
+    "status": "PASS",
+    "summary": "no failing tests or crossed thresholds in the supplied results (see limitations for what was not run). 172 passed, 0 failed, 1 skipped, 0 errored of 173 tests.",
+    "warning": ""
+  },
+  "totals": {
+    "passed": 172,
+    "failed": 0,
+    "skipped": 1,
+    "error": 0,
+    "total": 173,
+    "test_seconds": 33.71
+  },
+  "cases": [
+    {
+      "type": "contract",
+      "name": "test_addNewSoftwareEngineer_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_filterByTechStack_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.055,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getEngineerById_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.014,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_getEngineers_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.013,
+      "reason": ""
+    },
+    {
+      "type": "contract",
+      "name": "test_searchByName_response_contract",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.253,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[missing_techStack]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_addNewSoftwareEngineer_rejects_invalid_input[techStack_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_deleteEngineer_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_filterByTechStack_rejects_invalid_input[query_techStack_missing]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineerById_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_page_below_minimum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.023,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_page_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_above_maximum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_below_minimum]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_getEngineers_rejects_invalid_input[query_size_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[missing_name]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[missing_techStack]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[name_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[path_id_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_above_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_below_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_replaceEngineer_rejects_invalid_input[techStack_wrong_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "data-validation",
+      "name": "test_searchByName_rejects_invalid_input[query_name_missing]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.016,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_addNewSoftwareEngineer_edge[techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_empty]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_filterByTechStack_edge[query_techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_page_min_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.031,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_size_max_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_getEngineers_edge[query_size_min_boundary]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.012,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.019,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_empty_string]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_max_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_min_length]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_null]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_replaceEngineer_edge[techStack_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_empty]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_special_chars]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "edge",
+      "name": "test_searchByName_edge[query_name_unicode]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[DELETE_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "DELETE /api/v1/software-engineers/{id}  (DELETE_api_v1_software_engineers_id)",
+      "seconds": 2.755,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers  (GET_api_v1_software_engineers)",
+      "seconds": 5.724,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_filter]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/filter  (GET_api_v1_software_engineers_filter)",
+      "seconds": 2.972,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/{id}  (GET_api_v1_software_engineers_id)",
+      "seconds": 2.604,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[GET_api_v1_software_engineers_search]",
+      "status": "passed",
+      "endpoint": "GET /api/v1/software-engineers/search  (GET_api_v1_software_engineers_search)",
+      "seconds": 2.963,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[POST_api_v1_software_engineers]",
+      "status": "passed",
+      "endpoint": "POST /api/v1/software-engineers  (POST_api_v1_software_engineers)",
+      "seconds": 7.559,
+      "reason": ""
+    },
+    {
+      "type": "fuzz",
+      "name": "test_fuzz[PUT_api_v1_software_engineers_id]",
+      "status": "passed",
+      "endpoint": "PUT /api/v1/software-engineers/{id}  (PUT_api_v1_software_engineers_id)",
+      "seconds": 7.525,
+      "reason": ""
+    },
+    {
+      "type": "integration",
+      "name": "test_flow_api_v1_software_engineers_lifecycle",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.085,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_addNewSoftwareEngineer_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_deleteEngineer_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_getEngineerById_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[empty_body]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[malformed_json]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_malformed_requests[wrong_content_type]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "negative",
+      "name": "test_replaceEngineer_unknown_id_not_found",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_addNewSoftwareEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_deleteEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_filterByTechStack_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineerById_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineers_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_getEngineers_with_optional_params",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_replaceEngineer_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "positive",
+      "name": "test_searchByName_valid_request",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_deleteEngineer_repeated_delete_is_safe",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_filterByTechStack_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_filterByTechStack_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineerById_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineerById_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_invalid_limit_is_handled[-1]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_invalid_limit_is_handled[0]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.017,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_limit_one_returns_at_most_one",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_pages_do_not_overlap",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.011,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_past_the_end_is_empty",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_getEngineers_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_rate_limit_behaviour",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.173,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_replaceEngineer_put_is_idempotent",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.012,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_searchByName_is_repeatable",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.01,
+      "reason": ""
+    },
+    {
+      "type": "resilience",
+      "name": "test_searchByName_responds_within_budget",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api4_rate_limiting_present",
+      "status": "skipped",
+      "endpoint": "(API-wide)",
+      "seconds": 0.001,
+      "reason": "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes"
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_addNewSoftwareEngineer",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.013,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_mass_assignment_replaceEngineer",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_filterByTechStack",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api3_no_sensitive_fields_searchByName",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api4_page_size_capped_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_cors_not_permissive",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_errors_do_not_leak_internals",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_api8_security_headers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_addNewSoftwareEngineer[body_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_deleteEngineer[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_filterByTechStack[query_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_getEngineerById[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.008,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.009,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[body_techStack[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.007,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.002,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.003,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_replaceEngineer[path_id[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[0]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[1]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[2]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[3]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[4]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[5]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "security",
+      "name": "test_injection_searchByName[query_name[6]]",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_filterByTechStack",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getEngineerById",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.005,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_getEngineers",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.006,
+      "reason": ""
+    },
+    {
+      "type": "smoke",
+      "name": "test_smoke_searchByName",
+      "status": "passed",
+      "endpoint": "(API-wide)",
+      "seconds": 0.004,
+      "reason": ""
+    }
+  ],
+  "by_type": {
+    "contract": {
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 5
+    },
+    "data-validation": {
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 26
+    },
+    "edge": {
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 33
+    },
+    "fuzz": {
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 7
+    },
+    "integration": {
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 1
+    },
+    "negative": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 9
+    },
+    "positive": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 8
+    },
+    "resilience": {
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 16
+    },
+    "security": {
+      "passed": 63,
+      "failed": 0,
+      "skipped": 1,
+      "error": 0,
+      "total": 64
+    },
+    "smoke": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "error": 0,
+      "total": 4
+    }
+  },
+  "severity_counts": {
+    "CRITICAL": 0,
+    "HIGH": 0,
+    "MEDIUM": 0,
+    "LOW": 0,
+    "INFO": 0
+  },
+  "findings": [],
+  "findings_total": 0,
+  "coverage": [
+    {
+      "endpoint": "GET /api/v1/software-engineers  (GET_api_v1_software_engineers)",
+      "types": [
+        "fuzz",
+        "load",
+        "soak",
+        "spike",
+        "stress"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": "load p95 8.354 ms; stress p95 4.881 ms; spike p95 3.194 ms; soak p95 3.306 ms"
+    },
+    {
+      "endpoint": "POST /api/v1/software-engineers  (POST_api_v1_software_engineers)",
+      "types": [
+        "fuzz"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /api/v1/software-engineers/{id}  (GET_api_v1_software_engineers_id)",
+      "types": [
+        "fuzz",
+        "load",
+        "soak",
+        "spike",
+        "stress"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": "load p95 6.278 ms; stress p95 3.839 ms; spike p95 2.417 ms; soak p95 2.535 ms"
+    },
+    {
+      "endpoint": "PUT /api/v1/software-engineers/{id}  (PUT_api_v1_software_engineers_id)",
+      "types": [
+        "fuzz"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "DELETE /api/v1/software-engineers/{id}  (DELETE_api_v1_software_engineers_id)",
+      "types": [
+        "fuzz"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": ""
+    },
+    {
+      "endpoint": "GET /api/v1/software-engineers/search  (GET_api_v1_software_engineers_search)",
+      "types": [
+        "fuzz",
+        "load",
+        "soak",
+        "spike",
+        "stress"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": "load p95 7.478 ms; stress p95 4.094 ms; spike p95 2.463 ms; soak p95 2.494 ms"
+    },
+    {
+      "endpoint": "GET /api/v1/software-engineers/filter  (GET_api_v1_software_engineers_filter)",
+      "types": [
+        "fuzz",
+        "load",
+        "soak",
+        "spike",
+        "stress"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "errors": 0,
+      "k6": "load p95 8.755 ms; stress p95 4.65 ms; spike p95 3.118 ms; soak p95 2.971 ms"
+    },
+    {
+      "endpoint": "(API-wide)",
+      "types": [
+        "contract",
+        "data-validation",
+        "edge",
+        "integration",
+        "negative",
+        "positive",
+        "resilience",
+        "security",
+        "smoke"
+      ],
+      "passed": 165,
+      "failed": 0,
+      "skipped": 1,
+      "errors": 0,
+      "k6": ""
+    }
+  ],
+  "endpoints_without_results": [],
+  "has_intake": true,
+  "k6": [
+    {
+      "profile": "load",
+      "stages": {},
+      "endpoints": {
+        "GET_api_v1_software_engineers_filter": {
+          "p95": 8.755244449999998
+        },
+        "GET_api_v1_software_engineers_id": {
+          "p95": 6.278270399999999
+        },
+        "GET_api_v1_software_engineers_search": {
+          "p95": 7.47822915
+        },
+        "GET_api_v1_software_engineers": {
+          "p95": 8.35355575
+        }
+      },
+      "thresholds": [
+        {
+          "metric": "http_req_duration",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 7.997096749999995
+        },
+        {
+          "metric": "http_req_duration",
+          "expr": "p(99)<1500",
+          "crossed": false,
+          "observed": 12.018022809999966
+        },
+        {
+          "metric": "checks",
+          "expr": "rate>0.99",
+          "crossed": false,
+          "observed": 1.0
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_filter}",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 8.755244449999998
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_id}",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 6.278270399999999
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.01",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.5",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_search}",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 7.47822915
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers}",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 8.35355575
+        }
+      ],
+      "overall": {
+        "requests": 1064.0,
+        "rps": 4.43330216045836,
+        "failed_rate": 0.0,
+        "checks_rate": 1.0,
+        "avg": 5.706208109022547,
+        "p95": 7.997096749999995,
+        "p99": 12.018022809999966,
+        "max": 315.609987
+      },
+      "checks": [
+        {
+          "name": "status is expected",
+          "passes": 1064.0,
+          "fails": 0
+        }
+      ]
+    },
+    {
+      "profile": "stress",
+      "stages": {
+        "recovery": {
+          "p95": 3.4433494,
+          "failed": 0.0
+        },
+        "step2_hold": {
+          "p95": 4.656522799999999,
+          "failed": 0.0
+        },
+        "step3_hold": {
+          "failed": 0.0,
+          "p95": 3.7863818
+        },
+        "step4_hold": {
+          "p95": 3.1409917499999995,
+          "failed": 0.0
+        },
+        "step1_hold": {
+          "p95": 5.37520925,
+          "failed": 0.0
+        }
+      },
+      "endpoints": {
+        "GET_api_v1_software_engineers": {
+          "p95": 4.881007249999998
+        },
+        "GET_api_v1_software_engineers_id": {
+          "p95": 3.8386549000000008
+        },
+        "GET_api_v1_software_engineers_filter": {
+          "p95": 4.650398499999998
+        },
+        "GET_api_v1_software_engineers_search": {
+          "p95": 4.0937661
+        }
+      },
+      "thresholds": [
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 4.881007249999998
+        },
+        {
+          "metric": "http_req_duration{stage:recovery}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.4433494
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.5",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{stage:step2_hold}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 4.656522799999999
+        },
+        {
+          "metric": "http_req_failed{stage:step3_hold}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{stage:step4_hold}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.1409917499999995
+        },
+        {
+          "metric": "http_req_duration{stage:step1_hold}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 5.37520925
+        },
+        {
+          "metric": "http_req_duration{stage:step3_hold}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.7863818
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_id}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.8386549000000008
+        },
+        {
+          "metric": "http_req_duration",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 4.4830178
+        },
+        {
+          "metric": "http_req_failed{stage:recovery}",
+          "expr": "rate<0.05",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:step1_hold}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:step2_hold}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:step4_hold}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_filter}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 4.650398499999998
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_search}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 4.0937661
+        }
+      ],
+      "overall": {
+        "requests": 5115.0,
+        "rps": 10.02933631080336,
+        "failed_rate": 0.0,
+        "checks_rate": 1.0,
+        "avg": 2.872620334310837,
+        "p95": 4.4830178,
+        "p99": 5.81531133999998,
+        "max": 18.654216
+      },
+      "checks": [
+        {
+          "name": "status is expected",
+          "passes": 5115.0,
+          "fails": 0
+        }
+      ]
+    },
+    {
+      "profile": "spike",
+      "stages": {
+        "baseline": {
+          "p95": 3.25266,
+          "failed": 0.0
+        },
+        "spike": {
+          "failed": 0.0,
+          "p95": 2.72250705
+        },
+        "recovery": {
+          "failed": 0.0,
+          "p95": 3.0466501499999996
+        }
+      },
+      "endpoints": {
+        "GET_api_v1_software_engineers_id": {
+          "p95": 2.4172783999999994
+        },
+        "GET_api_v1_software_engineers": {
+          "p95": 3.1938493499999963
+        },
+        "GET_api_v1_software_engineers_search": {
+          "p95": 2.4631790000000002
+        },
+        "GET_api_v1_software_engineers_filter": {
+          "p95": 3.1175624
+        }
+      },
+      "thresholds": [
+        {
+          "metric": "http_req_duration{stage:baseline}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.25266
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_id}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.4172783999999994
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.5",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:spike}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:baseline}",
+          "expr": "rate<=1",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed{stage:recovery}",
+          "expr": "rate<0.05",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{stage:recovery}",
+          "expr": "p(95)<1000",
+          "crossed": false,
+          "observed": 3.0466501499999996
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.1938493499999963
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_search}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.4631790000000002
+        },
+        {
+          "metric": "http_req_duration",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.0065505499999996
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_filter}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.1175624
+        },
+        {
+          "metric": "http_req_duration{stage:spike}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.72250705
+        }
+      ],
+      "overall": {
+        "requests": 2864.0,
+        "rps": 8.949976870966333,
+        "failed_rate": 0.0,
+        "checks_rate": 1.0,
+        "avg": 2.127877185754191,
+        "p95": 3.0065505499999996,
+        "p99": 4.651076039999994,
+        "max": 9.058624
+      },
+      "checks": [
+        {
+          "name": "status is expected",
+          "passes": 2864.0,
+          "fails": 0
+        }
+      ]
+    },
+    {
+      "profile": "soak",
+      "stages": {
+        "w01": {
+          "p95": 2.9623210999999996
+        }
+      },
+      "endpoints": {
+        "GET_api_v1_software_engineers": {
+          "p95": 3.3060907500000005
+        },
+        "GET_api_v1_software_engineers_id": {
+          "p95": 2.53451205
+        },
+        "GET_api_v1_software_engineers_search": {
+          "p95": 2.49369135
+        },
+        "GET_api_v1_software_engineers_filter": {
+          "p95": 2.9712174
+        }
+      },
+      "thresholds": [
+        {
+          "metric": "http_req_duration{stage:w01}",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 2.9623210999999996
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.01",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_failed",
+          "expr": "rate<0.5",
+          "crossed": false,
+          "observed": 0.0
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 3.3060907500000005
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_id}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.53451205
+        },
+        {
+          "metric": "http_req_duration",
+          "expr": "p(95)<500",
+          "crossed": false,
+          "observed": 3.0046973999999995
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_search}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.49369135
+        },
+        {
+          "metric": "http_req_duration{endpoint:GET_api_v1_software_engineers_filter}",
+          "expr": "p(95)<86400000",
+          "crossed": false,
+          "observed": 2.9712174
+        }
+      ],
+      "overall": {
+        "requests": 1665.0,
+        "rps": 4.624958352995163,
+        "failed_rate": 0.0,
+        "checks_rate": 1.0,
+        "avg": 2.321480093693694,
+        "p95": 3.0046973999999995,
+        "p99": 4.123035159999986,
+        "max": 10.865622
+      },
+      "checks": [
+        {
+          "name": "status is expected",
+          "passes": 1665.0,
+          "fails": 0
+        }
+      ]
+    }
+  ],
+  "run_problems": {},
+  "skips": {
+    "this API is expected to rate-limit: set APITEST_EXPECT_RATE_LIMIT=yes": 1
+  },
+  "inputs": [
+    {
+      "kind": "junit",
+      "file": "functional.xml",
+      "sha256_prefix": "144a18be8322"
+    },
+    {
+      "kind": "junit",
+      "file": "fuzz.xml",
+      "sha256_prefix": "6c34f41246c2"
+    },
+    {
+      "kind": "k6",
+      "file": "load-summary.json",
+      "sha256_prefix": "ec134fd24cbf"
+    },
+    {
+      "kind": "k6",
+      "file": "stress-summary.json",
+      "sha256_prefix": "c2582d200f38"
+    },
+    {
+      "kind": "k6",
+      "file": "spike-summary.json",
+      "sha256_prefix": "48f9c20a0231"
+    },
+    {
+      "kind": "k6",
+      "file": "soak-summary.json",
+      "sha256_prefix": "7e9edc707cdb"
+    }
+  ],
+  "command": "python scripts/summarize_results.py --junit examples/spring-boot-demo/results/functional.xml --junit examples/spring-boot-demo/results/fuzz.xml --k6 examples/spring-boot-demo/results/k6/load-summary.json --k6 examples/spring-boot-demo/results/k6/stress-summary.json --k6 examples/spring-boot-demo/results/k6/spike-summary.json --k6 examples/spring-boot-demo/results/k6/soak-summary.json --intake examples/spring-boot-demo/demo-intake.json --title spring-boot-demo --base-url http://localhost:8080 --tests-dir api_tests --k6-dir k6_tests"
+}

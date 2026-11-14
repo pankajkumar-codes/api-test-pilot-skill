@@ -73,7 +73,7 @@ class Resolver:
                 out.setdefault("$name", ref.rsplit("/", 1)[-1])
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
-        if out.get("format") == "password" or out.get("writeOnly"):  # sample values may be real secrets
+        if out.get("format") == "password" or out.get("writeOnly"):  # sample values can be real secrets
             for drop in ("example", "default", "enum"):
                 out.pop(drop, None)
         if isinstance(out.get("type"), list):  # OpenAPI 3.1: ["string", "null"]
@@ -83,7 +83,7 @@ class Resolver:
             out["type"] = types[0] if len(types) == 1 else types
         if "properties" in node and isinstance(node["properties"], dict):
             out["properties"] = {k: self.schema(v, stack, depth + 1) for k, v in node["properties"].items()}
-            for k, v in out["properties"].items():  # never carry sample/default secrets
+            for k, v in out["properties"].items():  # don't carry over sample or default secrets
                 if is_secret_name(k) and isinstance(v, dict):
                     for drop in ("example", "default", "enum"):
                         v.pop(drop, None)
@@ -161,7 +161,7 @@ def _scheme_info(name: str, s: dict) -> dict:
         }
         if t == "openIdConnect":
             info["openIdConnectUrl"] = s.get("openIdConnectUrl")
-    # Env var names only. Values must never appear in chat, files or logs.
+    # Env var names only. Values never go into chat, files or logs.
     if info.get("scheme") == "basic":
         info["env"] = [env_name(name, "USER"), env_name(name, "PASS")]
     elif t == "apiKey":

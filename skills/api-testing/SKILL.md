@@ -52,8 +52,8 @@ If k6 is not installed, say so and print the command; never claim a load run hap
 
 ## 6. Report
 Collect JUnit XML (`pytest --junitxml=results/pytest.xml`) and k6 summaries (`results/<profile>-summary.json`), then:
-`python scripts/summarize_results.py --junit results/pytest.xml --k6 results/load-summary.json --intake intake.json -o reports/report.md`
-Per-endpoint coverage, findings ranked by severity, a reproducible command per finding (`templates/report.md`, `references/reporting.md`).
+`python scripts/summarize_results.py --junit results/pytest.xml --k6 results/load-summary.json --intake intake.json -o reports/report.html`
+Writes a self-contained HTML report and `reports/report.json` next to it: summary, per-type breakdown, per-endpoint coverage, findings ranked by severity, a reproducible command per finding (`references/reporting.md`). `-o report.md` still writes Markdown (`templates/report.md`).
 Report what was run and what was skipped; never state results the files do not contain.
 
 ## Reference files (load on demand)

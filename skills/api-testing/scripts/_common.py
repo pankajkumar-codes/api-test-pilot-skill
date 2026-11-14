@@ -14,7 +14,7 @@ from typing import Any
 
 HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
-# Single source of truth for "does this name look like it carries a secret?" (keys, params, headers).
+# One place that decides whether a name looks like it holds a secret (keys, params, headers).
 SECRET_KEY_RE = re.compile(
     r"(pass(word|wd|phrase)?|pwd|secret|token|api[-_]?key|apikey|authorization|auth|bearer|credential|"
     r"session|sess|sid|cookie|private[-_]?key|signature|sig|jwt|otp|pin|cvv|ssn|salt|nonce|code[-_]?verifier|"
@@ -328,8 +328,8 @@ def redact_text(text: str, secrets: "list[str] | tuple[str, ...]" = ()) -> str:
     s = _BEARER_RE.sub(lambda m: m.group("k") + m.group("sep") + REDACTED, s)
     s = _TOKEN_SHAPES_RE.sub(REDACTED, s)
 
-    # Manual scan (linear): a non-secret key must not swallow the text after it (`http://h/x?token=...` starts with key `http`),
-    # and the value is only parsed for secret keys, so a long run of `a=a=a=...` cannot make this quadratic.
+    # Plain linear scan. A non-secret key must not swallow the text after it (`http://h/x?token=...` starts with key `http`),
+    # and values are only parsed for secret keys, so a long `a=a=a=...` cannot make this slow.
     out, pos = [], 0
     while True:
         m = _KEYSEP_RE.search(s, pos)
@@ -342,7 +342,7 @@ def redact_text(text: str, secrets: "list[str] | tuple[str, ...]" = ()) -> str:
             v = _VALUE_RE.match(s, pos)
             if v and REDACTED not in v.group(0):
                 q = next((x for x in ('\\"', '"', "'") if v.group(0).startswith(x)), "")
-                out.append(q + REDACTED + q)   # keep JSON/shell quoting valid
+                out.append(q + REDACTED + q)   # keep JSON and shell quoting intact
                 pos = v.end()
 
 

@@ -234,7 +234,7 @@ def test_docs_name_every_release_and_safety_item():
         assert needle in readme, needle
     release = (ROOT / "docs/RELEASE.md").read_text()
     assert "outward-facing" in release and "maintainer" in release and "v0.1.0" in release
-    assert (ROOT / "docs/LISTING.md").is_file() and (ROOT / "examples/sample-report.md").is_file()
+    assert (ROOT / "docs/LISTING.md").is_file() and (ROOT / "examples/sample-report.html").is_file()
 
 
 def test_release_docs_do_not_claim_a_release_happened():

@@ -48,7 +48,7 @@ PROFILE_DEFAULTS = {
     "spike": {"rate": 5, "multiplier": 5, "max_vus": 50},
     "soak": {"rate": 2, "hold": 1800, "max_vus": 10},
 }
-BREAKER_RATE = 0.5           # abort the run when more than half of the requests fail
+BREAKER_RATE = 0.5           # stop the run when more than half of the requests fail
 SPIKE_MIN_RAMP_S = 5
 SPIKE_MAX_MULTIPLIER = 10
 SOAK_WINDOW_S = 600
@@ -124,7 +124,7 @@ def build_stages(profile: str, rate: int, *, hold: int | None = None, steps: int
         add(_ramp_s(0, rate), rate, "ramp_up")
         left, i = hold, 1
         while left > 0:
-            chunk = min(SOAK_WINDOW_S, left)  # windows are scaled in add()
+            chunk = min(SOAK_WINDOW_S, left)  # add() scales the windows
             add(chunk, rate, f"w{i:02d}")
             left -= chunk
             i += 1
@@ -170,7 +170,7 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
     """(global thresholds, per-endpoint thresholds). Stage-tagged submetrics are added so that the summary shows
     the shape of the run (breaking point, spike recovery, soak degradation) instead of one averaged number."""
     breaker = {"threshold": f"rate<{BREAKER_RATE}", "abortOnFail": True, "delayAbortEval": "20s"}
-    never_fails = "p(95)<86400000"  # informational: forces the submetric into the summary without asserting anything
+    never_fails = "p(95)<86400000"  # no assertion; it only makes k6 put the submetric in the summary
     t: dict = {"http_req_failed": [breaker]}
     per_endpoint: list = []
     if profile == "load":
@@ -179,7 +179,7 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         t["checks"] = [f"rate>{1 - error_rate:g}"]
         per_endpoint = [f"p(95)<{p95_ms}"]
     elif profile == "stress":
-        # Failing is the point: only the circuit breaker asserts. Per-step numbers show where it degrades.
+        # Failing is expected here, so only the circuit breaker asserts. The per-step numbers show where it degrades.
         t["http_req_duration"] = [never_fails]
         per_endpoint = [never_fails]
         for s in stages:
@@ -193,7 +193,7 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         for label in ("baseline", "spike"):
             t[f"http_req_duration{{stage:{label}}}"] = [never_fails]
             t[f"http_req_failed{{stage:{label}}}"] = ["rate<=1"]
-        # The assertion that matters: after the surge the service is back to normal.
+        # What matters: the service is back to normal after the surge.
         t["http_req_duration{stage:recovery}"] = [f"p(95)<{p95_ms * 2}"]
         t["http_req_failed{stage:recovery}"] = [f"rate<{max(error_rate, 0.05):g}"]
     elif profile == "soak":
@@ -202,7 +202,7 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         per_endpoint = [never_fails]
         for s in stages:
             if re.fullmatch(r"w\d\d", s["label"]):
-                t[f"http_req_duration{{stage:{s['label']}}}"] = [f"p(95)<{p95_ms}"]  # degradation shows as a late window failing
+                t[f"http_req_duration{{stage:{s['label']}}}"] = [f"p(95)<{p95_ms}"]  # a late window failing means it degraded over time
     return t, per_endpoint
 
 
@@ -328,7 +328,7 @@ def graphql_endpoints(doc: dict, only: list[str] | None, notes: list[str]) -> li
             "body": {"query": query, "variables": variables, "operationName": "ApitestLoad" + re.sub(r"[^A-Za-z0-9]", "", name)},
             "contentType": "application/json", "sec": [[s for s in alt if isinstance(s, str)] for alt in sec],
             "ok": [200], "graphql": True,
-            # a GraphQL schema rarely declares per-operation auth: send a token when one is configured, never skip for lack of one
+            # GraphQL schemas rarely declare auth per operation, so send a token if one is set and carry on if not
             "softSec": [] if sec else [[n for n in schemes_config(doc)]] if schemes_config(doc) else [],
         })
     return out
@@ -351,9 +351,9 @@ def one_line(text: str) -> str:
 def render_script(profile: str, config: dict, rerun: str) -> str:
     text = TEMPLATE.read_text(encoding="utf-8")
     payload = json.dumps(json.dumps(config, ensure_ascii=True, sort_keys=False), ensure_ascii=True)
-    # str.replace of fixed placeholders only; the template contains each exactly once.
+    # plain str.replace of fixed placeholders; each appears once in the template
     values = {"CONFIG_JSON": payload, "PROFILE": profile, "RERUN": one_line(rerun)}
-    return re.sub(r"__(CONFIG_JSON|PROFILE|RERUN)__", lambda m: values[m.group(1)], text)  # single pass: values are never rescanned
+    return re.sub(r"__(CONFIG_JSON|PROFILE|RERUN)__", lambda m: values[m.group(1)], text)  # single pass, so inserted values are not scanned again
 
 
 def js_syntax_error(text: str) -> str | None:
@@ -374,7 +374,7 @@ def js_syntax_error(text: str) -> str | None:
 def default_base_url(doc: dict, override: str | None) -> str:
     url = override or next(iter(doc.get("servers") or []), "")
     url, _ = _common.strip_userinfo(url)
-    # strict charset (same as gen_pytest): no quotes, spaces or control characters can enter a generated file
+    # same strict charset as gen_pytest: no quotes, spaces or control characters in a generated file
     ok = re.fullmatch(r"https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\[\]-]+", url) and safety_gate.target_host(url)
     return url if ok else ""
 
@@ -432,7 +432,7 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
             raise _common.IntakeError(f"generator produced invalid JavaScript in {name}: {err}")
         files[name] = text
         plans[profile] = {**summary, "rate": r, "max_vus": vus, "rerun": rerun}
-    out.mkdir(parents=True, exist_ok=True)  # only after every plan validated: a refused request leaves nothing behind
+    out.mkdir(parents=True, exist_ok=True)  # write only once every plan has validated, so a refused request leaves no files
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8")
     manifest = {"profiles": chosen, "defaultBaseUrl": base, "endpoints": len(endpoints), "plans": plans}
