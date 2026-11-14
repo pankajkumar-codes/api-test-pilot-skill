@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (request and response in reports, 2026-11-14)
+- Generated suites record the first three requests of each test (method, URL, status, time, headers, bodies; secrets redacted, bodies clipped) into the JUnit file; the HTML and JSON reports show them under each test case.
+
 ### Changed (reports and docs, 2026-11-14)
 - `summarize_results.py` now writes a self-contained HTML report (inline CSS, JS and SVG charts, no external assets, light and dark theme) and a `report.json` next to it. Default output is `reports/report.html`; `-o report.md` still writes Markdown, `--no-json` skips the JSON.
 - README: results section (real Spring Boot run, public sandbox run, seeded flaws), install and usage for every test type, group or single test, safety gate and env var table.

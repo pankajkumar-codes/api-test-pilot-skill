@@ -158,11 +158,19 @@ def pytest_collection_modifyitems(config, items):
     # run destructive suites with `-p no:xdist` (or `-n 0`) if the order matters to you.
 
 
+def pytest_runtest_setup(item):
+    rt.reset_exchanges()
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Report every safety-gate skip from one place, so `-rs` shows one line for the gate instead of one per test."""
     outcome = yield
     rep = outcome.get_result()
+    if rep.when == "call":
+        logged = rt.take_exchanges()    # what the test sent and received, for the HTML report (secrets already redacted)
+        if logged:
+            item.user_properties.append(("apitest.http", logged))   # junitxml writes these from the teardown report
     if rep.skipped and isinstance(rep.longrepr, tuple) and len(rep.longrepr) == 3 and rt.GATE_PREFIX in str(rep.longrepr[2]):
         rep.longrepr = (__file__, 0, rep.longrepr[2])
 

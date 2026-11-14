@@ -17,6 +17,8 @@ SCHEMA_VERSION = 1
 STATUS_ORDER = {"failed": 0, "error": 1, "skipped": 2, "passed": 3}
 STATUS_LABEL = {"failed": "FAIL", "error": "ERROR", "skipped": "SKIP", "passed": "PASS"}
 MAX_CASES_SHOWN = 3000   # per report; the JSON keeps all of them
+HTTP_BUDGET_CHARS = 4_000_000   # request/response text shown on the page; failures get it first
+JSON_HTTP_BUDGET_CHARS = 20_000_000   # the same limit for report.json, which keeps more than the page
 
 
 def e(value: Any) -> str:
@@ -44,14 +46,19 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
     if r.index.eps:
         seen = {c["endpoint"] for c in r.cases}
         none_run = [mod.ep_key(x) for x in r.index.eps if mod.ep_key(x) not in seen]
+    cases = [{"type": c["type"], "name": c["name"], "status": c["status"], "endpoint": c["endpoint"],
+              "seconds": round(c["time"] or 0, 3), "reason": c.get("reason", ""), "http": c.get("http") or {"total": 0, "items": []}}
+             for c in sorted(r.cases, key=lambda c: (c["type"], STATUS_ORDER[c["status"]], c["name"]))]
+    keep = allocate_http(cases, JSON_HTTP_BUDGET_CHARS)
+    for i, c in enumerate(cases):    # a huge run must not produce a huge JSON file: past the budget, passing tests lose their exchanges
+        if c["http"]["items"] and i not in keep:
+            c["http"] = {"total": c["http"]["total"], "items": [], "omitted": True}
     data = {
         "schema_version": SCHEMA_VERSION,
         "title": title, "date": date,
         "result": {"status": status, "summary": text, "warning": mod.skip_warning(r)},
         "totals": {**tot, "total": len(r.cases), "test_seconds": round(sum(c["time"] or 0 for c in r.cases), 2)},
-        "cases": [{"type": c["type"], "name": c["name"], "status": c["status"], "endpoint": c["endpoint"],
-                   "seconds": round(c["time"] or 0, 3), "reason": c.get("reason", "")}
-                  for c in sorted(r.cases, key=lambda c: (c["type"], STATUS_ORDER[c["status"]], c["name"]))],
+        "cases": cases,
         "by_type": {t: {**v, "total": sum(v.values())} for t, v in sorted(by.items())},
         "severity_counts": {s: sum(1 for f in r.findings if f.severity == s) for s in SEV_ORDER},
         "findings": findings, "findings_total": len(r.findings),
@@ -128,6 +135,42 @@ def section_stats(d: dict) -> str:
             f'<div class="cards">{out}</div><ul class="sevlist">{sev}</ul></section>')
 
 
+def exchange_size(http: dict) -> int:
+    return sum(len(x["request_body"]) + len(x["response_body"]) + len(x["url"]) + 600 for x in http["items"])
+
+
+def allocate_http(cases: list[dict], budget: int) -> set[int]:
+    """Indexes of the cases whose request/response text fits in `budget` characters. Failures and errors go first."""
+    keep: set[int] = set()
+    for idx, c in sorted(enumerate(cases), key=lambda t: STATUS_ORDER[t[1]["status"]]):
+        size = exchange_size(c["http"])
+        if c["http"]["items"] and size <= budget:
+            budget -= size
+            keep.add(idx)
+    return keep
+
+
+def _kv(h: dict) -> str:
+    return "\n".join(f"{k}: {v}" for k, v in h.items())
+
+
+def exchange_html(http: dict) -> str:
+    parts = []
+    for i, x in enumerate(http["items"], 1):
+        status = x["status"] if x["status"] is not None else "?"
+        ms = f" · {x['ms']} ms" if x["ms"] is not None else ""
+        req = "\n\n".join(p for p in (_kv(x["request_headers"]), x["request_body"]) if p) or "(no headers or body)"
+        res = "\n\n".join(p for p in (_kv(x["response_headers"]), x["response_body"]) if p) or "(no body)"
+        parts.append(
+            f'<div class="xch"><div class="xl"><b>{e(x["method"])}</b> {e(x["url"])} <span class="muted">→ {e(status)}{e(ms)}</span></div>'
+            f'<div class="xcols"><div><h5>Request</h5><pre>{e(req)}</pre></div><div><h5>Response</h5><pre>{e(res)}</pre></div></div></div>')
+    more = http["total"] - len(http["items"])
+    if more > 0:
+        parts.append(f'<p class="muted">{more} more request(s) in this test were not recorded.</p>')
+    n = len(http["items"])
+    return (f'<details class="xh"><summary>Request and response ({n})</summary>{"".join(parts)}</details>') if parts else ""
+
+
 def section_types(d: dict) -> str:
     if not d["by_type"]:
         return ""
@@ -135,6 +178,8 @@ def section_types(d: dict) -> str:
     for c in d["cases"]:
         by_type.setdefault(c["type"], []).append(c)
     shown = 0
+    with_http = allocate_http(d["cases"], HTTP_BUDGET_CHARS)
+    pos = {id(c): i for i, c in enumerate(d["cases"])}
     blocks = []
     for t, v in d["by_type"].items():
         rows = []
@@ -143,9 +188,11 @@ def section_types(d: dict) -> str:
                 break
             shown += 1
             st = c["status"]
+            xh = exchange_html(c["http"]) if pos[id(c)] in with_http else ""
             rows.append(
                 f'<tr data-st="{e(st)}"><td><span class="st st-{e(st)}">{STATUS_LABEL[st]}</span></td><td class="tn">{e(c["name"])}</td>'
-                f'<td class="te">{e(c["endpoint"])}</td><td class="tr">{e(c["reason"])}</td></tr>')
+                f'<td class="te">{e(c["endpoint"])}</td><td class="tr">{e(c["reason"])}</td></tr>'
+                + (f'<tr data-st="{e(st)}" class="xr"><td></td><td colspan="3">{xh}</td></tr>' if xh else ""))
         left = len(by_type.get(t, [])) - len(rows)
         more = f'<p class="muted">{left} more case(s) in report.json.</p>' if left > 0 else ""
         filt = "".join(f'<button class="chip sm" type="button" data-f="{k}">{lab} {v[k2]}</button>'
@@ -293,6 +340,9 @@ details.type[open]>summary .tname::before{transform:rotate(90deg)}.tname{font-we
 .st{display:inline-block;min-width:48px;text-align:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;background:var(--skip)}
 .st-passed{background:var(--pass)}.st-failed{background:var(--fail)}.st-error{background:var(--err)}
 @media (max-width:640px){details.type>summary{grid-template-columns:1fr}.tnums{white-space:normal}}
+.xr td{border-bottom:1px solid var(--line);padding-top:0}.xh{margin-top:0}.xh summary{cursor:pointer;color:var(--accent);font-size:12px}.xch{margin:8px 0;padding:8px;border:1px solid var(--line);border-radius:8px}
+.xl{font-size:12px;word-break:break-all}.xcols{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}.xcols pre{max-height:260px;font-size:12px}h5{margin:0 0 4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+@media (max-width:760px){.xcols{grid-template-columns:1fr}}
 footer{color:var(--muted);font-size:12px;text-align:center;padding:12px}
 @media (max-width:640px){.hero{grid-template-columns:1fr;justify-items:center}.fe{margin-left:0;flex-basis:100%}h1{font-size:22px}}
 @media print{header.top{background:#312e81!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.chips,.search,.copy{display:none}details.finding{break-inside:avoid}}
