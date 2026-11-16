@@ -313,27 +313,39 @@ def guessed_body(ep: dict) -> list[str]:
             and is_guessed({"name": k, "schema": sch["properties"][k]})]
 
 
-_UNIQUE_NAME_RE = re.compile(
-    r"(^|[_-])(e-?mail|username|user[_-]?name|login|handle|slug|sku|code|name|reference)$|(Email|Username|UserName|Login|Handle|Slug|Sku|SKU|Code|Name|Reference)$",
-    re.I)
+# Whole field names only (after camelCase becomes snake_case). A suffix match would catch country_code, hostname or
+# surname, and a tagged value like `US-1f3a2` is rejected by any server that validates the format.
+_UNIQUE_NAMES = {"email", "e_mail", "username", "user_name", "login", "handle", "slug", "sku", "name",
+                 "promo_code", "coupon_code", "referral_code", "invite_code", "voucher_code"}
+_FIXED_CODE_RE = re.compile(r"[A-Z0-9]{1,5}")
 
 
-_CREDENTIAL_PATH_RE = re.compile(r"login|log-in|signin|sign-in|auth|token|session", re.I)
+def _field_key(name: str) -> str:
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).replace("-", "_").lower()
+
+
+_CREDENTIAL_PATH_RE = re.compile(r"(^|/)(login|log-?in|sign-?in|auth|authenticate|authorize|oauth2?|tokens?|sessions?)(/|$)", re.I)
 
 
 def unique_body_fields(ep: dict) -> dict:
-    """Top-level string fields of a create body that a server often keeps unique (email, username, slug, name ...).
-    The runtime adds a short run tag to them so repeated creates do not collide. Fields with an enum, a pattern or a
-    format other than email are left alone, because a tagged value could be rejected. Login and token endpoints are skipped:
-    they need a username that already exists."""
+    """Top-level string fields of a create body whose whole name says a server keeps them unique (email, username, slug, name ...).
+    The runtime adds a short run tag to them so repeated creates do not collide. Fields with an enum, a pattern, a format
+    other than email, a const or default, or an example that looks like a fixed code are left alone, because a tagged value
+    could be rejected. Login and token endpoints are skipped: they need a username that already exists."""
     sch = body_schema(ep)
     if ep.get("method") != "POST" or _CREDENTIAL_PATH_RE.search(ep.get("path") or "") or not sch or not isinstance(sch.get("properties"), dict) or not has_json_body(ep):
         return {}
     out = {}
     for k, v in sch["properties"].items():
-        if (isinstance(v, dict) and _first_type(v) == "string" and _UNIQUE_NAME_RE.search(k) and not v.get("readOnly")
-                and not is_secret_name(k) and "enum" not in v and "pattern" not in v and v.get("format") in (None, "", "email")):
-            out[k] = {"max": v["maxLength"]} if isinstance(v.get("maxLength"), int) else {}
+        if not (isinstance(v, dict) and _first_type(v) == "string" and _field_key(k) in _UNIQUE_NAMES and not v.get("readOnly")
+                and not is_secret_name(k) and v.get("format") in (None, "", "email")):
+            continue
+        if any(key in v for key in ("enum", "pattern", "const", "default")):   # the spec says what the value must be
+            continue
+        ex = v.get("example")
+        if v.get("format") != "email" and isinstance(ex, str) and _FIXED_CODE_RE.fullmatch(ex):   # looks like a fixed code (US, USD)
+            continue
+        out[k] = {"max": v["maxLength"]} if isinstance(v.get("maxLength"), int) else {}
     return out
 
 

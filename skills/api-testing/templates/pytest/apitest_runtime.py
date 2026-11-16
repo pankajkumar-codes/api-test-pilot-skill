@@ -448,11 +448,12 @@ class Endpoint:
 # --------------------------------------------------------------------------- unique create bodies
 _RUN_ID = (os.environ.get("APITEST_RUN_ID") or uuid.uuid4().hex)[:4]
 _calls = {"n": 0}
+_WORKER = re.sub(r"\D", "", os.environ.get("PYTEST_XDIST_WORKER", ""))   # keeps parallel workers from sending the same tag
 
 
 def _tagged(value: str, meta: dict) -> str:
     _calls["n"] += 1
-    tag = f"{_RUN_ID}{_calls['n']:x}"
+    tag = f"{_RUN_ID}{_WORKER}-{_calls['n']:x}" if _WORKER else f"{_RUN_ID}{_calls['n']:x}"
     local, at, domain = value.partition("@")
     room = meta.get("max")
     if room is not None:

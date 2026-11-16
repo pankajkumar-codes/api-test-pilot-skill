@@ -7,8 +7,14 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (unique create bodies review, 2026-11-16)
+- Unique-field detection matches whole field names only. `country_code`, `currency_code`, `postal_code`, `hostname`, `surname`, `postcode` and `reference` are no longer tagged; fields with a `const` or `default`, or an example that looks like a fixed code (`US`, `AB12`), are skipped. The intake now keeps `const` in simplified schemas (dropped for secret-named fields like `example` and `enum`).
+- `scrub()` in the generator also drops `const` for secret-named properties (defense in depth, with a canary test).
+- Under pytest-xdist each worker adds its number to the tag; `POST /authors` is no longer mistaken for an auth endpoint.
+- Docs: a pinned `APITEST_RUN_ID` repeats values on a rerun; multipart bodies and the k6 scripts are not tagged.
+
 ### Added (unique create bodies, 2026-11-14)
-- Baseline create bodies get a run tag on unique-looking string fields (`email`, `username`, `slug`, `sku`, `code`, `name` ...), so repeated creates on a target that keeps data no longer collide and skip. Enum, pattern, secret and read-only fields are never touched, nor values where the tag would not fit `maxLength`. Echo and read-back checks compare against the body that was actually sent. `APITEST_UNIQUE_BODIES=no` opts out, `APITEST_RUN_ID` pins the tag.
+- Baseline create bodies get a run tag on unique-looking string fields (`email`, `username`, `slug`, `sku`, `name` ...), so repeated creates on a target that keeps data no longer collide and skip. Enum, pattern, secret and read-only fields are never touched, nor values where the tag would not fit `maxLength`. Echo and read-back checks compare against the body that was actually sent. `APITEST_UNIQUE_BODIES=no` opts out, `APITEST_RUN_ID` pins the tag.
 
 ### Fixed (review nits, 2026-11-14)
 - Name-based sample values: a hinted email, url or phone number cut by `maxLength` falls back to `sample-<name>` instead of becoming invalid; the hint patterns are narrower (`email_template`, `phone_type`, `order_status` get no hint; `homepageURL` does).
