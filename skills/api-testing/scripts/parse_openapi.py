@@ -23,7 +23,7 @@ from _common import (  # noqa: E402
 SCHEMA_KEYS = (
     "type", "format", "enum", "required", "minimum", "maximum", "exclusiveMinimum",
     "exclusiveMaximum", "minLength", "maxLength", "pattern", "minItems", "maxItems",
-    "uniqueItems", "nullable", "default", "example", "readOnly", "writeOnly", "multipleOf",
+    "uniqueItems", "nullable", "default", "const", "example", "readOnly", "writeOnly", "multipleOf",
 )
 MAX_DEPTH = 12
 
@@ -74,7 +74,7 @@ class Resolver:
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
         if out.get("format") == "password" or out.get("writeOnly"):  # sample values can be real secrets
-            for drop in ("example", "default", "enum"):
+            for drop in ("example", "default", "enum", "const"):
                 out.pop(drop, None)
         if isinstance(out.get("type"), list):  # OpenAPI 3.1: ["string", "null"]
             types = [t for t in out["type"] if t != "null"]
@@ -85,7 +85,7 @@ class Resolver:
             out["properties"] = {k: self.schema(v, stack, depth + 1) for k, v in node["properties"].items()}
             for k, v in out["properties"].items():  # don't carry over sample or default secrets
                 if is_secret_name(k) and isinstance(v, dict):
-                    for drop in ("example", "default", "enum"):
+                    for drop in ("example", "default", "enum", "const"):
                         v.pop(drop, None)
             out.setdefault("type", "object")
         if "items" in node:
@@ -130,7 +130,7 @@ def _param(r: Resolver, p: Any, swagger2: bool) -> dict | None:
     sensitive = is_secret_name(p["name"]) or (
         isinstance(sch, dict) and (sch.get("format") == "password" or sch.get("writeOnly")))
     if sensitive:
-        for drop in ("example", "default", "enum"):
+        for drop in ("example", "default", "enum", "const"):
             if isinstance(sch, dict):
                 sch.pop(drop, None)
     elif "example" in p:
