@@ -79,3 +79,13 @@ gRPC is deferred to v2. Not part of this skill at all (see DECISIONS.md, 2026-11
 - [x] Gaps: guessed required body fields flagged, integration flows skip when the create response has no id, undeclared auth parameters inferred, `APITEST_READ_ONLY` public-sandbox mode, PR #8 nits (the destructive marker and xdist note were already in)
 - [x] Tests (`tests/test_chaos.py`) and a live run against the spring-boot-demo with a throwaway Postgres (docs/evals.md)
 - [x] Eval follow-ups: name-based sample values, no echo-endpoint flows, inferred-auth skip hint, chaos exit code 4 on signal, URL-path secret note
+
+## Phase 9 — v2 (before the v0.1.0 release)
+Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marketplace) stay last.
+- [x] Review nits from PR #8 and #11 (PR #15)
+- [x] Unique create bodies: run tag on unique-looking fields of baseline creates (`APITEST_UNIQUE_BODIES`, `APITEST_RUN_ID`)
+- [ ] Mass-assignment read-back (the VAmPI gap)
+- [ ] Intake gaps: multi-file specs, OpenAPI callbacks/webhooks
+- [ ] GraphQL parity: fuzzing, contract, integration, data-validation, resilience
+- [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`
+- [ ] Login success-path tests with real credentials from env vars

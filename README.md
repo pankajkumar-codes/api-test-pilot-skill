@@ -234,6 +234,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_ALLOW_DESTRUCTIVE=yes` | allow tests that delete or overwrite data; they run last |
 | `APITEST_<SCHEME>_TOKEN` (for example `APITEST_BEARERAUTH_TOKEN`) | credentials; `intake.py` prints the names your spec needs |
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
+| `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (email, username, slug ...) with a run id, or pin the 4-character id |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |
 | `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run |
 

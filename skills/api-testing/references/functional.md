@@ -35,8 +35,11 @@ The generator prints the exact rerun command. The suite is `conftest.py` + `apit
 - `APITEST_ALLOW_DESTRUCTIVE=yes` is required for any DELETE against an existing id; the test consumes that id. The generated `conftest.py` runs
   such tests last (authorization probes first), so they cannot remove the ids other tests use.
 - Skips with a reason, never a verdict: a 429 where another status was expected, and a create refused as a duplicate (409, or 400/422 that says
-  "already exists"): every create test sends the same baseline body, so only the first create succeeds on a target that keeps data. Use a fresh target
-  or clear the earlier test data to run them again.
+  "already exists"). To avoid most of these, a baseline create body gets a short run tag on top-level string fields a server usually keeps unique
+  (`email`, `username`, `login`, `handle`, `slug`, `sku`, `code`, `name`, `reference`): `a@example.com` becomes `a-1f3a2@example.com`. Fields with an enum, a
+  pattern or a non-email format, secrets, read-only fields, and values where the tag would not fit `maxLength` are left alone. Bodies the tests build themselves
+  (invalid, edge, security payloads) and login, auth and token endpoints (they need an existing username) are not tagged. `APITEST_UNIQUE_BODIES=no` turns it off; `APITEST_RUN_ID` pins the 4-character prefix so a rerun uses the same values.
+  If a unique field the tool cannot see still collides, the skip stays: use a fresh target or clear the earlier test data.
 - Skips with a reason also cover a target that cannot be reached (failed connect after `APITEST_RETRIES` retries of GET/HEAD/OPTIONS; writes are never retried; smoke tests and `APITEST_UNREACHABLE=fail` fail instead). A drop, reset or hang *after* connecting always fails.
 - Pace requests on shared targets with `APITEST_DELAY_MS` or `APITEST_RPS` (CLI: `--apitest-delay-ms`, `--apitest-rps`); the slower limit wins.
 - Generated values are labelled: optional query params with no example/default/enum/range/format are omitted; a required one without them is sent

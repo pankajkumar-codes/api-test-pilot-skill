@@ -47,7 +47,7 @@ def positive(doc: dict, mod: Module) -> None:
             lines.append("    rt.require_destructive()")
         lines += ["    resp = api.send(ep)", "    rt.expect_ok(resp, ep)", "    rt.expect_json(resp, ep)"]
         if keys and ep["method"] in BODY_METHODS:
-            lines.append(f"    rt.expect_echo(resp, ep.body, {py(keys)})")
+            lines.append(f"    rt.expect_echo(resp, rt.sent_body(resp, ep), {py(keys)})")
         mod.add("\n".join(lines) + "\n")
         opt = optional_query(ep)
         if opt and ep["method"] in SAFE_METHODS:
