@@ -61,7 +61,7 @@ def scrub(schema):
             out[k] = scrub(v)
         for name, sub in (out.get("properties") or {}).items():
             if _common.is_secret_name(name) and isinstance(sub, dict):
-                for drop in ("example", "default", "enum"):
+                for drop in ("example", "default", "enum", "const"):
                     sub.pop(drop, None)
         return out
     if isinstance(schema, list):

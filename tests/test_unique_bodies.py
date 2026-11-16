@@ -172,3 +172,16 @@ def test_send_uses_tagged_bodies_and_the_echo_check_compares_what_was_sent(rt, m
         rt.expect_echo(r1, rt.sent_body(r1, ep), ["email", "role"])   # passes: the server echoed the tagged body
     finally:
         srv.shutdown()
+
+
+def test_a_secret_named_const_never_reaches_the_generated_files(tmp_path):
+    schema = {"type": "object", "properties": {"password": {"type": "string", "const": "hunter2-canary"},
+                                                "email": {"type": "string", "format": "email"}}}
+    spec = {"openapi": "3.1.0", "info": {"title": "t", "version": "1"}, "servers": [{"url": "http://127.0.0.1:1"}],
+            "paths": {"/users": {"post": {"requestBody": {"required": True, "content": {"application/json": {"schema": schema}}},
+                                          "responses": {"201": {"description": "created", "content": {"application/json": {"schema": schema}}}}}}}}
+    (tmp_path / "spec.json").write_text(json.dumps(spec))
+    gen_pytest.generate(parse_openapi.build(str(tmp_path / "spec.json")), tmp_path / "suite", ["all"])
+    assert gen_pytest.scrub(schema)["properties"]["password"] == {"type": "string"}   # the generator's own pass, whatever the parser did
+    for f in (tmp_path / "suite").glob("*.py"):
+        assert "hunter2-canary" not in f.read_text(), f.name
