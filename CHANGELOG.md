@@ -9,7 +9,7 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Added (mass-assignment read-back, 2026-11-17)
 - The API3 mass-assignment probe reads the created record back when the spec has a matching read endpoint, and fails if an injected privileged field (`is_admin`, `role`, ...) was stored even though the create response did not echo it. The probe record is removed afterwards when the spec has a delete endpoint. The probe body now gets the same run tag as other create bodies.
-- Still not covered: resources without a documented read endpoint (the VAmPI register case) and nested resources.
+- When no id can be taken from the create response, the read-back skips with a reason. Still not covered: creates whose read endpoint sits under another path or documents no such field (the VAmPI register case), and nested resources.
 
 ### Fixed (unique create bodies review, 2026-11-16)
 - Unique-field detection matches whole field names only. `country_code`, `currency_code`, `postal_code`, `hostname`, `surname`, `postcode` and `reference` are no longer tagged; fields with a `const` or `default`, or an example that looks like a fixed code (`US`, `AB12`), are skipped. The intake now keeps `const` in simplified schemas (dropped for secret-named fields like `example` and `enum`).

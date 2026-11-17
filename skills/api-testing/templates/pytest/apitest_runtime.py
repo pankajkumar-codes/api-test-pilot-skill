@@ -790,7 +790,7 @@ def expect_not_stored(api: Any, created: requests.Response, read_ep: Endpoint, p
         return
     rid = extract_id(created, param)
     if rid is None:
-        return
+        pytest.skip(f"read-back not possible: no {param} found in the create response")
     if cleanup is not None and delete_ep is not None:
         cleanup.add(lambda: api.send(delete_ep, path={param: rid}))
     resp = api.send(read_ep, path={param: rid})

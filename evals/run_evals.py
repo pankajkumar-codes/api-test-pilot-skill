@@ -71,7 +71,7 @@ VAMPI_FLAWS = {
     "pwchange": flaw("any user can change another user's password", "API1/API5", r"test_api1_bola_.*update_password", r"test_api5_.*update_password"),
     "mass": flaw("`admin` accepted at registration", "API3 (mass assignment)", r"test_api3_mass_assignment_.*register_user",
                  gap="the register response does not echo the stored fields and no documented read endpoint exposes `admin`; "
-                     "the read-back check has nothing to read, because registered users are not a create/read resource in the spec"),
+                     "the spec has a user read endpoint (`GET /users/v1/{username}`), but its path does not pair with `POST /users/v1/register`, and its documented response has no `admin` field, so a read-back cannot see the flag"),
     "debug": flaw("debug endpoint lists passwords", "API3 (excessive data exposure)", r"test_api3_no_sensitive_fields_.*debug"),
     "enum": flaw("login reveals whether the user exists", "API2", r"test_api2_login_does_not_reveal_valid_usernames"),
     "norate": flaw("login is never throttled", "API4", r"test_api4_rate_limiting_present"),

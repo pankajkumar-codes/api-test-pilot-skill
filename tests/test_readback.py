@@ -107,3 +107,32 @@ def test_a_flag_that_is_stored_but_not_echoed_is_caught_on_read_back(rt, monkeyp
         assert _Store.deleted == ["/items/7"]
     finally:
         srv.shutdown()
+
+
+def test_the_generated_probe_fails_end_to_end_when_the_flag_is_stored(suite, tmp_path):
+    import os
+    import subprocess
+    srv = HTTPServer(("127.0.0.1", 0), _Store)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        env = {**os.environ, "APITEST_BASE_URL": f"http://127.0.0.1:{srv.server_address[1]}", "APITEST_TARGET_ENV": "local",
+               "APITEST_AUTHORIZED": "yes"}
+        _Store.deleted.clear()
+        p = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "test_security.py", "-k", "mass_assignment_createItem",
+                            "-m", "intrusive", "--tb=short"], cwd=suite, env=env, capture_output=True, text=True, timeout=120)
+        assert p.returncode != 0 and "stored" in p.stdout, p.stdout[-1500:]
+        assert _Store.deleted, "the probe record should be deleted even when the check fails"
+    finally:
+        srv.shutdown()
+
+
+def test_no_id_in_the_create_response_skips_with_a_reason(rt):
+    class R:
+        status_code = 201
+        text = '{"message": "created"}'
+        headers = {"Content-Type": "application/json"}
+        def json(self):
+            return {"message": "created"}
+    with pytest.raises(BaseException) as err:
+        rt.expect_not_stored(None, R(), None, "itemId", {"admin": True})
+    assert "read-back not possible" in str(err.value)
