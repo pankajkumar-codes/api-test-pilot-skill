@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import requests
 
 import gen_pytest
@@ -111,10 +112,17 @@ def test_generators_reject_non_intake_files_with_exit_code_2(tmp_path):
     assert p.returncode == 2 and "Traceback" not in p.stderr
 
 
-def test_graphql_integer_literal_over_the_digit_limit_is_a_readable_error(tmp_path):
-    sdl = "type Query { a(n: Int = " + "9" * 5000 + "): Int }\n"
+@pytest.mark.parametrize("literal", ["9" * 5000, "-" + "9" * 5000, "1e999", "-1e999", "1" + "0" * 400 + ".5", "1.5e99999", "9" * 5000 + ".0"])
+def test_graphql_number_literal_that_is_too_large_is_a_readable_error(tmp_path, literal):
     f = tmp_path / "huge.graphql"
-    f.write_text(sdl)
+    f.write_text("type Query { a(n: Float = " + literal + "): Int }\n")
     p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
-    assert p.returncode == 2 and "number too large" in p.stderr, (p.returncode, p.stderr[-500:])
+    assert p.returncode == 2 and "number too large" in p.stderr, (literal[:20], p.returncode, p.stderr[-500:])
     assert "Traceback" not in p.stderr
+
+
+def test_graphql_ordinary_numbers_still_parse(tmp_path):
+    f = tmp_path / "ok.graphql"
+    f.write_text("type Query { a(n: Float = 1.5e3, m: Int = -7): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr[-500:]

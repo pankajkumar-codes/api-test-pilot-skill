@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 First release candidate, built in phases (see PLAN.md).
 
 ### Fixed (issue 28, 2026-11-17)
-- A GraphQL SDL integer literal longer than Python's 4300-digit limit now stops intake with `GraphQL parse error: number too large` (exit code 2) instead of a traceback.
+- A GraphQL SDL number literal that is too large (an integer over Python's 4300-digit limit, or a float such as `1e999` that overflows to infinity) now stops intake with `GraphQL parse error: number too large` (exit code 2) instead of a traceback or an invalid `Infinity` in the JSON.
 
 ### Added (GraphQL resilience tests, 2026-11-17)
 - `--types resilience` now works for GraphQL (and is part of `all`), so every pytest type is available for GraphQL. Repeatable reads, a response budget, page-size and cursor handling for list queries, an `intrusive` rate-limit burst (a 429 needs a valid `Retry-After`) and a repeated delete of an object the test created itself.

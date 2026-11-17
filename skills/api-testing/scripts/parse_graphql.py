@@ -105,9 +105,12 @@ class Parser:
         k, v = self.next()
         if k in ("int", "float"):
             try:
-                return int(v) if k == "int" else float(v)
+                num = int(v) if k == "int" else float(v)
             except ValueError:  # int() refuses more than 4300 digits
                 raise IntakeError("GraphQL parse error: number too large") from None
+            if isinstance(num, float) and not math.isfinite(num):   # 1e999 overflows to inf, which JSON cannot hold
+                raise IntakeError("GraphQL parse error: number too large")
+            return num
         if k == "string":
             return v
         if k == "name":
