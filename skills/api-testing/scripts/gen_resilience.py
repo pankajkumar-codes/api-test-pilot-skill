@@ -60,7 +60,7 @@ def generate(doc: dict, mod: Module) -> None:
     if probe:
         mod.add("@pytest.mark.intrusive\n"
                 f"def {mod.unique('test_rate_limit_behaviour')}(api):\n    ep = {_ref(probe)}\n"
-                '    n = int(os.environ.get("APITEST_RATE_BURST", "30"))\n'
+                '    n = rt.burst_size(30)\n'
                 "    rt.expect_rate_limit_behaviour(api, ep, n)\n")
 
 

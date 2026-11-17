@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (rate-limit burst setting, 2026-11-17)
+- `APITEST_RATE_BURST` is read through one runtime helper. A value that is not a whole number from 1 to 1000 now fails the test with one clear message instead of a `ValueError` traceback in the generated suite. An unset value still uses the per-test default.
+- The four review notes from the chaos and sample-value PR were already fixed in the 2026-11-14 batch below; nothing was left open there.
+- README lists what is still unverified: ghz load tests, the AWS emulator run, the stand-in status of the gateway and GraphQL apps, and the VAmPI mass-assignment gap.
+
 ### Checked (final full pass over v2, 2026-11-17)
 - Full suite on main: 616 pass and 23 skip with the example-app packages installed (605 and 34 with only the dev requirements). `ruff check`, `tools/validate_skill.py` and the zip build are clean. The gRPC suites also pass against real grpcurl 1.9.1 (32 tests in `test_grpc.py` and `test_grpc_real.py`).
 - Eval tables re-run on main: Petstore mock 325 pass, VAmPI mock 232 pass and 1 known failure, seeded FastAPI app 91 pass, GraphQL mock 102 pass; every seeded flaw is found except the documented VAmPI mass-assignment gap. `docs/evals.md` had stale clean-variant counts (326, 230 and 85) and now matches these runs.

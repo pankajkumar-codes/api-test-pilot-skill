@@ -1160,6 +1160,20 @@ class Api:
         return self._request("POST", url, timeout=self.timeout, allow_redirects=False, **kw)
 
 
+def burst_size(default: int) -> int:
+    """Size of a rate-limit burst: APITEST_RATE_BURST when it is a whole number from 1 to 1000, else `default`."""
+    raw = os.environ.get("APITEST_RATE_BURST", "").strip()
+    if not raw:
+        return default
+    try:
+        n = int(raw)
+    except ValueError:
+        pytest.fail(f"APITEST_RATE_BURST must be a whole number from 1 to 1000, got {raw!r}", pytrace=False)
+    if not 1 <= n <= 1000:
+        pytest.fail(f"APITEST_RATE_BURST must be a whole number from 1 to 1000, got {n}", pytrace=False)
+    return n
+
+
 def burst(call, n: int) -> list[requests.Response]:
     """Send `n` sequential requests via `call()` (bounded; used by rate-limit checks)."""
     out = []

@@ -351,6 +351,10 @@ $ echo $?
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - Real runs: one local Spring Boot service (all test types, k6 and chaos) and four public sandbox APIs read-only, as described under Results. No real-API detection rates are claimed, and nothing here is "production-tested".
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
+- **Not yet done, and not claimed:**
+  - gRPC load tests through `ghz` are not generated or run; gRPC unary tests are covered, against a local `grpcio` server and real grpcurl 1.9.1.
+  - The API gateway and GraphQL example apps in `examples/aws-local/` are local stand-ins written for the tests. The AWS emulator has not been run against them.
+  - VAmPI mass assignment is a known miss in the eval (see [docs/evals.md](docs/evals.md)), and the 27 of 28 figure is for seeded flaws in mocks, not real APIs.
 
 ## Develop
 

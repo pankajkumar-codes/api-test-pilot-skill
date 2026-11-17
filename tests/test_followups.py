@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import time
+import types
 
 import pytest
 
@@ -387,3 +388,34 @@ def test_skip_message_says_when_the_auth_scheme_was_inferred(tmp_path):
     r = subprocess.run([sys.executable, "-m", "pytest", str(out), "-rs", "-q", "-p", "no:cacheprovider"], env={**env, "APITEST_BASE_URL": "http://127.0.0.1:1"},
                        capture_output=True, text=True, cwd=tmp_path)
     assert "credentials not configured: set APITEST_INFERRED_AUTHORIZATION_TOKEN" in r.stdout and "scheme is inferred" in r.stdout, r.stdout
+
+
+def _runtime():
+    mod = types.ModuleType("apitest_runtime_burst")
+    sys.modules[mod.__name__] = mod  # dataclasses look the module up by name
+    exec(compile(gen_pytest.runtime_source(), "apitest_runtime_burst", "exec"), mod.__dict__)
+    return mod
+
+
+@pytest.fixture
+def rt_burst():
+    mod = _runtime()
+    yield mod
+    sys.modules.pop(mod.__name__, None)
+
+
+def test_burst_size_uses_default_and_valid_values(monkeypatch, rt_burst):
+    rt = rt_burst
+    monkeypatch.delenv("APITEST_RATE_BURST", raising=False)
+    assert rt.burst_size(30) == 30
+    monkeypatch.setenv("APITEST_RATE_BURST", " 12 ")
+    assert rt.burst_size(30) == 12
+
+
+@pytest.mark.parametrize("bad", ["abc", "1.5", "0", "-3", "100000"])
+def test_burst_size_bad_value_fails_with_one_clear_message(monkeypatch, bad, rt_burst):
+    rt = rt_burst
+    monkeypatch.setenv("APITEST_RATE_BURST", bad)
+    with pytest.raises(pytest.fail.Exception) as exc:
+        rt.burst_size(30)
+    assert "APITEST_RATE_BURST must be a whole number from 1 to 1000" in str(exc.value)
