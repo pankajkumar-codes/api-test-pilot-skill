@@ -32,10 +32,16 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
   variable type (Int<-string, enum<-unknown value, input<-string...). Anonymous access is checked only when you set `APITEST_GQL_REQUIRES_AUTH=yes`.
 - **edge** (queries): unicode, empty, special characters and 100k-char strings; 0/-1/int32 max/overflow numbers; huge page sizes; explicit `null` vs omitted; empty lists; lowercase enum values. Must be handled, never 5xx.
 
+## Fuzz tests
+`--types fuzz` (opt-in, never part of `all`, `intrusive`: non-production and authorized targets only) writes `test_graphql_fuzz.py`, one test per query and mutation. Subscriptions are skipped.
+Payloads travel as variables: wrong types, boundary numbers, long and unicode strings, injection strings, missing and extra variables, plus malformed envelopes, damaged query text and other content types.
+A 4xx or well-formed `errors` is the right answer; 5xx, hangs, dropped connections, stack traces and very slow answers are findings. Bounds and variables are the same as in `fuzzing.md`;
+`delete*`-style mutations also need `APITEST_ALLOW_DESTRUCTIVE=yes`.
+
 ## Contract tests
 `contract` runs each query that returns an object (no mutations: they write) with its default selection and checks the answer against what the schema declares:
 every selected field is present, scalars have the right JSON type (`Int` an integer, `Float` a number, `Boolean` a boolean, `String` a string, `ID` a string or integer),
-enum values are ones the schema lists, `null` only where the type is nullable (also list items), and list types arrive as arrays. Custom scalars are not checked.
+enum values are ones the schema lists, `null` only where the type is nullable (also list items), and list types arrive as arrays. Custom scalars are not checked. A scalar `Int` answered as `1.0` is reported as a wrong type, because JSON has no integer-valued floats here: fix the server or ignore that finding.
 Only the selected scalar and enum fields are checked, up to 20 list items per answer; nested objects are not walked. Mismatches are MEDIUM findings.
 Needs the same ids as the positive tests (`APITEST_GQL_<ARG>`), otherwise the test skips and names the variable.
 

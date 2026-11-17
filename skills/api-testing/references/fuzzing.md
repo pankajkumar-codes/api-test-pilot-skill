@@ -9,7 +9,7 @@ authorized to test; production is never fuzzed. Fuzz tests carry the `intrusive`
 python scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz       # opt-in: not part of --types all
 APITEST_BASE_URL=http://localhost:8080 APITEST_BEARERAUTH_TOKEN=... python -m pytest fuzz_tests -v -ra
 ```
-GraphQL schemas are not fuzzed in v1 (the generator says so); use the GraphQL security checks in `graphql.md`. Schemathesis is a heavier alternative for
+GraphQL schemas are fuzzed too: `gen_pytest.py intake.json --types fuzz` on a GraphQL intake writes `test_graphql_fuzz.py` (one intrusive test per query and mutation; subscriptions are skipped). It sends hostile variable values, missing and extra variables, malformed request envelopes and damaged query text, always as variables and never glued into the query, under the same bounds and safety gate. `delete*`-style mutations also need `APITEST_ALLOW_DESTRUCTIVE`. Schemathesis is a heavier alternative for
 users who already have it; it is not wrapped, so run it with the same gate rules (non-production, authorized, rate-limited).
 
 ## What one test does (`fuzz_runtime.py`)

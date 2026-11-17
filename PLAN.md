@@ -34,7 +34,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 ## Phase 3 — Non-functional modules
 - [x] references/load.md, stress.md, spike.md, soak.md → k6 scripts (`gen_k6.py`, `run_k6.py`; REST and GraphQL queries)
 - [x] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down) via `gen_chaos_plan.py`; plans; executable experiments added in Phase 8 (`chaos_run.py`, `chaos_proxy.py`)
-- [x] references/fuzzing.md (`--types fuzz` in `gen_pytest.py`, REST; GraphQL fuzzing deferred)
+- [x] references/fuzzing.md (`--types fuzz` in `gen_pytest.py`, REST; GraphQL fuzzing added in v2)
 - [x] Safety gate wired into every non-functional flow (`safety_gate.py`, k6 script start-up gate, `intrusive` fuzz tests, chaos plan checklist)
 - [~] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
 
@@ -87,6 +87,6 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Mass-assignment read-back (done where the spec has a read endpoint; the VAmPI register gap remains, see DECISIONS 2026-11-17)
 - [x] Intake gap: multi-file specs
 - [x] Intake gap: OpenAPI callbacks/webhooks (listed in the intake, not tested)
-- [ ] GraphQL parity, one PR per type: [x] contract, [ ] fuzzing, [ ] integration, [ ] data-validation, [ ] resilience
+- [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [ ] integration, [ ] data-validation, [ ] resilience
 - [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`
 - [ ] Login success-path tests with real credentials from env vars

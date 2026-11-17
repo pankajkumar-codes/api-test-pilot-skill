@@ -69,7 +69,8 @@ class Gql(Api):
             return {}  # schema declares no auth: send a token only when one is configured
 
     def post(self, query: str, variables: dict | None = None, operation_name: str | None = None, *,
-             auth: str = "default", who: str = "A", headers: dict | None = None, raw: Any = None) -> requests.Response:
+             auth: str = "default", who: str = "A", headers: dict | None = None, raw: Any = None,
+             transient: str = "skip", timeout: float | None = None) -> requests.Response:
         if re.match(r"\s*mutation\b", query):
             skip_writes_on_production()
         payload: dict[str, Any] = {"query": query}
@@ -81,7 +82,8 @@ class Gql(Api):
         h.update(self._auth(auth, who))
         h.update(headers or {})
         data = raw if raw is not None else json.dumps(payload)
-        return self._request("POST", self.url, data=data, headers=h, timeout=self.timeout, allow_redirects=False)
+        return self._request("POST", self.url, transient=transient, data=data, headers=h,
+                             timeout=self.timeout if timeout is None else timeout, allow_redirects=False)
 
     def arg_value(self, op: Operation, arg: str, default: Any, victim: bool) -> Any:
         keys = [f"APITEST_GQL_{'VICTIM_' if victim else ''}{_env_key(op.name)}_{_env_key(arg)}",
@@ -93,11 +95,15 @@ class Gql(Api):
             return default
         pytest.skip(f"no existing id for '{arg}': set {keys[0]} or {keys[1]}")
 
+    def resolve(self, op: Operation, variables: Any = UNSET, victim: bool = False) -> dict:
+        """The operation's baseline variables with ids filled in from the environment (skips when one is missing)."""
+        base = op.variables if variables is UNSET else variables
+        return {k: (self.arg_value(op, v.arg, v.default, victim) if isinstance(v, EnvArg) else v)
+                for k, v in (base or {}).items()}
+
     def run(self, op: Operation, *, variables: Any = UNSET, override: dict | None = None, query: str | None = None,
             auth: str = "default", who: str = "A", victim: bool = False) -> requests.Response:
-        base = op.variables if variables is UNSET else variables
-        resolved = {k: (self.arg_value(op, v.arg, v.default, victim) if isinstance(v, EnvArg) else v)
-                    for k, v in (base or {}).items()}
+        resolved = self.resolve(op, variables, victim)
         resolved.update(override or {})
         return self.post(query or op.query, resolved, auth=auth, who=who)
 
