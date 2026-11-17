@@ -13,7 +13,7 @@ from pathlib import Path
 import _common
 from gen_common import Expr, Module, ident, py
 
-GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "fuzz")
+GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "fuzz")
 OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
@@ -380,6 +380,69 @@ def contract(sc: Schema, mod: Module) -> None:
                 f"    gr.expect_shape(resp, value, {op['returns']!r}, op.selection, TYPES, ENUMS, KINDS)\n")
 
 
+CREATE_RE = re.compile(r"^(create|add|new|register)", re.I)
+UPDATE_RE = re.compile(r"^(update|edit|modify|patch|set)", re.I)
+REMOVE_RE = re.compile(r"^(delete|remove|destroy)", re.I)
+
+
+def _string_paths(sc: Schema, op: dict, type_fields: set[str], required_only: bool) -> list[list[str]]:
+    """Paths (argument, then input fields) of String values that the object type also returns, so the flow can send and read them back."""
+    out: list[list[str]] = []
+    for a in op["args"]:
+        if a["list"] or (required_only and not a["required"]):
+            continue
+        if a["named"] == "String" and a["name"] in type_fields:
+            out.append([a["name"]])
+        elif sc.kind(a["named"]) == "INPUT_OBJECT":
+            for f in sc.types[a["named"]].get("fields", []):
+                if f["named"] == "String" and not f.get("list") and f["name"] in type_fields and (f.get("required") or not required_only):
+                    out.append([a["name"], f["name"]])
+    return out[:3]
+
+
+def flows(sc: Schema) -> list[dict]:
+    """Object types that can be created, read back and deleted, with the operations that do it."""
+    found = []
+    for tname, t in sc.types.items():
+        if t.get("kind") != "OBJECT" or not any(f["name"] == "id" for f in t.get("fields", [])):
+            continue
+        fields = {f["name"] for f in t.get("fields", [])}
+        of = [o for o in sc.ops if o["return_type"] == tname and not o["return_list"]]
+        create = next((o for o in of if o["kind"] == "mutation" and CREATE_RE.match(o["name"]) and "id" in o["selection"]), None)
+        read = next((o for o in of if o["kind"] == "query" and len([a for a in o["args"] if a["required"]]) == 1
+                     and next(a for a in o["args"] if a["required"])["named"] == "ID" and "id" in o["selection"]), None)
+        delete = next((o for o in sc.ops if o["kind"] == "mutation" and REMOVE_RE.match(o["name"]) and o["name"].lower().endswith(tname.lower())
+                       and [a["named"] for a in o["args"] if a["required"]] == ["ID"]), None)
+        if not (create and read and delete):
+            continue
+        listing = next((o for o in sc.ops if o["kind"] == "query" and o["return_type"] == tname and o["return_list"]
+                        and not any(a["required"] for a in o["args"]) and "id" in o["selection"]), None)
+        update = next((o for o in of if o["kind"] == "mutation" and UPDATE_RE.match(o["name"]) and any(a["named"] == "ID" and a["required"] for a in o["args"])), None)
+        flow = {"type": tname, "create": create["id"], "read": read["id"], "read_arg": next(a["name"] for a in read["args"] if a["required"]),
+                "delete": delete["id"], "delete_arg": next(a["name"] for a in delete["args"] if a["required"]), "id_field": "id",
+                "tag": _string_paths(sc, create, fields, True)}
+        if listing:
+            flow["list"] = listing["id"]
+        if update:
+            paths = _string_paths(sc, update, fields, False)
+            if paths:
+                flow["update"], flow["update_arg"] = update["id"], next(a["name"] for a in update["args"] if a["required"] and a["named"] == "ID")
+                flow["update_path"] = paths[0]
+        found.append(flow)
+    return found
+
+
+def integration(sc: Schema, mod: Module) -> list[str]:
+    """create -> read -> list -> update -> read -> delete -> read for each object type the schema can create and delete."""
+    table = flows(sc)
+    if not table:
+        return ["graphql integration: no object type has a create, a read-by-id and a delete operation, so no flow was generated"]
+    mod.add(f"FLOWS = {py({f['type']: f for f in table})}\n", is_test=False)
+    for f in table:
+        mod.add(f"def {mod.unique('test_flow_' + ident(f['type']) + '_lifecycle')}(gql):\n    gfl.run_flow(gql, OPS, FLOWS[{f['type']!r}])\n")
+    return []
+
+
 def fuzz(sc: Schema, mod: Module) -> list[str]:
     """One intrusive, seeded and bounded fuzz test per operation (subscriptions are skipped: they need a websocket)."""
     table: dict[str, dict] = {}
@@ -403,6 +466,7 @@ MODULES = {
     "edge": ("test_graphql_edge.py", "GraphQL edge-case tests", edge),
     "security": ("test_graphql_security.py", "GraphQL security tests (OWASP API Top 10)", security),
     "contract": ("test_graphql_contract.py", "GraphQL contract tests (the answer matches the schema)", contract),
+    "integration": ("test_graphql_integration.py", "GraphQL integration flows (create, read, list, update, delete)", integration),
     "fuzz": ("test_graphql_fuzz.py", "GraphQL fuzz tests (opt-in, intrusive: non-production targets only)", fuzz),
 }
 
@@ -432,6 +496,8 @@ def gql(base_url):
     }
     notes: list[str] = list(doc.get("warnings", [])[:0])
     counts: dict[str, int] = {}
+    if "integration" in chosen:
+        files["gql_flow.py"] = (gp.SKILL_DIR / "templates" / "pytest" / "gql_flow.py").read_text(encoding="utf-8")
     if "fuzz" in chosen:
         for name in ("fuzz_runtime.py", "gql_fuzz.py"):
             files[name] = (gp.SKILL_DIR / "templates" / "pytest" / name).read_text(encoding="utf-8")
@@ -442,7 +508,7 @@ def gql(base_url):
         if isinstance(extra, list):
             notes += extra
         if mod.tests:
-            head = "import gql_fuzz as gfz  # noqa: F401\n" if t == "fuzz" else ""
+            head = {"fuzz": "import gql_fuzz as gfz  # noqa: F401\n", "integration": "import gql_flow as gfl  # noqa: F401\n"}.get(t, "")
             files[fname] = mod.render(head + "import gql_runtime as gr  # noqa: F401\nfrom operations import ENUMS, KINDS, OPS, TYPES  # noqa: F401\n").replace(
                 "from endpoints import EP\n", "")
             counts[t] = mod.tests

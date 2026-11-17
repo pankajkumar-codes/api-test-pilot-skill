@@ -13,6 +13,7 @@ type Query {
 
 type Mutation {
   createPet(input: NewPetInput!): Pet!
+  updatePet(id: ID!, input: UpdatePetInput!): Pet
   deletePet(id: ID!): Boolean!
 }
 
@@ -33,6 +34,12 @@ type User {
 }
 
 enum Species { DOG CAT BIRD }
+
+input UpdatePetInput {
+  name: String
+  tag: String
+  species: Species
+}
 
 input NewPetInput {
   name: String!

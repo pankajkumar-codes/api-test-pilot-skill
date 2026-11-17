@@ -191,7 +191,7 @@ Clean variant: 91 passed, 0 failed, 5 skipped
 | `crash`: injection crashes the resolver | injection | `test_injection_pets` | yes | `test_graphql_security::test_injection_pets[search[0]]` |
 | `badshape`: a field has the wrong type and an enum value the schema lacks | contract | `test_contract_pets_matches_schema` | yes | `test_graphql_contract::test_contract_pets_matches_schema` |
 
-Clean variant: 66 passed, 0 failed, 5 skipped
+Clean variant: 72 passed, 0 failed, 5 skipped (includes the integration flow)
 
 ### What the evals changed in the skill (found by running, fixed, covered by tests in `tests/test_evals.py`)
 | Finding | Cause | Fix |

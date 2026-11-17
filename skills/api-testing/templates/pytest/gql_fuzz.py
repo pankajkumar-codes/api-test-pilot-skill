@@ -62,8 +62,8 @@ def build_cases(op: Any, base: dict, spec: dict, cfg: fz.Config) -> list[dict]:
     cuts = sorted({max(1, int(len(text) * f)) for f in (0.2, 0.4, 0.6, 0.8, 0.95)})
     broken = [(f"truncated_at_{c}", text[:c]) for c in cuts] + [
         ("nul_byte", text + "\x00"), ("unclosed_string", text + ' "'), ("unclosed_brace", text + " {"), ("closing_braces", text + "}" * 50),
-        ("long_name", text.replace(op.name, op.name * 2000, 1)), ("unicode_name", text.replace(op.name, op.name + "\u00e9\u20ac", 1)),
-        ("empty_query", ""), ("only_comment", "# nothing"), ("huge_whitespace", text + " " * 100000),
+        ("long_name", text.replace(op.name, op.name * max(2, min(2000, cfg.max_bytes // max(1, len(op.name)))), 1)), ("unicode_name", text.replace(op.name, op.name + "\u00e9\u20ac", 1)),
+        ("empty_query", ""), ("only_comment", "# nothing"), ("huge_whitespace", text + " " * min(100000, cfg.max_bytes)),
     ]
     classes.append([{"label": f"query={n}", "send": {"query": q, "variables": base}} for n, q in broken])
 
