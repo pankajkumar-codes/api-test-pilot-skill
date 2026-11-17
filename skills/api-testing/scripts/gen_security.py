@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+from gen_integration import build_resources
 from gen_common import (
     BODY_METHODS, SAFE_METHODS, Expr, Module, has_json_body, is_admin_endpoint, is_list_endpoint, rate_probe, params_in, path_params,
     py, sample_body, supported_body, writable_props,
@@ -45,7 +46,7 @@ def generate(doc: dict, mod: Module) -> None:
     eps = [e for e in doc["endpoints"] if supported_body(e)]
     _api2(doc, eps, mod)
     _api1(eps, mod)
-    _api3(eps, mod)
+    _api3(doc, eps, mod)
     _api4(doc, eps, mod)
     _api5(eps, mod)
     _api7(eps, mod)
@@ -110,7 +111,21 @@ def _api1(eps: list[dict], mod: Module) -> None:
                 '    rt.expect_denied(resp, "API1:2023 BOLA", "user A can reach an object owned by another user")\n')
 
 
-def _api3(eps: list[dict], mod: Module) -> None:
+def _readbacks(doc: dict) -> dict[str, dict]:
+    """Create endpoint id -> the read (and delete) endpoint of the same top-level resource, when the record can be read back."""
+    out = {}
+    for r in build_resources(doc).values():
+        create, read = r.get("create"), r.get("read")
+        if not create or not read or not r.get("param") or r.get("parent"):
+            continue
+        if [p["name"] for p in path_params(read)] != [r["param"]] or path_params(create):
+            continue
+        out[create["id"]] = r
+    return out
+
+
+def _api3(doc: dict, eps: list[dict], mod: Module) -> None:
+    back = _readbacks(doc)
     for ep in eps:
         if ep["method"] in SAFE_METHODS and ep["method"] != "OPTIONS" and not path_params(ep):
             mod.add(f"def {mod.unique('test_api3_no_sensitive_fields_' + ep['id'])}(api):\n"
@@ -118,10 +133,16 @@ def _api3(eps: list[dict], mod: Module) -> None:
         if ep["method"] in BODY_METHODS and has_json_body(ep) and isinstance(sample_body(ep), dict):
             declared = set(writable_props(ep["request_body"].get("schema")))
             extras = {k: v for k, v in PRIVILEGED.items() if k not in declared}
-            mod.add("@pytest.mark.intrusive\n"
-                    f"def {mod.unique('test_api3_mass_assignment_' + ep['id'])}(api):\n    ep = {_ref(ep)}\n"
-                    f"    injected = {py(extras)}\n"
-                    "    resp = api.send(ep, body={**ep.body, **injected})\n    rt.expect_not_assigned(resp, injected)\n")
+            r = back.get(ep["id"])
+            sig = "api, cleanup" if r else "api"
+            src = ("@pytest.mark.intrusive\n"
+                   f"def {mod.unique('test_api3_mass_assignment_' + ep['id'])}({sig}):\n    ep = {_ref(ep)}\n"
+                   f"    injected = {py(extras)}\n"
+                   "    resp = api.send(ep, body={**rt.unique_body(ep, ep.body), **injected})\n    rt.expect_not_assigned(resp, injected)\n")
+            if r:   # the create response may say nothing about what was stored: read the record back
+                dl = f"EP[{r['delete']['id']!r}]" if r.get("delete") else "None"
+                src += (f"    rt.expect_not_stored(api, resp, EP[{r['read']['id']!r}], {r['param']!r}, injected, cleanup, {dl})\n")
+            mod.add(src)
 
 
 def _api4(doc: dict, eps: list[dict], mod: Module) -> None:

@@ -7,7 +7,7 @@ a GraphQL schema, a Postman collection or curl examples. It writes plain pytest 
 |---|---|
 | Functional | smoke, positive, negative, edge, data-validation, integration flows (pytest) |
 | Contract | responses checked against the spec; breaking-change report between two spec versions |
-| Security | OWASP API Top 10 checks: authN/authZ, BOLA, BFLA, injection, mass assignment, SSRF, data exposure, CORS and headers |
+| Security | OWASP API Top 10 checks: authN/authZ, BOLA, BFLA, injection, mass assignment (the created record is read back where the spec has a read endpoint), SSRF, data exposure, CORS and headers |
 | Resilience | idempotency, retries, pagination, rate-limit behaviour |
 | Load, stress, spike, soak | k6 scripts with hard caps, plus a launcher |
 | Fuzzing | seeded, rate-limited malformed-input suite (REST) |
@@ -323,7 +323,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (449 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (487 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
