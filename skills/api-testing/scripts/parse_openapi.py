@@ -352,25 +352,29 @@ MAX_FILE_BYTES = 5_000_000
 BUNDLE_KEY = "x-apitest-bundled"
 FILE_SUFFIXES = (".yaml", ".yml", ".json")
 VALUE_KEYS = ("example", "examples", "enum", "default", "const")   # data, not schema: a "$ref" string in there is just text
+# Maps whose keys are names the author chose (a property called `default`, a response code `default`), so a key
+# in there is never a keyword and its value is always walked.
+NAME_MAPS = frozenset({"properties", "patternProperties", "definitions", "$defs", "schemas", "responses", "parameters", "headers",
+                       "requestBodies", "callbacks", "links", "securitySchemes", "content", "paths", "webhooks", "pathItems"})
 
 
 def _has_file_ref(doc: Any) -> bool:
     """True when a `$ref` anywhere points at another file. Walks each node once (YAML aliases share nodes), so it stays cheap."""
-    seen: set[int] = set()
-    todo = [doc]
+    seen: set[tuple[int, bool]] = set()
+    todo: list[tuple[Any, bool]] = [(doc, False)]
     while todo:
-        node = todo.pop()
+        node, names = todo.pop()
         if isinstance(node, (dict, list)):
-            if id(node) in seen:
+            if (id(node), names) in seen:
                 continue
-            seen.add(id(node))
+            seen.add((id(node), names))
             if isinstance(node, dict):
                 ref = node.get("$ref")
-                if isinstance(ref, str) and not ref.startswith("#"):
+                if not names and isinstance(ref, str) and not ref.startswith("#"):
                     return True
-                todo.extend(v for k, v in node.items() if k not in VALUE_KEYS)
+                todo.extend((v, not names and k in NAME_MAPS) for k, v in node.items() if names or k not in VALUE_KEYS)
             else:
-                todo.extend(node)
+                todo.extend((v, False) for v in node)
     return False
 
 
@@ -446,25 +450,26 @@ class _Bundler:
         slot = self._slot(target)
         return ref if slot is None else f"#/{BUNDLE_KEY}/{slot}{frag}"
 
-    def walk(self, node: Any, current: Path, memo: dict[int, Any]) -> Any:
-        """Copy with refs rewritten. `memo` keeps YAML aliases shared instead of expanding them into copies."""
+    def walk(self, node: Any, current: Path, memo: dict[tuple[int, bool], Any], names: bool = False) -> Any:
+        """Copy with refs rewritten. `memo` keeps YAML aliases shared instead of expanding them into copies.
+        `names` is true for a map of author-chosen names (see NAME_MAPS), where no key is a keyword."""
         if not isinstance(node, (dict, list)):
             return node
-        if id(node) in memo:
-            return memo[id(node)]
+        if (id(node), names) in memo:
+            return memo[(id(node), names)]
         if isinstance(node, dict):
             out: Any = {}
-            memo[id(node)] = out
+            memo[(id(node), names)] = out
             for k, v in node.items():
-                if k == "$ref" and isinstance(v, str):
+                if not names and k == "$ref" and isinstance(v, str):
                     out[k] = self.rewrite(v, current)
-                elif k in VALUE_KEYS:
+                elif not names and k in VALUE_KEYS:
                     out[k] = v
                 else:
-                    out[k] = self.walk(v, current, memo)
+                    out[k] = self.walk(v, current, memo, not names and k in NAME_MAPS)
             return out
         out = []
-        memo[id(node)] = out
+        memo[(id(node), names)] = out
         out.extend(self.walk(v, current, memo) for v in node)
         return out
 

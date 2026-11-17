@@ -193,3 +193,22 @@ def test_a_ref_string_inside_an_example_is_data(tmp_path):
     pets = PETS.replace("schema: {$ref: ../schemas/pet.yaml#/Pet}\n  responses", "schema: {$ref: ../schemas/pet.yaml#/Pet}\n        example: {note: {$ref: ./missing.yaml}}\n  responses", 1)
     spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": pets, "schemas/pet.yaml": PET})
     assert not any("missing.yaml" in w for w in parse_openapi.build(str(spec))["warnings"])
+
+
+def test_property_and_response_names_that_look_like_keywords_still_resolve(tmp_path):
+    pets = PETS.replace("../schemas/pet.yaml#/Pet", "../schemas/pet.yaml#/Wrap", 1)
+    wrap = PET + """Wrap:
+  type: object
+  properties:
+    default: {$ref: "#/Pet"}
+    example: {$ref: "#/Pet"}
+    enum: {$ref: ./pet.yaml#/Pet}
+"""
+    spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": pets, "schemas/pet.yaml": wrap})
+    doc = parse_openapi.build(str(spec))
+    props = doc["endpoints"][0]["request_body"]["schema"]["properties"]
+    assert props["enum"]["type"] == "object" and props["default"]["type"] == "object" and props["example"]["type"] == "object"
+    assert not [w for w in doc["warnings"] if "$ref" in w]
+    split = _write(tmp_path / "r", {"openapi.yaml": ROOT.replace("    $ref: ./paths/pets.yaml\n", "    get:\n      responses:\n        default:\n          $ref: ./err.yaml\n"),
+                                    "err.yaml": "description: failed\ncontent:\n  application/json:\n    schema: {type: object}\n"})
+    assert parse_openapi.build(str(split))["endpoints"][0]["responses"]["default"]["schema"] == {"type": "object"}
