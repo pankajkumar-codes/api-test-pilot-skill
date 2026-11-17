@@ -120,3 +120,76 @@ def test_an_in_memory_spec_still_leaves_file_refs_unresolved():
     doc = parse_openapi.parse({"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "paths": {"/a": {"get": {
         "responses": {"200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "./x.yaml#/A"}}}}}}}}})
     assert any("External $ref" in w for w in doc["warnings"])
+
+
+def _bomb(levels: int = 9) -> str:
+    lines = ["x-b0: &a0 [x, x, x, x, x, x, x, x, x, x]"]
+    for i in range(1, levels):
+        lines.append(f"x-b{i}: &a{i} [" + ", ".join([f"*a{i - 1}"] * 10) + "]")
+    return "\n".join(lines) + "\n"
+
+
+def _finishes(fn, seconds: float = 10.0) -> bool:
+    import threading
+    t = threading.Thread(target=fn, daemon=True)
+    t.start()
+    t.join(seconds)
+    return not t.is_alive()
+
+
+def test_a_yaml_alias_bomb_is_not_expanded(tmp_path):
+    single = _write(tmp_path / "single", {"openapi.yaml": ROOT.replace("    $ref: ./paths/pets.yaml\n", "    get: {responses: {'200': {description: ok}}}\n") + _bomb()})
+    split = _write(tmp_path / "split", {"openapi.yaml": ROOT, "paths/pets.yaml": PETS, "schemas/pet.yaml": PET + _bomb()})
+    assert _finishes(lambda: parse_openapi.build(str(single)))
+    assert _finishes(lambda: parse_openapi.build(str(split)))
+
+
+def test_a_spec_without_file_refs_is_left_untouched():
+    doc = {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "paths": {}}
+    out, warnings = parse_openapi.bundle(doc, "spec.yaml")
+    assert out is doc and warnings == []
+
+
+def test_hostile_ref_strings_become_warnings_not_crashes(tmp_path):
+    for ref in ("./a\x00b.yaml#/A", "./" + "n" * 5000 + ".yaml#/A"):
+        spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                                 "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", ref)})
+        doc = parse_openapi.build(str(spec))
+        assert doc["warnings"], ref[:20]
+
+
+def test_a_deeply_nested_referenced_file_is_skipped_with_a_warning(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                             "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", "./deep.json#/A")})
+    (tmp_path / "deep.json").write_text('{"A": ' + "[" * 100_000 + "]" * 100_000 + "}")
+    doc = parse_openapi.build(str(spec))
+    assert any("deep.json" in w for w in doc["warnings"])
+
+
+def test_warnings_for_a_broken_file_do_not_quote_it(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                             "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", "./bad.yaml#/A"),
+                             "bad.yaml": "password: canary-in-broken-file\n  : [unclosed\n"})
+    text = json.dumps(parse_openapi.build(str(spec))["warnings"])
+    assert "bad.yaml" in text and "canary-in-broken-file" not in text
+
+
+def test_only_spec_file_types_are_loaded(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                             "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", "./.env#/KEY"),
+                             ".env": "KEY: canary-env\n"})
+    doc = parse_openapi.build(str(spec))
+    assert "canary-env" not in json.dumps(doc) and any("not a .yaml" in w for w in doc["warnings"])
+
+
+def test_a_spec_using_the_bundle_key_is_refused_loudly(tmp_path):
+    import pytest
+    spec = _write(tmp_path, {"openapi.yaml": ROOT + f"{parse_openapi.BUNDLE_KEY}: mine\n", "paths/pets.yaml": PETS, "schemas/pet.yaml": PET})
+    with pytest.raises(parse_openapi.IntakeError):
+        parse_openapi.build(str(spec))
+
+
+def test_a_ref_string_inside_an_example_is_data(tmp_path):
+    pets = PETS.replace("schema: {$ref: ../schemas/pet.yaml#/Pet}\n  responses", "schema: {$ref: ../schemas/pet.yaml#/Pet}\n        example: {note: {$ref: ./missing.yaml}}\n  responses", 1)
+    spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": pets, "schemas/pet.yaml": PET})
+    assert not any("missing.yaml" in w for w in parse_openapi.build(str(spec))["warnings"])

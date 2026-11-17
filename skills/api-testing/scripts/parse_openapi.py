@@ -349,13 +349,35 @@ def parse(doc: Any, filename: str = "") -> dict:
 
 MAX_FILES = 50
 MAX_FILE_BYTES = 5_000_000
-BUNDLE_KEY = "x-bundled"
+BUNDLE_KEY = "x-apitest-bundled"
+FILE_SUFFIXES = (".yaml", ".yml", ".json")
+VALUE_KEYS = ("example", "examples", "enum", "default", "const")   # data, not schema: a "$ref" string in there is just text
+
+
+def _has_file_ref(doc: Any) -> bool:
+    """True when a `$ref` anywhere points at another file. Walks each node once (YAML aliases share nodes), so it stays cheap."""
+    seen: set[int] = set()
+    todo = [doc]
+    while todo:
+        node = todo.pop()
+        if isinstance(node, (dict, list)):
+            if id(node) in seen:
+                continue
+            seen.add(id(node))
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if isinstance(ref, str) and not ref.startswith("#"):
+                    return True
+                todo.extend(v for k, v in node.items() if k not in VALUE_KEYS)
+            else:
+                todo.extend(node)
+    return False
 
 
 class _Bundler:
     """Copy the files a spec points at with relative `$ref`s into the root document, so the resolver only sees local refs.
-    Only files inside the root spec's folder are read: an absolute path, a `..` that leaves the folder, a symlink out of it
-    and any URL are refused with a warning. Local refs inside a copied file are re-pointed at its copy."""
+    Only .yaml, .yml and .json files inside the root spec's folder are read: an absolute path, a `..` that leaves the folder,
+    a symlink out of it and any URL are refused with a warning. Local refs inside a copied file are re-pointed at its copy."""
 
     def __init__(self, root_file: Path, warnings: list[str]):
         self.base = root_file.resolve().parent
@@ -375,13 +397,21 @@ class _Bundler:
                 self._warn(f"referenced file is larger than {MAX_FILE_BYTES // 1_000_000} MB, not loaded: {target.name}")
                 return None
             doc = load_document(target)
-        except (IntakeError, OSError) as exc:
-            self._warn(f"referenced file could not be read ({target.name}): {exc}")
+        except IntakeError:   # the parser's message can quote the file, so it is left out
+            self._warn(f"referenced file is not valid JSON or YAML, not loaded: {target.name}")
+            return None
+        except (OSError, RecursionError, ValueError) as exc:
+            self._warn(f"referenced file could not be read ({target.name}): {getattr(exc, 'strerror', None) or type(exc).__name__}")
             return None
         slot = f"f{len(self.slots) + 1}"
         self.slots[target] = slot
-        self.copies[slot] = doc          # filled in place below, so a ref cycle between files ends here
-        self.copies[slot] = self.walk(doc, target)
+        self.copies[slot] = doc          # in place first, so a ref cycle between files ends here
+        try:
+            self.copies[slot] = self.walk(doc, target, {})
+        except RecursionError:
+            self._warn(f"referenced file is nested too deeply, not loaded: {target.name}")
+            del self.slots[target], self.copies[slot]
+            return None
         return slot
 
     def _warn(self, msg: str) -> None:
@@ -394,37 +424,62 @@ class _Bundler:
             return f"#/{BUNDLE_KEY}/{slot}{ref[1:]}" if slot else ref
         file_part, _, frag = ref.partition("#")
         if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", file_part) or file_part.startswith(("/", "\\")):
-            self._warn(f"External $ref not resolved (offline, only relative files are read): {ref}")
+            self._warn(f"External $ref not resolved (offline, only relative files are read): {ref[:100]}")
             return ref
-        target = (current.parent / file_part).resolve()
-        if not target.is_relative_to(self.base):
-            self._warn(f"$ref points outside the spec folder and was not loaded: {ref}")
+        try:
+            target = (current.parent / file_part).resolve()
+            inside, is_file = target.is_relative_to(self.base), target.is_file()
+        except (ValueError, OSError):   # a NUL byte or a name the file system rejects
+            self._warn(f"$ref is not a usable file name and was not loaded: {ref[:100]!r}")
             return ref
-        if not target.is_file():
-            self._warn(f"$ref file not found: {ref}")
+        if not inside:
+            self._warn(f"$ref points outside the spec folder and was not loaded: {ref[:100]}")
+            return ref
+        if not is_file:
+            self._warn(f"$ref file not found: {ref[:100]}")
+            return ref
+        if target.suffix.lower() not in FILE_SUFFIXES:
+            self._warn(f"$ref is not a .yaml, .yml or .json file and was not loaded: {ref[:100]}")
             return ref
         if target == self.root_file:
             return "#" + frag
         slot = self._slot(target)
         return ref if slot is None else f"#/{BUNDLE_KEY}/{slot}{frag}"
 
-    def walk(self, node: Any, current: Path) -> Any:
+    def walk(self, node: Any, current: Path, memo: dict[int, Any]) -> Any:
+        """Copy with refs rewritten. `memo` keeps YAML aliases shared instead of expanding them into copies."""
+        if not isinstance(node, (dict, list)):
+            return node
+        if id(node) in memo:
+            return memo[id(node)]
         if isinstance(node, dict):
-            return {k: (self.rewrite(v, current) if k == "$ref" and isinstance(v, str) else self.walk(v, current))
-                    for k, v in node.items()}
-        if isinstance(node, list):
-            return [self.walk(v, current) for v in node]
-        return node
+            out: Any = {}
+            memo[id(node)] = out
+            for k, v in node.items():
+                if k == "$ref" and isinstance(v, str):
+                    out[k] = self.rewrite(v, current)
+                elif k in VALUE_KEYS:
+                    out[k] = v
+                else:
+                    out[k] = self.walk(v, current, memo)
+            return out
+        out = []
+        memo[id(node)] = out
+        out.extend(self.walk(v, current, memo) for v in node)
+        return out
 
 
 def bundle(doc: Any, path: str) -> tuple[Any, list[str]]:
-    """Inline relative file refs of a spec read from `path`. Returns the document and any warnings."""
+    """Inline relative file refs of a spec read from `path`. Returns the document and any warnings.
+    A spec without a file ref is returned untouched."""
     warnings: list[str] = []
-    if not isinstance(doc, dict):
+    if not isinstance(doc, dict) or not _has_file_ref(doc):
         return doc, warnings
+    if BUNDLE_KEY in doc:
+        raise IntakeError(f"The spec already uses the top-level key '{BUNDLE_KEY}', which the file bundling needs. Rename it.")
     b = _Bundler(Path(path), warnings)
     b.slots[b.root_file] = ""
-    out = b.walk(doc, b.root_file)
+    out = b.walk(doc, b.root_file, {})
     if b.copies:
         out[BUNDLE_KEY] = b.copies
     return out, warnings
