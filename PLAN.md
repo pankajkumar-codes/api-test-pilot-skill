@@ -87,6 +87,6 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Mass-assignment read-back (done where the spec has a read endpoint; the VAmPI register gap remains, see DECISIONS 2026-11-17)
 - [x] Intake gap: multi-file specs
 - [x] Intake gap: OpenAPI callbacks/webhooks (listed in the intake, not tested)
-- [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [ ] resilience
+- [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [x] resilience
 - [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`
 - [ ] Login success-path tests with real credentials from env vars

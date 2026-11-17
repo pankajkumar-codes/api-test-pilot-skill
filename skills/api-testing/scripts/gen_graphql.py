@@ -13,7 +13,7 @@ from pathlib import Path
 import _common
 from gen_common import Expr, Module, ident, py
 
-GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "data-validation", "fuzz")
+GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "data-validation", "resilience", "fuzz")
 OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
@@ -527,6 +527,58 @@ def flows(sc: Schema) -> list[dict]:
     return found
 
 
+SIZE_ARGS = {"first", "limit", "take", "page_size", "pagesize", "size", "count", "per_page", "perpage"}
+CURSOR_ARGS = {"after", "cursor", "offset", "skip", "page", "start"}
+
+
+def _paging(op: dict) -> tuple[str | None, str | None]:
+    """(size argument, cursor argument) of a list query, by the usual argument names."""
+    size = next((a["name"] for a in op["args"] if a["name"].lower() in SIZE_ARGS and a["named"] == "Int" and not a["list"]), None)
+    cursor = next((a["name"] for a in op["args"] if a["name"].lower() in CURSOR_ARGS and a["named"] in ("String", "Int", "ID") and not a["list"]), None)
+    return size, cursor
+
+
+def resilience(sc: Schema, mod: Module) -> list[str]:
+    """Repeatable reads, response budget, page-size and cursor handling, a bounded rate-limit probe and a repeated delete."""
+    notes: list[str] = []
+    for op in sc.ops:
+        if op["kind"] != "query":
+            continue
+        mod.add(f"def {mod.unique('test_' + op['name'] + '_is_repeatable')}(gql):\n    op = OPS[{op['id']!r}]\n"
+                "    first, second = gql.run(op), gql.run(op)\n    gr.expect_graceful(first, \"query\")\n    gr.expect_repeatable(first, second)\n")
+        mod.add(f"def {mod.unique('test_' + op['name'] + '_responds_within_budget')}(gql):\n    op = OPS[{op['id']!r}]\n"
+                "    gr.expect_fast(gql.run(op))\n")
+        size, cursor = _paging(op)
+        if not op["return_list"] or not (size or cursor):
+            continue
+        cases: list[tuple] = []
+        if size:
+            cases.append((f"{size}=1", {"override": {size: 1}}, 1))
+            cases += [(f"{size}=0", {"override": {size: 0}}, 0), (f"{size}=-1", {"override": {size: -1}}, None),
+                      (f"{size}=int32_max", {"override": {size: 2147483647}}, None)]
+        if cursor:
+            kind = next(a["named"] for a in op["args"] if a["name"] == cursor)
+            junk = ["apitest-not-a-cursor", "", "A" * 1000] if kind != "Int" else [-1, 2147483647]
+            cases += [(f"{cursor}={str(v)[:12] or 'empty'}", {"override": {cursor: v}}, None) for v in junk]
+        table = mod.unique("PAGING_" + ident(op["id"]))
+        rows = ",\n".join(f"    ({c[0]!r}, {_kw(c[1])}, {c[2]!r})" for c in cases)
+        mod.add(f"{table} = [\n{rows},\n]\n", is_test=False)
+        mod.add(f'@pytest.mark.parametrize("label,kw,at_most", {table}, ids=[c[0] for c in {table}])\n'
+                f"def {mod.unique('test_' + op['name'] + '_pagination')}(gql, label, kw, at_most):\n    op = OPS[{op['id']!r}]\n"
+                "    resp = gql.run(op, **kw)\n    gr.expect_graceful(resp, label)\n"
+                f"    if at_most is not None and not gr.errors_of(resp):\n        gr.expect_page_size(resp, {op['name']!r}, at_most)\n")
+    mod.add("@pytest.mark.intrusive\ndef test_rate_limit_behaviour(gql):\n"
+            "    gr.expect_rate_limit_behaviour(gql, int(os.environ.get(\"APITEST_RATE_BURST\", \"30\")))\n")
+    table = flows(sc)
+    if table:
+        mod.add(f"FLOWS = {py({f['type']: f for f in table})}\n", is_test=False)
+        for f in table:
+            mod.add(f"def {mod.unique('test_' + ident(f['type']) + '_repeated_delete_is_safe')}(gql):\n    gfl.run_repeated_delete(gql, OPS, FLOWS[{f['type']!r}])\n")
+    else:
+        notes.append("graphql resilience: no object type has a create, a read-by-id and a delete operation, so the repeated-delete check was not generated")
+    return notes
+
+
 def integration(sc: Schema, mod: Module) -> list[str]:
     """create -> read -> list -> update -> read -> delete -> read for each object type the schema can create and delete."""
     table = flows(sc)
@@ -563,6 +615,7 @@ MODULES = {
     "contract": ("test_graphql_contract.py", "GraphQL contract tests (the answer matches the schema)", contract),
     "data-validation": ("test_graphql_data_validation.py", "GraphQL data-validation tests (one violation per case)", data_validation),
     "integration": ("test_graphql_integration.py", "GraphQL integration flows (create, read, list, update, delete)", integration),
+    "resilience": ("test_graphql_resilience.py", "GraphQL resilience tests (repeatable reads, paging, rate limits)", resilience),
     "fuzz": ("test_graphql_fuzz.py", "GraphQL fuzz tests (opt-in, intrusive: non-production targets only)", fuzz),
 }
 
@@ -592,7 +645,7 @@ def gql(base_url):
     }
     notes: list[str] = list(doc.get("warnings", [])[:0])
     counts: dict[str, int] = {}
-    if "integration" in chosen:
+    if "integration" in chosen or "resilience" in chosen:
         files["gql_flow.py"] = (gp.SKILL_DIR / "templates" / "pytest" / "gql_flow.py").read_text(encoding="utf-8")
     if "fuzz" in chosen:
         for name in ("fuzz_runtime.py", "gql_fuzz.py"):
@@ -604,7 +657,7 @@ def gql(base_url):
         if isinstance(extra, list):
             notes += extra
         if mod.tests:
-            head = {"fuzz": "import gql_fuzz as gfz  # noqa: F401\n", "integration": "import gql_flow as gfl  # noqa: F401\n"}.get(t, "")
+            head = {"fuzz": "import gql_fuzz as gfz  # noqa: F401\n", "integration": "import gql_flow as gfl  # noqa: F401\n", "resilience": "import gql_flow as gfl  # noqa: F401\n"}.get(t, "")
             files[fname] = mod.render(head + "import gql_runtime as gr  # noqa: F401\nfrom operations import ENUMS, KINDS, OPS, TYPES  # noqa: F401\n").replace(
                 "from endpoints import EP\n", "")
             counts[t] = mod.tests

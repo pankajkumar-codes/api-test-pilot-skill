@@ -484,7 +484,7 @@ def test_graphql_http_200_with_errors_is_not_success(gql_suite, tmp_path):
 
 def test_graphql_unsupported_types_are_reported(gql_doc, tmp_path):
     with pytest.raises(IntakeError, match="Not available for GraphQL"):
-        gen_pytest.generate(gql_doc, tmp_path / "x", ["resilience"])  # a type GraphQL does not have yet
+        gen_pytest.generate(gql_doc, tmp_path / "x", ["bogus"])
 
 
 # ---------------------------------------------------------------- spec diff

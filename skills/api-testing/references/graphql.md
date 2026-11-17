@@ -3,7 +3,7 @@
 Pipeline: `parse_graphql.py` (or `intake.py`, which auto-detects) -> intake JSON -> `gen_pytest.py` -> pytest.
 ```
 python scripts/intake.py schema.graphql -o intake.json --url http://localhost:4000/graphql   # SDL, or an introspection JSON file
-python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security,contract,integration,data-validation (fuzz is opt-in)
+python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security,contract,integration,data-validation,resilience (fuzz is opt-in)
 APITEST_BASE_URL=http://localhost:4000 APITEST_BEARERAUTH_TOKEN=... python -m pytest gql_tests -v -ra
 ```
 Get the schema from the user as SDL or as the result of the standard introspection query (saved as JSON). The parser is offline
@@ -31,6 +31,15 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
 - **negative**: syntax error, unknown root field/sub-field, unknown `operationName`, non-JSON body, missing required variable, wrong
   variable type (Int<-string, enum<-unknown value, input<-string...). Anonymous access is checked only when you set `APITEST_GQL_REQUIRES_AUTH=yes`.
 - **edge** (queries): unicode, empty, special characters and 100k-char strings; 0/-1/int32 max/overflow numbers; huge page sizes; explicit `null` vs omitted; empty lists; lowercase enum values. Must be handled, never 5xx.
+
+## Resilience tests
+`resilience` (part of `all`) writes `test_graphql_resilience.py`:
+- each query run twice must agree on status, on whether it reports errors and on the fields and kinds of the data (values may change);
+- each query must answer within `APITEST_SLOW_MS` (default 2000 ms; LOW finding otherwise);
+- a list query with a size argument (`first`, `limit`, `take`, `page_size`, `size`, `count`, `per_page`) gets `1` (at most one item), `0`, `-1` and the int32 maximum, and one with a cursor argument (`after`, `cursor`, `offset`, `skip`, `page`, `start`) gets an invented, an empty and a very long cursor; none may crash the server;
+- an `intrusive` burst of `APITEST_RATE_BURST` (default 30) tiny queries: a 429 or 503 must carry a valid `Retry-After` and the API must recover after it (no throttling means nothing to check);
+- for each creatable type (same pairing as the integration flows) the object is created, deleted twice, and the second delete must not crash the server. It only touches its own data.
+Pagination is found by argument names, so a connection-style `edges`/`pageInfo` answer needs hand-written tests.
 
 ## Data-validation tests
 `data-validation` (part of `all`) writes `test_graphql_data_validation.py`. Each case breaks exactly one thing on an otherwise valid request and expects the server to reject it (a 4xx or a well-formed `errors` answer; success or a 5xx is a finding):
@@ -78,6 +87,6 @@ Needs the same ids as the positive tests (`APITEST_GQL_<ARG>`), otherwise the te
 Credentials (`APITEST_BEARERAUTH_TOKEN`), redaction, curl reproductions (`variables` are redacted), the safety gate and the
 generated `conftest.py` are the REST modules; `gql_runtime.py` only adds the GraphQL-specific assertions.
 `spec_diff.py` compares two GraphQL intakes (removed fields/operations, new required arguments, type changes).
-Not yet for GraphQL: the resilience generator; load testing via k6 arrives in Phase 3.
+All pytest test types are available for GraphQL; load testing with k6 is in `load.md`.
 
 Only test APIs the user owns or is authorized to test. The safety gate applies to load/stress/fuzz as well.
