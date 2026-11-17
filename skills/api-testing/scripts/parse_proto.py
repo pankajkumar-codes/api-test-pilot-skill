@@ -145,7 +145,7 @@ def parse_file(text: str) -> dict:
                 p.next()
                 oname = p.expect("id")
                 p.expect("p", "{")
-                fields_into(msg, scope, depth, oname)
+                fields_into(msg, scope, depth + 1, oname)
             elif p.peek("id", "extend") or p.peek("id", "extensions") or p.peek("id", "reserved") or p.peek("id", "option"):
                 p.skip_statement()
             elif p.peek("id", "map"):
@@ -157,7 +157,7 @@ def parse_file(text: str) -> dict:
                 p.expect("p", ">")
                 fname = p.expect("id")
                 p.expect("p", "=")
-                number = int(p.expect("num"), 0)
+                number = _field_number(p.expect("num"))
                 p.skip_options()
                 p.expect("p", ";")
                 msg["fields"].append({"name": fname, "number": number, "type": "map", "key_type": key, "value_type": val,
@@ -171,7 +171,7 @@ def parse_file(text: str) -> dict:
                 ftype = _type_name(p)
                 fname = p.expect("id")
                 p.expect("p", "=")
-                number = int(p.expect("num"), 0)
+                number = _field_number(p.expect("num"))
                 p.skip_options()
                 p.expect("p", ";")
                 msg["fields"].append({"name": fname, "number": number, "type": ftype, "repeated": label == "repeated",
@@ -236,10 +236,23 @@ def parse_file(text: str) -> dict:
     return out
 
 
+def _field_number(token: str) -> int:
+    try:
+        number = int(token, 0)
+    except ValueError:
+        raise IntakeError(f"field number must be an integer, found {token[:20]!r}") from None
+    if not 1 <= number <= 536870911:
+        raise IntakeError(f"field number {number} is outside 1 to 536870911")
+    return number
+
+
 def _read(path: Path) -> str:
     if path.stat().st_size > MAX_FILE_BYTES:
         raise IntakeError(f"{path.name} is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB")
-    return path.read_text(encoding="utf-8-sig")
+    try:
+        return path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        raise IntakeError(f"{path.name} is not a UTF-8 text file") from None
 
 
 def load_tree(root_file: Path, warnings: list[str]) -> list[tuple[str, dict]]:

@@ -193,6 +193,21 @@ Clean variant: 91 passed, 0 failed, 5 skipped
 
 Clean variant: 85 passed, 0 failed, 5 skipped (includes the integration flow and the data-validation cases)
 
+#### gRPC shop service (unary; seeded by us) (real local gRPC server through real grpcurl, plus a stand-in grpcurl)
+
+Run by `tests/test_grpc_real.py` (a `grpcio` server in `tests/mock_grpc.py`, grpcurl 1.9.1) and `tests/test_grpc.py` (stand-in `tests/fake_grpcurl.py`). The real-server tests skip when grpcio, grpcio-tools or grpcurl are missing. Third-party gRPC services were not run, and nothing here covers TLS, reflection-only servers or ghz.
+
+| Seeded flaw | Expected: failing test | Found (real server) | Found (stand-in) |
+|---|---|---|---|
+| `noauth`: calls accepted without a valid token | `test_requires_authentication`, `test_invalid_token_is_rejected` | yes | yes |
+| `acceptsbad`: unknown id accepted as success | `test_GetPet_unknown_id_is_rejected` | yes | yes |
+| `reflection`: server reflection enabled | `test_reflection_disabled` | yes | yes |
+| `crash`: internal error on a quote in a string | `test_injection_GetPet[id[0]]`, `test_injection_CreatePet[name[0]]` | yes | yes |
+| `leak`: stack path in the status message | `test_errors_do_not_leak_internals` and the injection tests | yes | yes |
+| `badshape`: wrong field type in the answer | `test_contract_GetPet_matches_proto` | not seeded | yes |
+
+Clean variant: 73 passed, 0 failed, 1 skipped (real server), same counts against the stand-in. Hostile `.proto` inputs (non-integer or out-of-range field numbers, 2000-deep nesting in messages and `oneof`, non-UTF-8 bytes) end in a one-line error, covered in `tests/test_grpc.py`.
+
 ### What the evals changed in the skill (found by running, fixed, covered by tests in `tests/test_evals.py`)
 | Finding | Cause | Fix |
 |---|---|---|

@@ -145,3 +145,26 @@ def test_other_features_do_not_need_the_grpc_tools(tmp_path):
     with gql_server() as url:
         results, proc = run_suite(out, url, {**GQL_ENV, "APITEST_GRPCURL": str(tmp_path / "missing")})
     assert failed(results) == [] and passed(results), proc.stdout[-1500:]
+
+
+@pytest.mark.parametrize("text,needle", [
+    ("message A { int32 x = inf; }", "must be an integer"),
+    ("message A { int32 x = 1.5; }", "must be an integer"),
+    ("message A { int32 x = 0; }", "outside 1 to"),
+    ("message A { int32 x = 99999999999999999999; }", "outside 1 to"),
+    ("message A { " * 2000 + "}" * 2000, "too deeply"),
+    ("message A { " + "oneof o { " * 2000 + "}" * 2000 + " }", "too deeply"),
+])
+def test_hostile_protos_end_in_a_clean_error(tmp_path, text, needle):
+    p = tmp_path / "h.proto"
+    p.write_text('syntax = "proto3"; ' + text)
+    proc = subprocess.run([sys.executable, str(ROOT / "skills/api-testing/scripts/intake.py"), str(p), "--summary"], capture_output=True, text=True)
+    assert proc.returncode == 2 and needle in proc.stderr and "Traceback" not in proc.stderr, proc.stderr[-500:]
+
+
+def test_a_proto_that_is_not_utf8_ends_in_a_clean_error(tmp_path):
+    p = tmp_path / "b.proto"
+    p.write_bytes(b'syntax = "proto3"; message A { string x = 1; } \xff\xfe')
+    for script in ("parse_proto.py", "intake.py"):
+        proc = subprocess.run([sys.executable, str(ROOT / "skills/api-testing/scripts" / script), str(p), "--summary"], capture_output=True, text=True)
+        assert proc.returncode == 2 and "not a UTF-8" in proc.stderr and "Traceback" not in proc.stderr
