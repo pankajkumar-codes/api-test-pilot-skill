@@ -193,6 +193,20 @@ Clean variant: 91 passed, 0 failed, 5 skipped
 
 Clean variant: 85 passed, 0 failed, 5 skipped (includes the integration flow and the data-validation cases)
 
+#### Local gateway and GraphQL apps (`examples/aws-local`; real local servers, seeded by us; not the AWS emulator)
+
+Run by `tests/test_aws_local.py` (skipped unless fastapi, uvicorn and strawberry-graphql are installed). Both apps use an `x-api-key` header. The AWS emulator itself was not run (no Docker daemon, package not located); these are stand-ins.
+
+| Target | Seeded flaw | Expected: failing test | Found |
+|---|---|---|---|
+| Gateway (REST, 5 operations) | `nokey`: key not checked | `*_rejects_missing_credentials`, invalid-credentials tests | yes |
+| Gateway | `crash`: internal error on a quote | injection and special-character tests | yes |
+| Gateway | `acceptsbad`: request validation off | `*_rejects_invalid_input[...]` | yes |
+| Gateway | `idor`: another owner's pet readable | `test_api1_bola_getPet` | yes |
+| GraphQL (strawberry) | `introspection`, `noalias`, `suggest` | `test_introspection_disabled`, `test_alias_abuse_is_limited`, `test_error_messages_do_not_suggest_schema_names` | yes |
+
+Clean variants: gateway 85 passed, 0 failed, 6 skipped; GraphQL 49 passed, 0 failed, 6 skipped. Not found, listed as gaps and not claimed: the gateway `leak` and `throttle_off` flaws (the leak only shows when a handler raises, and the rate-limit test only judges a 429 when one occurs, so a missing limit is not a failure), and on the GraphQL app `noconstraint` (the schema declares no limits for the generator to test) and `crash` (the injection test does not reach the string field inside the input object). `nokey` on the GraphQL app is found only with `APITEST_GQL_REQUIRES_AUTH=yes`, which confirms the API must reject key-less calls.
+
 #### gRPC shop service (unary; seeded by us) (real local gRPC server through real grpcurl, plus a stand-in grpcurl)
 
 Run by `tests/test_grpc_real.py` (a `grpcio` server in `tests/mock_grpc.py`, grpcurl 1.9.1) and `tests/test_grpc.py` (stand-in `tests/fake_grpcurl.py`). The real-server tests skip when grpcio, grpcio-tools or grpcurl are missing. Third-party gRPC services were not run, and nothing here covers TLS, reflection-only servers or ghz.
@@ -211,6 +225,8 @@ Clean variant: 73 passed, 0 failed, 1 skipped (real server), same counts against
 ### What the evals changed in the skill (found by running, fixed, covered by tests in `tests/test_evals.py`)
 | Finding | Cause | Fix |
 |---|---|---|
+| Every request for `pets(first: Int! = 20)` was rejected by a real GraphQL server | the variable was declared `Int!` but the optional argument was left out | variables for non-null arguments with a default are declared nullable (also in k6) |
+| GraphQL APIs with an API key header could not be tested | the GraphQL intake only knew bearer tokens | `intake.py --api-key-header` |
 | Clean Petstore: later tests got 404 for ids an earlier DELETE test had consumed | alphabetical test order ran destructive tests before smoke/security | generated `conftest.py` runs destructive tests last, BOLA/BFLA probes first among them (a BFLA probe that runs after the account deleted itself sees a 401 and passes by accident: seen on VAmPI `noauthdel`) |
 | `PUT /pet` positive and idempotency tests got 404 | the baseline body had no `id`, so the update targeted nothing | PUT/PATCH baseline bodies include an optional `id` that has a spec example |
 | Repeated create tests failed with 400/409 "already exists" | every create test sends the same baseline body | skipped with a reason (duplicate create), never a verdict; documented in `references/functional.md` |

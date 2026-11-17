@@ -20,7 +20,6 @@ from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call 
     require_destructive, require_flag, retry_after_seconds, skip_if_paced, skip_writes_on_production,
 )
 
-GQL_SEC = [["bearerAuth"]]
 LEAK_RE = re.compile(r"(stacktrace|\bat \S+ \(\S+:\d+:\d+\)|/(app|usr|home|var|srv)/\S+\.(js|py|rb|java|ts)|node_modules)", re.I)
 
 
@@ -56,14 +55,15 @@ class Gql(Api):
     def __init__(self, base_url: str, schemes: dict, path: str = "/graphql"):
         super().__init__(base_url, schemes)
         self.url = os.environ.get("APITEST_GQL_URL") or (self.base_url + path)
+        self.sec = [[next(iter(schemes))]] if schemes else [["bearerAuth"]]   # the one scheme the intake declared (bearer, or an API key header)
 
     def _auth(self, mode: str, who: str) -> dict:
         if mode == "none":
             return {}
         if mode == "invalid":
-            return self.credentials(GQL_SEC, who, invalid=True)[0]
+            return self.credentials(self.sec, who, invalid=True)[0]
         try:
-            return self.credentials(GQL_SEC, who)[0]
+            return self.credentials(self.sec, who)[0]
         except pytest.skip.Exception:
             if mode == "required":
                 raise
