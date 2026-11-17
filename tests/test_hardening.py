@@ -109,3 +109,12 @@ def test_generators_reject_non_intake_files_with_exit_code_2(tmp_path):
     assert p.returncode == 2 and "Traceback" not in p.stderr
     p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(tmp_path / "not_json.json")], capture_output=True, text=True, timeout=60)
     assert p.returncode == 2 and "Traceback" not in p.stderr
+
+
+def test_graphql_integer_literal_over_the_digit_limit_is_a_readable_error(tmp_path):
+    sdl = "type Query { a(n: Int = " + "9" * 5000 + "): Int }\n"
+    f = tmp_path / "huge.graphql"
+    f.write_text(sdl)
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "number too large" in p.stderr, (p.returncode, p.stderr[-500:])
+    assert "Traceback" not in p.stderr

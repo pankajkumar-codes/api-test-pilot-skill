@@ -103,10 +103,11 @@ class Parser:
     # ---- values / types
     def value(self) -> Any:
         k, v = self.next()
-        if k == "int":
-            return int(v)
-        if k == "float":
-            return float(v)
+        if k in ("int", "float"):
+            try:
+                return int(v) if k == "int" else float(v)
+            except ValueError:  # int() refuses more than 4300 digits
+                raise IntakeError("GraphQL parse error: number too large") from None
         if k == "string":
             return v
         if k == "name":
