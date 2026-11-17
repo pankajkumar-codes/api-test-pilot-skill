@@ -1,7 +1,7 @@
 # api-test-pilot-skill
 
 An [Agent Skill](https://agentskills.io/specification) that plans, generates and runs API tests from an OpenAPI spec,
-a GraphQL schema, a Postman collection or curl examples. It writes plain pytest and k6 files you can read, edit and keep.
+a GraphQL schema, a `.proto` file, a Postman collection or curl examples. It writes plain pytest and k6 files you can read, edit and keep.
 
 | Area | What it produces |
 |---|---|
@@ -14,8 +14,8 @@ a GraphQL schema, a Postman collection or curl examples. It writes plain pytest 
 | Chaos | a fault-injection plan, plus runnable experiments (local fault proxies, dependency start/stop commands you supply, malformed and oversized payload bursts) with recovery-time measurement; same safety gate |
 | Reporting | one self-contained HTML report (plus JSON): results per test type, coverage per endpoint, findings ranked by severity, a repro command for each |
 
-Protocols: REST (OpenAPI 3.x and Swagger 2, including specs split over several files, with webhooks and callbacks listed) and GraphQL.
-Scope: **gRPC is planned for v2** (it needs its own toolchain). **Not part of this skill at all:** UI accessibility and mobile app testing
+Protocols: REST (OpenAPI 3.x and Swagger 2, including specs split over several files, with webhooks and callbacks listed) and GraphQL, plus gRPC unary calls (needs the optional `grpcurl` tool; functional, contract and security tests, tested against a real local gRPC server; load tests are planned next).
+Scope: gRPC streaming is not covered. **Not part of this skill at all:** UI accessibility and mobile app testing
 (they are not API testing; accessibility could become a separate skill) and a hosted service (the skill runs in your environment).
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 
@@ -109,11 +109,31 @@ the suite cannot fetch tokens for. Treat a green report as "the checks that ran 
 
 ## Requirements
 
-- Python 3.11 or newer. Intake, generators and the report script use only the standard library (PyYAML is optional).
-- `pytest` and `requests` to run the generated suites: `pip install pytest requests`. Tested with Python 3.11, 3.12 and 3.13,
-  and with the oldest supported versions (pytest 8.0, requests 2.31, PyYAML 6.0) as well as the newest at the time of writing.
-- [k6](https://k6.io/docs/get-started/installation/) only for load, stress, spike and soak runs. Everything else works without it.
-- Generating and reporting work offline. Running tests needs network access to the target API.
+Only Python, `pytest` and `requests` are needed for everything except the features marked below. A tool you do not use is never
+checked: nothing imports it, and the other features run the same whether it is installed or not.
+
+| Tool | Needed for | Install |
+|---|---|---|
+| Python 3.11+ | everything (intake, generators, report use only the standard library) | python.org, or your package manager |
+| `pytest`, `requests` | running any generated suite | `pip install pytest requests` |
+| PyYAML (optional) | faster YAML specs; there is a built-in fallback | `pip install pyyaml` |
+| [k6](https://k6.io) | load, stress, spike and soak runs only | see step 3 below |
+| [grpcurl](https://github.com/fullstorydev/grpcurl) | gRPC tests only (without it they skip and say so) | see step 4 below |
+| [ghz](https://ghz.sh) | gRPC load tests only (planned, not generated yet) | see step 5 below |
+| Docker | only for running a local emulator or demo services yourself | docker.com |
+
+`grpcio` is **not** needed: the gRPC tests call `grpcurl` as a program. Generating and reporting work offline; running tests needs network
+access to the target API. Tested with Python 3.11 to 3.13, and with the oldest supported pytest 8.0, requests 2.31 and PyYAML 6.0.
+
+Step by step:
+1. Install Python 3.11 or newer and check it: `python --version`.
+2. `pip install pytest requests` (add `pyyaml` if you like).
+3. Load tests only: install k6 (macOS `brew install k6`, Windows `winget install k6`, Debian/Ubuntu see the
+   [k6 install guide](https://grafana.com/docs/k6/latest/set-up/install-k6/)). Check: `k6 version`.
+4. gRPC tests only: install grpcurl (macOS `brew install grpcurl`, Go `go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest`,
+   or a binary from the [releases page](https://github.com/fullstorydev/grpcurl/releases)). Check: `grpcurl -version`. If it is not on
+   `PATH`, set `APITEST_GRPCURL=/path/to/grpcurl`.
+5. gRPC load tests only (when they arrive): install ghz (`brew install ghz` or a binary from the [releases page](https://github.com/bojand/ghz/releases)).
 
 ## Install
 
@@ -323,7 +343,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (577 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about four minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (595 pass and 24 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about four minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached

@@ -287,6 +287,9 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
     if (doc.get("source") or {}).get("type") == "graphql":
         import gen_graphql
         return gen_graphql.generate(doc, out, types, base_url_override)
+    if (doc.get("source") or {}).get("type") == "grpc":
+        import gen_grpc
+        return gen_grpc.generate(doc, out, types, base_url_override)
     base_url = default_base_url(doc, base_url_override)
     chosen = [t for t in REST_TYPES if t not in OPT_IN_TYPES] if types == ["all"] else types
     unknown = [t for t in chosen if t not in REST_TYPES]

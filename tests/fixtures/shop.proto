@@ -1,0 +1,75 @@
+// Mock service used to validate the gRPC generators.
+syntax = "proto3";
+
+package shop.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+option java_package = "test.shop";
+
+/* A pet shop. */
+service PetService {
+  // Fetch one pet.
+  rpc GetPet(GetPetRequest) returns (Pet);
+  rpc ListPets(ListPetsRequest) returns (ListPetsResponse) {
+    option deprecated = false;
+  }
+  rpc CreatePet(CreatePetRequest) returns (Pet);
+  rpc DeletePet(DeletePetRequest) returns (common.Ack);
+  rpc WatchPets(ListPetsRequest) returns (stream Pet);
+}
+
+enum Species {
+  SPECIES_UNSPECIFIED = 0;
+  DOG = 1;
+  CAT = 2;
+  BIRD = 3;
+}
+
+message GetPetRequest { string id = 1; }
+
+message ListPetsRequest {
+  int32 page_size = 1;
+  string page_token = 2;
+  string search = 3;
+}
+
+message ListPetsResponse {
+  repeated Pet pets = 1;
+  string next_page_token = 2;
+}
+
+message CreatePetRequest {
+  string name = 1;
+  string tag = 2 [deprecated = false];
+  Species species = 3;
+  Dimensions size = 4;
+  map<string, string> labels = 5;
+  oneof contact {
+    string email = 6;
+    string phone = 7;
+  }
+}
+
+message Dimensions {
+  float weight_kg = 1;
+  int64 length_mm = 2;
+  message Unit { string name = 1; }
+  Unit unit = 3;
+}
+
+message DeletePetRequest { string id = 1; }
+
+message Pet {
+  string id = 1;
+  string name = 2;
+  string tag = 3;
+  Species species = 4;
+  Dimensions size = 5;
+  google.protobuf.Timestamp created_at = 6;
+  repeated string toys = 7;
+  bool vaccinated = 8;
+  bytes photo = 9;
+  uint64 owner_id = 10;
+}
