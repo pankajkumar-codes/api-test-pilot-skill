@@ -85,7 +85,8 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Review nits from PR #8 and #11 (PR #15)
 - [x] Unique create bodies: run tag on unique-looking fields of baseline creates (`APITEST_UNIQUE_BODIES`, `APITEST_RUN_ID`)
 - [x] Mass-assignment read-back (done where the spec has a read endpoint; the VAmPI register gap remains, see DECISIONS 2026-11-17)
-- [ ] Intake gaps: multi-file specs, OpenAPI callbacks/webhooks
+- [x] Intake gap: multi-file specs
+- [ ] Intake gap: OpenAPI callbacks/webhooks
 - [ ] GraphQL parity: fuzzing, contract, integration, data-validation, resilience
 - [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`
 - [ ] Login success-path tests with real credentials from env vars

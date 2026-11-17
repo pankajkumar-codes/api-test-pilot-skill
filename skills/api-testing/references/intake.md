@@ -3,8 +3,10 @@
 All parsers (`parse_openapi.py`, `parse_postman.py`, `parse_curl.py`, dispatcher `intake.py`) emit the
 same shape, so planning and generators never care about the input format. Python 3.11+, stdlib only;
 YAML uses PyYAML when installed, otherwise a built-in subset reader (no anchors/aliases: it errors and
-tells the user to install PyYAML or convert to JSON). Parsers are offline: remote URLs and external
-`$ref`s are never fetched.
+tells the user to install PyYAML or convert to JSON). Parsers are offline: remote URLs are never fetched.
+An OpenAPI spec split over several files works: relative file `$ref`s (`./schemas/pet.yaml#/Pet`, a path item in its own file,
+a ref back to the root file) are read from disk. Only `.yaml`, `.yml` and `.json` files inside the root spec's folder (and below it) are read, at most 50 files of 5 MB each. The trust boundary is that folder: any such file there that a `$ref` names is loaded, so keep unrelated config out of it. A spec without file refs is parsed as before;
+absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it, other file types, unreadable or deeply nested files are skipped with a warning that does not quote the file. A spec that uses the top-level key `x-apitest-bundled` is refused.
 
 ```
 {

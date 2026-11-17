@@ -347,8 +347,154 @@ def parse(doc: Any, filename: str = "") -> dict:
     }
 
 
+MAX_FILES = 50
+MAX_FILE_BYTES = 5_000_000
+BUNDLE_KEY = "x-apitest-bundled"
+FILE_SUFFIXES = (".yaml", ".yml", ".json")
+VALUE_KEYS = ("example", "examples", "enum", "default", "const")   # data, not schema: a "$ref" string in there is just text
+# Maps whose keys are names the author chose (a property called `default`, a response code `default`), so a key
+# in there is never a keyword and its value is always walked.
+NAME_MAPS = frozenset({"properties", "patternProperties", "definitions", "$defs", "schemas", "responses", "parameters", "headers",
+                       "requestBodies", "callbacks", "links", "securitySchemes", "content", "paths", "webhooks", "pathItems"})
+
+
+def _has_file_ref(doc: Any) -> bool:
+    """True when a `$ref` anywhere points at another file. Walks each node once (YAML aliases share nodes), so it stays cheap."""
+    seen: set[tuple[int, bool]] = set()
+    todo: list[tuple[Any, bool]] = [(doc, False)]
+    while todo:
+        node, names = todo.pop()
+        if isinstance(node, (dict, list)):
+            if (id(node), names) in seen:
+                continue
+            seen.add((id(node), names))
+            if isinstance(node, dict):
+                ref = node.get("$ref")
+                if not names and isinstance(ref, str) and not ref.startswith("#"):
+                    return True
+                todo.extend((v, not names and k in NAME_MAPS) for k, v in node.items() if names or k not in VALUE_KEYS)
+            else:
+                todo.extend((v, False) for v in node)
+    return False
+
+
+class _Bundler:
+    """Copy the files a spec points at with relative `$ref`s into the root document, so the resolver only sees local refs.
+    Only .yaml, .yml and .json files inside the root spec's folder are read: an absolute path, a `..` that leaves the folder,
+    a symlink out of it and any URL are refused with a warning. Local refs inside a copied file are re-pointed at its copy."""
+
+    def __init__(self, root_file: Path, warnings: list[str]):
+        self.base = root_file.resolve().parent
+        self.root_file = root_file.resolve()
+        self.warnings = warnings
+        self.slots: dict[Path, str] = {}
+        self.copies: dict[str, Any] = {}
+
+    def _slot(self, target: Path) -> str | None:
+        if target in self.slots:
+            return self.slots[target]
+        if len(self.slots) >= MAX_FILES:
+            self._warn(f"more than {MAX_FILES} referenced files: the rest are not loaded")
+            return None
+        try:
+            if target.stat().st_size > MAX_FILE_BYTES:
+                self._warn(f"referenced file is larger than {MAX_FILE_BYTES // 1_000_000} MB, not loaded: {target.name}")
+                return None
+            doc = load_document(target)
+        except IntakeError:   # the parser's message can quote the file, so it is left out
+            self._warn(f"referenced file is not valid JSON or YAML, not loaded: {target.name}")
+            return None
+        except (OSError, RecursionError, ValueError) as exc:
+            self._warn(f"referenced file could not be read ({target.name}): {getattr(exc, 'strerror', None) or type(exc).__name__}")
+            return None
+        slot = f"f{len(self.slots) + 1}"
+        self.slots[target] = slot
+        self.copies[slot] = doc          # in place first, so a ref cycle between files ends here
+        try:
+            self.copies[slot] = self.walk(doc, target, {})
+        except RecursionError:
+            self._warn(f"referenced file is nested too deeply, not loaded: {target.name}")
+            del self.slots[target], self.copies[slot]
+            return None
+        return slot
+
+    def _warn(self, msg: str) -> None:
+        if msg not in self.warnings:
+            self.warnings.append(msg)
+
+    def rewrite(self, ref: str, current: Path) -> str:
+        if ref.startswith("#"):
+            slot = self.slots.get(current)
+            return f"#/{BUNDLE_KEY}/{slot}{ref[1:]}" if slot else ref
+        file_part, _, frag = ref.partition("#")
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", file_part) or file_part.startswith(("/", "\\")):
+            self._warn(f"External $ref not resolved (offline, only relative files are read): {ref[:100]}")
+            return ref
+        try:
+            target = (current.parent / file_part).resolve()
+            inside, is_file = target.is_relative_to(self.base), target.is_file()
+        except (ValueError, OSError):   # a NUL byte or a name the file system rejects
+            self._warn(f"$ref is not a usable file name and was not loaded: {ref[:100]!r}")
+            return ref
+        if not inside:
+            self._warn(f"$ref points outside the spec folder and was not loaded: {ref[:100]}")
+            return ref
+        if not is_file:
+            self._warn(f"$ref file not found: {ref[:100]}")
+            return ref
+        if target.suffix.lower() not in FILE_SUFFIXES:
+            self._warn(f"$ref is not a .yaml, .yml or .json file and was not loaded: {ref[:100]}")
+            return ref
+        if target == self.root_file:
+            return "#" + frag
+        slot = self._slot(target)
+        return ref if slot is None else f"#/{BUNDLE_KEY}/{slot}{frag}"
+
+    def walk(self, node: Any, current: Path, memo: dict[tuple[int, bool], Any], names: bool = False) -> Any:
+        """Copy with refs rewritten. `memo` keeps YAML aliases shared instead of expanding them into copies.
+        `names` is true for a map of author-chosen names (see NAME_MAPS), where no key is a keyword."""
+        if not isinstance(node, (dict, list)):
+            return node
+        if (id(node), names) in memo:
+            return memo[(id(node), names)]
+        if isinstance(node, dict):
+            out: Any = {}
+            memo[(id(node), names)] = out
+            for k, v in node.items():
+                if not names and k == "$ref" and isinstance(v, str):
+                    out[k] = self.rewrite(v, current)
+                elif not names and k in VALUE_KEYS:
+                    out[k] = v
+                else:
+                    out[k] = self.walk(v, current, memo, not names and k in NAME_MAPS)
+            return out
+        out = []
+        memo[(id(node), names)] = out
+        out.extend(self.walk(v, current, memo) for v in node)
+        return out
+
+
+def bundle(doc: Any, path: str) -> tuple[Any, list[str]]:
+    """Inline relative file refs of a spec read from `path`. Returns the document and any warnings.
+    A spec without a file ref is returned untouched."""
+    warnings: list[str] = []
+    if not isinstance(doc, dict) or not _has_file_ref(doc):
+        return doc, warnings
+    if BUNDLE_KEY in doc:
+        raise IntakeError(f"The spec already uses the top-level key '{BUNDLE_KEY}', which the file bundling needs. Rename it.")
+    b = _Bundler(Path(path), warnings)
+    b.slots[b.root_file] = ""
+    out = b.walk(doc, b.root_file, {})
+    if b.copies:
+        out[BUNDLE_KEY] = b.copies
+    return out, warnings
+
+
 def build(path: str) -> dict:
-    return parse(load_document(path), path)
+    doc, bundle_warnings = bundle(load_document(path), path)
+    out = parse(doc, path)
+    out["warnings"] = bundle_warnings + out["warnings"]
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:

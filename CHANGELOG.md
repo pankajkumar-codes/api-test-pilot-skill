@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (multi-file specs, 2026-11-17)
+- OpenAPI specs split over several files are read: relative file `$ref`s to schemas, path items and parameters, and refs between the files, are resolved offline. Only `.yaml`, `.yml` and `.json` files inside the spec's folder are read (at most 50 files of 5 MB each). Absolute paths, URLs, `..` escapes, symlinks pointing out of the folder, unreadable or over-nested files are skipped with a warning. YAML aliases stay shared, so an alias-heavy spec does not blow up, and a spec without file refs is parsed exactly as before.
+
 ### Added (mass-assignment read-back, 2026-11-17)
 - The API3 mass-assignment probe reads the created record back when the spec has a matching read endpoint, and fails if an injected privileged field (`is_admin`, `role`, ...) was stored even though the create response did not echo it. The probe record is removed afterwards when the spec has a delete endpoint. The probe body now gets the same run tag as other create bodies.
 - When no id can be taken from the create response, the read-back skips with a reason. Still not covered: creates whose read endpoint sits under another path or documents no such field (the VAmPI register case), and nested resources.
