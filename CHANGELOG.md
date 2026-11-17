@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GraphQL integration flows, 2026-11-17)
+- `--types integration` now works for GraphQL (and is part of `all`): per object type with a create, a read by id and a delete mutation, one flow runs create -> read -> list -> update -> read -> delete -> read (gone). It uses only the object it creates, cleans it up even when a step fails, and skips writes on production. A schema with no such type gets a generator note.
+- Fuzz follow-ups: `huge_whitespace` and `long_name` cases respect the byte limit, the opt-in test asserts the `deletePet` entry directly, and a test shows an unconfirmed remote target is refused before any request.
+- The GraphQL mock gains an `updatePet` mutation and two seeded flaws (`stale`: an update that is not stored, `undeleted`: a delete that does nothing). The GraphQL clean variant now runs 72 tests, and a clean run of the whole suite is 549 pass and 18 skip.
+
 ### Added (GraphQL fuzz tests, 2026-11-17)
 - `--types fuzz` now works for GraphQL (opt-in, intrusive, not part of `all`): one seeded, bounded test per query and mutation sends hostile variable values, missing and extra variables, malformed envelopes, damaged query text and other content types, and reports 5xx, hangs, stack traces and slow answers. The REST fuzzer's send-and-judge loop moved into a shared `run_cases`. `delete*` mutations also need `APITEST_ALLOW_DESTRUCTIVE`.
 - Documented: an `Int` answered as `1.0` fails the contract check.

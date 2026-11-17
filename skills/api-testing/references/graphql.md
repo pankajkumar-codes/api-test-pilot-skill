@@ -32,6 +32,13 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
   variable type (Int<-string, enum<-unknown value, input<-string...). Anonymous access is checked only when you set `APITEST_GQL_REQUIRES_AUTH=yes`.
 - **edge** (queries): unicode, empty, special characters and 100k-char strings; 0/-1/int32 max/overflow numbers; huge page sizes; explicit `null` vs omitted; empty lists; lowercase enum values. Must be handled, never 5xx.
 
+## Integration flows
+`integration` (part of `all`) writes `test_graphql_integration.py`: one lifecycle test per object type that has an `id`, a `create*`/`add*`/`new*`/`register*` mutation, a query that reads it by id and a `delete*`/`remove*`/`destroy*` mutation
+(the delete name must end with the type name, so `deletePet` pairs with `Pet`). The flow is create -> read -> list (when a list query without required arguments exists) -> update (an `update*`/`edit*`/`modify*`/`patch*`/`set*` mutation with an `ID` argument and a String field the type also returns) -> read -> delete -> read (must be gone or an error).
+It only touches the object it creates, so it needs no `APITEST_GQL_<ARG>` ids and no `APITEST_ALLOW_DESTRUCTIVE`; the object is deleted at the end even when a step fails. Writes are skipped on production targets.
+String fields that the type also returns are tagged with a run id and compared after the read. Findings are MEDIUM: not readable after create, missing from the list (checked only when fewer than 50 items come back), old value after an update, still readable after a delete.
+A schema with no such type gets a generator note instead of a test. Flows across unrelated types are not derived: write them by hand.
+
 ## Fuzz tests
 `--types fuzz` (opt-in, never part of `all`, `intrusive`: non-production and authorized targets only) writes `test_graphql_fuzz.py`, one test per query and mutation. Subscriptions are skipped.
 Payloads travel as variables: wrong types, boundary numbers, long and unicode strings, injection strings, missing and extra variables, plus malformed envelopes, damaged query text and other content types.

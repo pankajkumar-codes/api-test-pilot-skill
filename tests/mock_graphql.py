@@ -1,6 +1,6 @@
 """Local mock GraphQL server for validating generated suites (stdlib only; reuses parse_graphql's lexer/SDL parser).
 
-Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape
+Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape stale undeleted
 """
 from __future__ import annotations
 
@@ -183,12 +183,24 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                     nxt[0] += 1
                     pets[pid] = {"id": pid, "name": inp["name"], "tag": inp.get("tag"), "species": inp.get("species", "DOG"), "owner": ctx.uid}
                 return pets[pid]
+            if fname == "updatePet":
+                p = pets.get(int(args["id"])) if str(args["id"]).isdigit() else None
+                if not p or p["owner"] != ctx.uid:
+                    ctx.err("Not found", path)
+                    return None
+                inp = args["input"]
+                if "name" in inp and not 1 <= len(inp["name"]) <= 50:
+                    raise GqlError("name must be 1..50 characters")
+                if "stale" not in bugs:
+                    p.update({k: v for k, v in inp.items() if k in ("name", "tag", "species")})
+                return p
             if fname == "deletePet":
                 p = pets.get(int(args["id"])) if str(args["id"]).isdigit() else None
                 if not p or p["owner"] != ctx.uid:
                     ctx.err("Not found", path)
                     return False
-                del pets[p["id"]]
+                if "undeleted" not in bugs:
+                    del pets[p["id"]]
                 return True
         if tname == "Pet":
             if "badshape" in bugs and fname in ("name", "species"):

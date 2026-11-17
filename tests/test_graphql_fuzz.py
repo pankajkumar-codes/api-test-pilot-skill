@@ -35,7 +35,7 @@ def test_fuzz_is_opt_in_and_ships_its_runtime(doc, suite, tmp_path):
         assert (suite / name).exists()
     text = (suite / "test_graphql_fuzz.py").read_text()
     assert "@pytest.mark.intrusive" in text and "FUZZ_OPS" in text and "Rerun" in text
-    assert "'deletePet': {'optional': [], 'destructive': True}" in text.replace('"', "'") or "destructive" in text
+    assert "'mutation.deletePet': {'optional': [], 'destructive': True}" in text
 
 
 def test_clean_server_passes(suite):
@@ -87,3 +87,9 @@ def test_production_targets_are_refused(suite):
     with gql_server() as url:
         results, _ = run_suite(suite, url, {**FUZZ_ENV, "APITEST_TARGET_ENV": "production"})
     assert results and {v[0] for v in results.values()} == {"skipped"}
+
+
+def test_an_unconfirmed_remote_target_is_refused_before_any_request(suite):
+    results, _ = run_suite(suite, "http://203.0.113.7:9", FUZZ_ENV)
+    assert results and {v[0] for v in results.values()} == {"skipped"}
+    assert all("non-production" in v[1] or "safety gate" in v[1] for v in results.values())
