@@ -20,6 +20,9 @@ First release candidate, built in phases (see PLAN.md).
 - Reports and repro lines show a gRPC call as an HTTP-shaped exchange with the auth header redacted. Streaming methods are listed and skipped.
 - Tested two ways with seeded flaws (missing auth, invalid input accepted, open reflection, wrong response shape, server fault on injection, leaked internals): against a stand-in `grpcurl` (always runs), and against a real `grpcio` server through real grpcurl 1.9.1 (`tests/test_grpc_real.py`, skipped unless grpcio, grpcio-tools and grpcurl are installed). Clean run: 73 tests pass, and every seeded flaw is found. Load tests through `ghz` come next. Hostile `.proto` files (non-integer or out-of-range field numbers, very deep nesting including `oneof`, non-UTF-8 bytes) end in a one-line error. A clean run of the whole suite is now 591 pass and 24 skip.
 
+### Fixed (issue 28, 2026-11-17)
+- A GraphQL SDL number literal that is too large (an integer over Python's 4300-digit limit, or a float such as `1e999` that overflows to infinity) now stops intake with `GraphQL parse error: number too large` (exit code 2) instead of a traceback or an invalid `Infinity` in the JSON.
+
 ### Added (GraphQL resilience tests, 2026-11-17)
 - `--types resilience` now works for GraphQL (and is part of `all`), so every pytest type is available for GraphQL. Repeatable reads, a response budget, page-size and cursor handling for list queries, an `intrusive` rate-limit burst (a 429 needs a valid `Retry-After`) and a repeated delete of an object the test created itself.
 - The GraphQL fuzzer skips the `long_name` case when the byte limit leaves no room for it, instead of always repeating the name twice.

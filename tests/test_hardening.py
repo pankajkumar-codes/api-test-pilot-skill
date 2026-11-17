@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import requests
 
 import gen_pytest
@@ -109,3 +110,34 @@ def test_generators_reject_non_intake_files_with_exit_code_2(tmp_path):
     assert p.returncode == 2 and "Traceback" not in p.stderr
     p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(tmp_path / "not_json.json")], capture_output=True, text=True, timeout=60)
     assert p.returncode == 2 and "Traceback" not in p.stderr
+
+
+@pytest.mark.parametrize("literal", ["9" * 5000, "-" + "9" * 5000, "1e999", "-1e999", "1" + "0" * 400 + ".5", "1.5e99999", "9" * 5000 + ".0"])
+def test_graphql_number_literal_that_is_too_large_is_a_readable_error(tmp_path, literal):
+    f = tmp_path / "huge.graphql"
+    f.write_text("type Query { a(n: Float = " + literal + "): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "number too large" in p.stderr, (literal[:20], p.returncode, p.stderr[-500:])
+    assert "Traceback" not in p.stderr
+
+
+@pytest.mark.parametrize("default", ["[1, 1e999]", "{a: 1e999}", "[{a: [-1e999]}]"])
+def test_graphql_overflowing_float_nested_in_a_default_is_refused(tmp_path, default):
+    f = tmp_path / "nested.graphql"
+    f.write_text("type Query { a(n: [Float] = " + default + "): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "number too large" in p.stderr, (default, p.returncode, p.stderr[-500:])
+
+
+def test_graphql_constraint_limit_that_overflows_is_ignored_not_fatal(tmp_path):
+    f = tmp_path / "limit.graphql"
+    f.write_text("input In { m: Int @constraint(min: 1e999, max: 5) }\ntype Query { a(i: In): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr[-500:]
+
+
+def test_graphql_ordinary_numbers_still_parse(tmp_path):
+    f = tmp_path / "ok.graphql"
+    f.write_text("type Query { a(n: Float = 1.5e3, m: Int = -7): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr[-500:]
