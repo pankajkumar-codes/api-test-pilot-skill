@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GraphQL fuzz tests, 2026-11-17)
+- `--types fuzz` now works for GraphQL (opt-in, intrusive, not part of `all`): one seeded, bounded test per query and mutation sends hostile variable values, missing and extra variables, malformed envelopes, damaged query text and other content types, and reports 5xx, hangs, stack traces and slow answers. The REST fuzzer's send-and-judge loop moved into a shared `run_cases`. `delete*` mutations also need `APITEST_ALLOW_DESTRUCTIVE`.
+- Documented: an `Int` answered as `1.0` fails the contract check.
+
 ### Added (GraphQL contract tests, 2026-11-17)
 - `--types contract` now works for GraphQL (and is part of `all`): each query that returns an object is run with its default selection and the answer is checked against the schema: selected fields present, scalar JSON types, enum values, nulls only where the type allows them, list types as arrays, nested lists (`[[Item!]!]!`) level by level. Mismatches are MEDIUM findings. The generated `operations.py` carries the type table the check needs.
 - A tenth seeded GraphQL flaw (`badshape`: a number for a String, an enum value the schema lacks) joins the eval table: 27 of 28 seeded flaws are now found (the gap is still VAmPI mass assignment), and the GraphQL clean variant runs 66 tests.

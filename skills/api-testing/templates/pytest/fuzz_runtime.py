@@ -302,6 +302,13 @@ def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
     cases = build_cases(ep, spec, cfg)
     if not cases:
         pytest.skip("nothing to fuzz on this endpoint (no body, query or path parameters)")
+    run_cases(f"{ep.method} {ep.path}", cases, lambda case: api.send(ep, timeout=min(api.timeout, 10.0), transient="raise", **case["send"]),
+              cfg)
+
+
+def run_cases(title: str, cases: list[dict], send: Any, cfg: Config, extra_judge: Any = None) -> None:
+    """Send each case through `send(case)` (which must raise requests exceptions untouched), judge the answers and fail with
+    a ranked list of findings. Shared by REST and GraphQL fuzzing."""
     findings: list[dict] = []
     seen: set[tuple] = set()
     sent = 0
@@ -309,7 +316,7 @@ def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
         _pace(cfg)
         sent += 1
         try:
-            resp = api.send(ep, timeout=min(api.timeout, 10.0), transient="raise", **case["send"])
+            resp = send(case)
         except requests.exceptions.Timeout as exc:
             findings.append({"kind": "timeout", "sev": "MEDIUM", "case": case["label"], "msg": "request hung or timed out",
                              "repro": _repro(exc)})
@@ -320,7 +327,8 @@ def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
             continue
         except (requests.exceptions.RequestException, UnicodeError, ValueError, TypeError):
             continue  # the client library wouldn't build the request; not a server problem
-        for kind, sev, msg in judge(resp, cfg):
+        verdicts = judge(resp, cfg) + (extra_judge(resp) if extra_judge else [])
+        for kind, sev, msg in verdicts:
             key = (kind, resp.status_code, case["label"].split("=")[0])
             if key in seen:
                 continue
@@ -329,7 +337,7 @@ def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
     if findings:
         order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2}
         findings.sort(key=lambda f: order.get(f["sev"], 3))
-        lines = [f"fuzzing {ep.method} {ep.path}: {len(findings)} finding(s) in {sent} request(s) "
+        lines = [f"fuzzing {title}: {len(findings)} finding(s) in {sent} request(s) "
                  f"(seed={cfg.seed}; rerun with the same APITEST_FUZZ_SEED to resend the same requests)"]
         for f in findings[:MAX_FINDINGS_SHOWN]:
             lines.append(f"  [{f['sev']}] {f['msg']} -- case {f['case']}")

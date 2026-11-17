@@ -717,15 +717,13 @@ def fuzz_suite(tmp_path_factory, rest_doc):
 FUZZ_ENV = {**REST_ENV, "APITEST_FUZZ_RPS": "20", "APITEST_FUZZ_CASES": "80", "APITEST_TIMEOUT": "1", "APITEST_FUZZ_SLOW_MS": "1500"}
 
 
-def test_fuzz_is_opt_in_and_graphql_is_refused_cleanly(rest_doc, gql_doc, tmp_path):
+def test_fuzz_is_opt_in(rest_doc, tmp_path):
     res = gen_pytest.generate(rest_doc, tmp_path / "all", ["all"])
     assert "fuzz" not in res["counts"] and not (tmp_path / "all" / "fuzz_runtime.py").exists()
     res = gen_pytest.generate(rest_doc, tmp_path / "f", ["fuzz"])
     assert res["counts"] == {"fuzz": 1} and (tmp_path / "f" / "fuzz_runtime.py").exists()
     assert "@pytest.mark.intrusive" in (tmp_path / "f" / "test_fuzz.py").read_text()
     assert "Rerun" in (tmp_path / "f" / "test_fuzz.py").read_text()
-    with pytest.raises(IntakeError, match="Not available for GraphQL"):
-        gen_pytest.generate(gql_doc, tmp_path / "g", ["fuzz"])
 
 
 def test_fuzz_cases_are_deterministic_bounded_and_varied(fuzz_suite, monkeypatch):

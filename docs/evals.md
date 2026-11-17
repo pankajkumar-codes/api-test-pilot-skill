@@ -67,7 +67,7 @@ Who ran what (PR 3): the PR 3 reviewer did **not** run k6 (no binary in the revi
 
 Not verified: k6 against the `eval-apis.md` targets and any real network (Phase 5); k6 other than v1.3.0 on Linux x86-64; runs longer than a few
 minutes (the full-length shapes were checked by construction and by the `--quick` shapes, not run end to end); chaos experiments against real third-party targets (see the Phase 8 section for the local run);
-GraphQL fuzzing (not built); WebSocket/gRPC load.
+GraphQL fuzzing is checked against the mock only (seeded `crash` and `verbose` flaws, 40 cases per operation), not a real server; WebSocket/gRPC load.
 
 ## Phase 4: reporting on real pytest and k6 output (2026-11-12)
 

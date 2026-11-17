@@ -13,7 +13,8 @@ from pathlib import Path
 import _common
 from gen_common import Expr, Module, ident, py
 
-GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract")
+GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "fuzz")
+OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
 INJECTION = ["' OR '1'='1", "1; SELECT 1", '{"$ne": null}', "$(id)", "../../../../etc/passwd", "<script>apitest</script>", "{{7*7}}"]
@@ -379,6 +380,22 @@ def contract(sc: Schema, mod: Module) -> None:
                 f"    gr.expect_shape(resp, value, {op['returns']!r}, op.selection, TYPES, ENUMS, KINDS)\n")
 
 
+def fuzz(sc: Schema, mod: Module) -> list[str]:
+    """One intrusive, seeded and bounded fuzz test per operation (subscriptions are skipped: they need a websocket)."""
+    table: dict[str, dict] = {}
+    for op in sc.ops:
+        if op["kind"] == "subscription":
+            continue
+        table[op["id"]] = {"optional": [a["name"] for a in op["args"] if not a["required"]],
+                           "destructive": op["kind"] == "mutation" and bool(DESTRUCTIVE_RE.match(op["name"]))}
+    if not table:
+        return ["graphql fuzz: the schema has no query or mutation to fuzz"]
+    mod.add(f"FUZZ_OPS = {py(table)}\n", is_test=False)
+    mod.add("@pytest.mark.intrusive\n@pytest.mark.parametrize(\"op_id\", list(FUZZ_OPS))\n"
+            "def test_fuzz_operation(gql, op_id):\n    gfz.fuzz_operation(gql, OPS[op_id], FUZZ_OPS[op_id])\n")
+    return []
+
+
 MODULES = {
     "smoke": ("test_graphql_smoke.py", "GraphQL smoke tests", smoke),
     "positive": ("test_graphql_positive.py", "GraphQL positive tests", positive),
@@ -386,15 +403,16 @@ MODULES = {
     "edge": ("test_graphql_edge.py", "GraphQL edge-case tests", edge),
     "security": ("test_graphql_security.py", "GraphQL security tests (OWASP API Top 10)", security),
     "contract": ("test_graphql_contract.py", "GraphQL contract tests (the answer matches the schema)", contract),
+    "fuzz": ("test_graphql_fuzz.py", "GraphQL fuzz tests (opt-in, intrusive: non-production targets only)", fuzz),
 }
 
 
 def generate(doc: dict, out: Path, types: list[str], base_url_override: str | None = None) -> dict:
     import gen_pytest as gp
-    chosen = list(GQL_TYPES) if types == ["all"] else types
+    chosen = [t for t in GQL_TYPES if t not in OPT_IN] if types == ["all"] else types
     unsupported = [t for t in chosen if t not in GQL_TYPES]
     if unsupported:
-        raise _common.IntakeError(f"GraphQL suites support: {', '.join(GQL_TYPES)}, all. Not available for GraphQL yet: {', '.join(unsupported)}")
+        raise _common.IntakeError(f"GraphQL suites support: {', '.join(GQL_TYPES)} (fuzz is opt-in), all. Not available for GraphQL yet: {', '.join(unsupported)}")
     sc = Schema(doc)
     base_url = gp.default_base_url(doc, base_url_override)
     out.mkdir(parents=True, exist_ok=True)
@@ -414,6 +432,9 @@ def gql(base_url):
     }
     notes: list[str] = list(doc.get("warnings", [])[:0])
     counts: dict[str, int] = {}
+    if "fuzz" in chosen:
+        for name in ("fuzz_runtime.py", "gql_fuzz.py"):
+            files[name] = (gp.SKILL_DIR / "templates" / "pytest" / name).read_text(encoding="utf-8")
     for t in chosen:
         fname, title, fn = MODULES[t]
         mod = Module(title, t, rerun)
@@ -421,7 +442,8 @@ def gql(base_url):
         if isinstance(extra, list):
             notes += extra
         if mod.tests:
-            files[fname] = mod.render("import gql_runtime as gr  # noqa: F401\nfrom operations import ENUMS, KINDS, OPS, TYPES  # noqa: F401\n").replace(
+            head = "import gql_fuzz as gfz  # noqa: F401\n" if t == "fuzz" else ""
+            files[fname] = mod.render(head + "import gql_runtime as gr  # noqa: F401\nfrom operations import ENUMS, KINDS, OPS, TYPES  # noqa: F401\n").replace(
                 "from endpoints import EP\n", "")
             counts[t] = mod.tests
     for name, src in files.items():

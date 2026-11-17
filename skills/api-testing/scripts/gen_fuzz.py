@@ -35,6 +35,6 @@ def test_fuzz(api, ep_id):
     """Seeded, bounded fuzzing of one endpoint: no 5xx, hangs, crashes, leaks or header injection."""
     fz.fuzz_endpoint(api, EP[ep_id], FUZZ_SPECS[ep_id])
 ''')
-    notes.append("fuzz: GraphQL schemas are not fuzzed in v1 (use the GraphQL security checks); fuzz runs are bounded by "
+    notes.append("fuzz runs are bounded by "
                  "APITEST_FUZZ_CASES / APITEST_FUZZ_RPS / APITEST_FUZZ_MAX_REQUESTS and need the intrusive safety gate")
     return notes
