@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Checked (chaos rerun on the fixed demo, 2026-11-17)
+- Chaos rerun against spring-boot-demo main 0acc5b5 (JDBC socket timeout fix) on a local PostgreSQL 16, with the skill at f790ae6: proxy-latency, proxy-5xx, proxy-drop, payload, dep-outage and dep-slow, 16 checks, 16 passed, 0 failed. `dep-slow` (database frozen with SIGSTOP for 6 s): requests during the freeze failed with p95 4.0 s and the API recovered 0.8 s after SIGCONT; `dep-outage` recovered in 3.2 s. The earlier MEDIUM finding is gone. `dep-blackhole` was not rerun, the example report was not regenerated, and capacity was not measured.
+
 ### Fixed (rate-limit burst setting, 2026-11-17)
 - `APITEST_RATE_BURST` is read through one runtime helper. A value that is not a whole number from 1 to 1000 now fails the test with one clear message instead of a `ValueError` traceback in the generated suite. An unset value still uses the per-test default.
 - The four review notes from the chaos and sample-value PR were already fixed in the 2026-11-14 batch below; nothing was left open there.
@@ -89,7 +92,7 @@ First release candidate, built in phases (see PLAN.md).
 - `chaos_run.py`: a second signal during cleanup no longer skips writing the results; the run still exits 4. `references/chaos.md` reworded.
 
 ### Changed (demo fix, 2026-11-14)
-- Docs: the chaos `dep-slow` finding is fixed in spring-boot-demo (PR #5, JDBC socket timeout, 503 in 2 to 3 s); README and `docs/evals.md` say so. The chaos suite and report are not rerun yet.
+- Docs: the chaos `dep-slow` finding is fixed in spring-boot-demo (PR #5, JDBC socket timeout, 503 in 2 to 3 s); README and `docs/evals.md` say so. The chaos suite was rerun on 2026-11-17, see below.
 
 ### Changed (naming and README audit, 2026-11-14)
 - Plugin, marketplace and display name are now `api-test-pilot-skill` / "API Test Pilot Skill" (README, plugin.json, marketplace.json, listing copy, release checklist). The k6 template header is `X-Load-Test: api-test-pilot-skill` and its user agent `api-test-pilot-skill-k6`. The skill folder stays `api-testing`.
