@@ -157,7 +157,7 @@ Clean variant: 326 passed, 0 failed, 7 skipped
 | `noauthdel`: non-admin can delete users | API5 (BFLA) | `test_api5_bfla_.*delete_user` | yes | `test_security::test_api5_bfla_api_views_users_delete_user` |
 
 Known gaps (flaw not detected today):
-- `mass`: the register response does not echo the stored fields and no documented read endpoint exposes `admin`; the skill checks the write response only (no read-back of the created record)
+- `mass`: the register response does not echo the stored fields and no documented read endpoint exposes `admin`; the read-back check has nothing to read, because registered users are not a create/read resource in the spec
 
 Clean variant: 230 passed, 1 failed, 12 skipped
 - known limitation, fails on the clean target: `test_api_views_users_login_user_response_contract` (login needs real credentials; the suite never sends spec-example passwords, so its success-path contract check gets a 400)
@@ -209,8 +209,9 @@ Not changed on purpose: positive/contract tests for login endpoints need real cr
 so the success-path contract test of a login endpoint fails on a target that is otherwise clean (listed as a known limitation of the VAmPI clean variant).
 
 ### Known gaps and not verified
-- **VAmPI mass assignment is not found.** The generated test checks the write response only; VAmPI-style APIs answer a register call with a message and expose the
-  stored `admin` flag nowhere the spec documents. Detecting it needs a read-back of the created record, which is not built (candidate for v1.1).
+- **VAmPI mass assignment is not found.** VAmPI-style APIs answer a register call with a message and expose the
+  stored `admin` flag nowhere the spec documents. The read-back check (see below) only runs where the spec has a create and a read endpoint for the same
+  resource, so it does not reach this case; it was run against the VAmPI mock and still reports a miss.
 - The Petstore and VAmPI mocks follow the *documents*, not necessarily the real servers (for example the document declares `GET /books/v1/{title}` as an array; whether the real
   app returns an array was not checked). Where the real server differs, the first real run will show contract findings that are the real server's, not the skill's.
 - Not run at all: real Petstore, real VAmPI, real crAPI (no mock either), real DVGA. The GraphQL mock is the generic shop schema from `tests/`, not DVGA's schema; DVGA scenarios

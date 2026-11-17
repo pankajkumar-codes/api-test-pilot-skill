@@ -84,7 +84,7 @@ gRPC is deferred to v2. Not part of this skill at all (see DECISIONS.md, 2026-11
 Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marketplace) stay last.
 - [x] Review nits from PR #8 and #11 (PR #15)
 - [x] Unique create bodies: run tag on unique-looking fields of baseline creates (`APITEST_UNIQUE_BODIES`, `APITEST_RUN_ID`)
-- [ ] Mass-assignment read-back (the VAmPI gap)
+- [x] Mass-assignment read-back (done where the spec has a read endpoint; the VAmPI register gap remains, see DECISIONS 2026-11-17)
 - [ ] Intake gaps: multi-file specs, OpenAPI callbacks/webhooks
 - [ ] GraphQL parity: fuzzing, contract, integration, data-validation, resilience
 - [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`

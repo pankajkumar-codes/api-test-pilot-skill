@@ -781,6 +781,29 @@ def expect_not_assigned(resp: requests.Response, injected: dict) -> None:
                  "HIGH", "API3:2023 mass assignment")
 
 
+def expect_not_stored(api: Any, created: requests.Response, read_ep: Endpoint, param: str, injected: dict,
+                      cleanup: Any = None, delete_ep: Endpoint | None = None) -> None:
+    """Read the record the mass-assignment probe created and check the injected fields were not stored. Some APIs
+    answer a create with a bare message and only show the stored flags on a later read, so the create response alone
+    proves nothing."""
+    if not 200 <= created.status_code < 300:
+        return
+    rid = extract_id(created, param)
+    if rid is None:
+        return
+    if cleanup is not None and delete_ep is not None:
+        cleanup.add(lambda: api.send(delete_ep, path={param: rid}))
+    resp = api.send(read_ep, path={param: rid})
+    got = json_of(resp)
+    if isinstance(got, dict) and isinstance(got.get("data"), dict):
+        got = got["data"]
+    if 200 <= resp.status_code < 300 and isinstance(got, dict):
+        hit = {k: v for k, v in injected.items() if k in got and got[k] == v}
+        if hit:
+            fail(resp, f"undocumented privileged fields were stored: {sorted(hit)} (seen when the created record was read back)",
+                 "HIGH", "API3:2023 mass assignment")
+
+
 def expect_no_sensitive_fields(resp: requests.Response) -> None:
     if 200 <= resp.status_code < 300:
         found = sensitive_fields(json_of(resp))
