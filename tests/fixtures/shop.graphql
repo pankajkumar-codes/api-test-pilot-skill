@@ -2,11 +2,12 @@
 schema { query: Query mutation: Mutation }
 
 directive @auth(requires: String = "USER") on FIELD_DEFINITION
+directive @constraint(minLength: Int, maxLength: Int, min: Int, max: Int, format: String) on INPUT_FIELD_DEFINITION | ARGUMENT_DEFINITION
 
 type Query {
   "Fetch one pet"
   pet(id: ID!): Pet
-  pets(first: Int, after: String, search: String): [Pet!]!
+  pets(first: Int @constraint(min: 0), after: String, search: String): [Pet!]!
   me: User
   health: String
 }
@@ -42,7 +43,7 @@ input UpdatePetInput {
 }
 
 input NewPetInput {
-  name: String!
-  tag: String
+  name: String! @constraint(minLength: 1, maxLength: 50)
+  tag: String @constraint(maxLength: 20)
   species: Species = DOG
 }

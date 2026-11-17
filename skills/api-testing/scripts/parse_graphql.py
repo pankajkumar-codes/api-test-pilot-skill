@@ -137,14 +137,19 @@ class Parser:
             ref["non_null"] = True
         return ref
 
-    def directives(self) -> None:
+    def directives(self) -> dict:
+        """Skips directives; returns the limits of a `@constraint(...)` directive (the common validation directive) if there is one."""
+        limits: dict = {}
         while self.accept("punct", "@"):
-            self.expect("name")
+            dname = self.expect("name")
             if self.accept("punct", "("):
                 while not self.accept("punct", ")"):
-                    self.expect("name")
+                    key = self.expect("name")
                     self.expect("punct", ":")
-                    self.value()
+                    val = self.value()
+                    if dname == "constraint" and key in CONSTRAINT_KEYS and _fits(key, val):
+                        limits[key] = val
+        return limits
 
     def description(self) -> str:
         return self.next()[1] if self.peek("string") else ""
@@ -157,9 +162,19 @@ class Parser:
             self.expect("punct", ":")
             ref = self.type_ref()
             default = self.value() if self.accept("punct", "=") else None
-            self.directives()
-            out.append({"name": name, "ref": ref, "default": default, "description": desc})
+            limits = self.directives()
+            out.append({"name": name, "ref": ref, "default": default, "description": desc, **({"constraints": limits} if limits else {})})
         return out
+
+
+CONSTRAINT_KEYS = ("minLength", "maxLength", "min", "max", "format", "pattern", "exclusiveMin", "exclusiveMax")
+
+
+def _fits(key: str, val: Any) -> bool:
+    """Text keys take a string, limit keys a number (never a bool): anything else is ignored, not trusted."""
+    if key in ("format", "pattern"):
+        return isinstance(val, str) and len(val) <= 200
+    return isinstance(val, (int, float)) and not isinstance(val, bool)
 
 
 def ref_str(ref: dict) -> str:
@@ -220,8 +235,9 @@ def parse_sdl(text: str) -> dict:
                         p.expect("punct", ":")
                         ref = p.type_ref()
                         default = p.value() if p.accept("punct", "=") else None
-                        p.directives()
-                        fields.append({"name": fname, "ref": ref, "default": default, "args": [], "description": fdesc})
+                        limits = p.directives()
+                        fields.append({"name": fname, "ref": ref, "default": default, "args": [], "description": fdesc,
+                                       **({"constraints": limits} if limits else {})})
                         continue
                     p.expect("punct", ":")
                     ref = p.type_ref()
@@ -327,7 +343,8 @@ def _arg_out(types: dict, a: dict) -> dict:
     named = ref_named(a["ref"])
     return {"name": a["name"], "type": ref_str(a["ref"]), "named": named, "kind": _kind(types, named),
             "required": bool(a["ref"].get("non_null")) and default is None, "list": "list" in a["ref"],
-            "default": redact_example(default, a["name"]), "description": a.get("description", "")}
+            "default": redact_example(default, a["name"]), "description": a.get("description", ""),
+            **({"constraints": a["constraints"]} if a.get("constraints") else {})}
 
 
 def scalar_selection(types: dict, type_name: str) -> list[str]:
@@ -375,6 +392,8 @@ def normalize(parsed: dict, source: dict, url: str | None) -> dict:
                     fo["required"] = bool(f["ref"].get("non_null")) and f.get("default") is None
                     fo["list"] = "list" in f["ref"]
                     fo["default"] = None if is_secret_name(f["name"]) else redact_example(f.get("default"), f["name"])
+                    if f.get("constraints"):
+                        fo["constraints"] = f["constraints"]
                 elif f["args"]:
                     fo["args"] = [_arg_out(types, a) for a in f["args"]]
                 entry["fields"].append(fo)

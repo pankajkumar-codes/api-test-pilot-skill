@@ -13,7 +13,7 @@ from pathlib import Path
 import _common
 from gen_common import Expr, Module, ident, py
 
-GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "fuzz")
+GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "data-validation", "fuzz")
 OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
@@ -380,6 +380,101 @@ def contract(sc: Schema, mod: Module) -> None:
                 f"    gr.expect_shape(resp, value, {op['returns']!r}, op.selection, TYPES, ENUMS, KINDS)\n")
 
 
+FORMAT_VALUES = {"email": "not-an-email", "uuid": "not-a-uuid", "url": "not a url", "uri": "not a url", "date-time": "yesterday", "date": "someday",
+                 "ipv4": "999.1.1.1"}
+MAX_VALIDATION_CASES = 40
+MAX_LIMIT_PAD = 10000
+
+
+def _with(base: dict, path: tuple, value, drop: bool = False) -> dict:
+    """Copy of the baseline variables with one value set (or removed) at `path`; missing parents are created."""
+    out = dict(base)
+    cur = out
+    for key in path[:-1]:
+        cur[key] = dict(cur[key]) if isinstance(cur.get(key), dict) else {}
+        cur = cur[key]
+    if drop:
+        cur.pop(path[-1], None)
+    else:
+        cur[path[-1]] = value
+    return out
+
+
+def _violations(named: str, kind: str, limits: dict) -> list[tuple[str, object]]:
+    """(label, value) pairs that break the declared type or the @constraint limits of one argument or input field."""
+    out: list[tuple[str, object]] = []
+    key = "ENUM" if kind == "ENUM" else "INPUT_OBJECT" if kind == "INPUT_OBJECT" else named
+    if key in WRONG_TYPE:
+        out.append(("wrong_type", WRONG_TYPE[key]))
+    if isinstance(limits.get("minLength"), int) and limits["minLength"] >= 1:
+        out.append(("too_short", "a" * (limits["minLength"] - 1)))
+    if isinstance(limits.get("maxLength"), int) and 0 <= limits["maxLength"] < MAX_LIMIT_PAD:
+        out.append(("too_long", "a" * (limits["maxLength"] + 1)))
+    if isinstance(limits.get("min"), (int, float)):
+        out.append(("below_min", limits["min"] - 1))
+    if isinstance(limits.get("max"), (int, float)):
+        out.append(("above_max", limits["max"] + 1))
+    if limits.get("format") in FORMAT_VALUES:
+        out.append(("bad_format", FORMAT_VALUES[limits["format"]]))
+    return out
+
+
+def validation_cases(sc: Schema, op: dict) -> list[tuple]:
+    """One violation per case, on the valid baseline: missing and wrong-typed nested input fields, unknown fields, constraint breaches."""
+    base = sc.baseline_vars(op)
+    cases: list[tuple] = []
+
+    def add(label: str, variables: dict) -> None:
+        cases.append((label, {"variables": variables}))
+
+    for a in op["args"]:
+        if a["list"]:
+            continue
+        for what, bad in _violations(a["named"], a["kind"], a.get("constraints") or {}):
+            if what != "wrong_type":        # wrong top-level types are the negative tests' job
+                add(f"{a['name']}_{what}", _with(base, (a["name"],), bad))
+        if a["kind"] != "INPUT_OBJECT":
+            continue
+        for f in sc.types.get(a["named"], {}).get("fields", []):
+            if f.get("list"):
+                continue
+            path = (a["name"], f["name"])
+            label = f"{a['name']}.{f['name']}"
+            if f.get("required") and a["name"] in base:
+                add(f"{label}_missing", _with(base, path, None, drop=True))
+            for what, bad in _violations(f["named"], f["kind"], f.get("constraints") or {}):
+                add(f"{label}_{what}", _with(base, path, bad))
+        if a["name"] in base:
+            add(f"{a['name']}_unknown_field", _with(base, (a["name"], "apitestUnknownField"), 1))
+    return cases[:MAX_VALIDATION_CASES]
+
+
+def data_validation(sc: Schema, mod: Module) -> list[str]:
+    """Each case breaks the declared type or constraint of one input and expects the server to reject it."""
+    notes: list[str] = []
+    made = False
+    for op in sc.ops:
+        if op["kind"] == "subscription":
+            continue
+        cases = validation_cases(sc, op)
+        if not cases:
+            continue
+        made = True
+        table = mod.unique("VALIDATION_" + ident(op["id"]))
+        rows = ",\n".join(f"    ({c[0]!r}, {_kw(c[1])})" for c in cases)
+        mod.add(f"{table} = [\n{rows},\n]\n", is_test=False)
+        pre = "    gr.require_destructive()\n" if op["kind"] == "mutation" and DESTRUCTIVE_RE.match(op["name"]) else ""
+        mod.add(f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
+                f"def {mod.unique('test_' + op['kind'] + '_' + op['name'] + '_validates_input')}(gql, label, kw):\n"
+                f"    op = OPS[{op['id']!r}]\n{pre}    resp = gql.run(op, **kw)\n    gr.expect_graphql_error(resp, label)\n")
+    if not made:
+        notes.append("graphql data-validation: no operation takes an input object or a constrained argument, so no cases were generated")
+    elif not any(a.get("constraints") for o in sc.ops for a in o["args"]) and not any(
+            f.get("constraints") for t in sc.types.values() for f in t.get("fields", [])):
+        notes.append("graphql data-validation: the schema declares no @constraint limits, so only type, missing-field and unknown-field cases were generated")
+    return notes
+
+
 CREATE_RE = re.compile(r"^(create|add|new|register)", re.I)
 UPDATE_RE = re.compile(r"^(update|edit|modify|patch|set)", re.I)
 REMOVE_RE = re.compile(r"^(delete|remove|destroy)", re.I)
@@ -466,6 +561,7 @@ MODULES = {
     "edge": ("test_graphql_edge.py", "GraphQL edge-case tests", edge),
     "security": ("test_graphql_security.py", "GraphQL security tests (OWASP API Top 10)", security),
     "contract": ("test_graphql_contract.py", "GraphQL contract tests (the answer matches the schema)", contract),
+    "data-validation": ("test_graphql_data_validation.py", "GraphQL data-validation tests (one violation per case)", data_validation),
     "integration": ("test_graphql_integration.py", "GraphQL integration flows (create, read, list, update, delete)", integration),
     "fuzz": ("test_graphql_fuzz.py", "GraphQL fuzz tests (opt-in, intrusive: non-production targets only)", fuzz),
 }

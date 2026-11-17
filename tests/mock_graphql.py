@@ -1,6 +1,6 @@
 """Local mock GraphQL server for validating generated suites (stdlib only; reuses parse_graphql's lexer/SDL parser).
 
-Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape stale undeleted
+Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape stale undeleted novalidate
 """
 from __future__ import annotations
 
@@ -65,14 +65,30 @@ def parse_document(text: str):
     return ops
 
 
-def coerce(value, ref, path):
+def check_limits(limits, value, path):
+    """Enforce a @constraint directive the way graphql-constraint-directive does."""
+    if isinstance(value, str):
+        if "minLength" in limits and len(value) < limits["minLength"]:
+            raise GqlError(f'Variable "{path}" must be at least {limits["minLength"]} characters.')
+        if "maxLength" in limits and len(value) > limits["maxLength"]:
+            raise GqlError(f'Variable "{path}" must be at most {limits["maxLength"]} characters.')
+        if limits.get("format") == "email" and "@" not in value:
+            raise GqlError(f'Variable "{path}" must be an email address.')
+    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+        if "min" in limits and value < limits["min"]:
+            raise GqlError(f'Variable "{path}" must be at least {limits["min"]}.')
+        if "max" in limits and value > limits["max"]:
+            raise GqlError(f'Variable "{path}" must be at most {limits["max"]}.')
+
+
+def coerce(value, ref, path, strict=True):
     if value is None:
         if ref.get("non_null"):
             raise GqlError(f'Variable "{path}" of non-null type "{pg.ref_str(ref)}" must not be null.')
         return None
     if "list" in ref:
         items = value if isinstance(value, list) else [value]
-        return [coerce(v, ref["list"], path) for v in items]
+        return [coerce(v, ref["list"], path, strict) for v in items]
     name = ref["name"]
     kind = "SCALAR" if name in pg.SCALARS else TYPES.get(name, {}).get("kind")
     ok = {
@@ -94,10 +110,15 @@ def coerce(value, ref, path):
         if not isinstance(value, dict):
             raise GqlError(f'Variable "{path}" got invalid value; Expected type "{name}" to be an object.')
         out = {}
+        unknown = set(value) - {f["name"] for f in TYPES[name]["fields"]}
+        if unknown and strict:
+            raise GqlError(f'Variable "{path}" got invalid value; Field "{sorted(unknown)[0]}" is not defined by type "{name}".')
         for f in TYPES[name]["fields"]:
             fr = f["ref"]
             if f["name"] in value:
-                out[f["name"]] = coerce(value[f["name"]], fr, f"{path}.{f['name']}")
+                out[f["name"]] = coerce(value[f["name"]], fr, f"{path}.{f['name']}", strict)
+                if strict and f.get("constraints"):
+                    check_limits(f["constraints"], out[f["name"]], f"{path}.{f['name']}")
             elif fr.get("non_null") and f.get("default") is None:
                 raise GqlError(f'Variable "{path}" got invalid value; Field "{f["name"]}" of required type "{pg.ref_str(fr)}" was not provided.')
             elif f.get("default") is not None:
@@ -176,8 +197,6 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                 return None
             if fname == "createPet":
                 inp = args["input"]
-                if not 1 <= len(inp["name"]) <= 50:
-                    raise GqlError("name must be 1..50 characters")
                 with lock:
                     pid = nxt[0]
                     nxt[0] += 1
@@ -189,8 +208,6 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                     ctx.err("Not found", path)
                     return None
                 inp = args["input"]
-                if "name" in inp and not 1 <= len(inp["name"]) <= 50:
-                    raise GqlError("name must be 1..50 characters")
                 if "stale" not in bugs:
                     p.update({k: v for k, v in inp.items() if k in ("name", "tag", "species")})
                 return p
@@ -272,7 +289,7 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
         coerced = {}
         for v, d in op["vars"].items():
             if v in variables:
-                coerced[v] = coerce(variables[v], d["ref"], "$" + v)
+                coerced[v] = coerce(variables[v], d["ref"], "$" + v, "novalidate" not in bugs)
             elif d["default"] is not None:
                 coerced[v] = d["default"]
             elif d["ref"].get("non_null"):
