@@ -3,7 +3,7 @@
 Pipeline: `parse_graphql.py` (or `intake.py`, which auto-detects) -> intake JSON -> `gen_pytest.py` -> pytest.
 ```
 python scripts/intake.py schema.graphql -o intake.json --url http://localhost:4000/graphql   # SDL, or an introspection JSON file
-python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security,contract
+python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security,contract,integration,data-validation (fuzz is opt-in)
 APITEST_BASE_URL=http://localhost:4000 APITEST_BEARERAUTH_TOKEN=... python -m pytest gql_tests -v -ra
 ```
 Get the schema from the user as SDL or as the result of the standard introspection query (saved as JSON). The parser is offline
@@ -31,6 +31,14 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
 - **negative**: syntax error, unknown root field/sub-field, unknown `operationName`, non-JSON body, missing required variable, wrong
   variable type (Int<-string, enum<-unknown value, input<-string...). Anonymous access is checked only when you set `APITEST_GQL_REQUIRES_AUTH=yes`.
 - **edge** (queries): unicode, empty, special characters and 100k-char strings; 0/-1/int32 max/overflow numbers; huge page sizes; explicit `null` vs omitted; empty lists; lowercase enum values. Must be handled, never 5xx.
+
+## Data-validation tests
+`data-validation` (part of `all`) writes `test_graphql_data_validation.py`. Each case breaks exactly one thing on an otherwise valid request and expects the server to reject it (a 4xx or a well-formed `errors` answer; success or a 5xx is a finding):
+a missing required field inside an input object, a wrong type for an input field or an enum value, an unknown field in an input object, and a breach of a `@constraint` limit.
+Wrong types of top-level arguments stay with the negative tests.
+`@constraint` is the validation directive many servers use (`graphql-constraint-directive`): `minLength`, `maxLength`, `min`, `max` and `format` (email, uuid, url, uri, date-time, date, ipv4) are read from the SDL and get a too-short, too-long, below, above or badly formatted value.
+`pattern` is read but not mutated, and limits that are not a number or a string of the right kind are ignored. Introspection JSON does not carry directives, so constraint cases need the SDL file; without limits only the type cases are generated, and the generator says so.
+A server that accepts a bad value stores it: these cases write like a positive mutation test does, so use a test environment. They are skipped on production targets, and `delete*`-style mutations still need `APITEST_ALLOW_DESTRUCTIVE=yes`.
 
 ## Integration flows
 `integration` (part of `all`) writes `test_graphql_integration.py`: one lifecycle test per object type that has an `id`, a `create*`/`add*`/`new*`/`register*` mutation, a query that reads it by id and a `delete*`/`remove*`/`destroy*` mutation
@@ -70,6 +78,6 @@ Needs the same ids as the positive tests (`APITEST_GQL_<ARG>`), otherwise the te
 Credentials (`APITEST_BEARERAUTH_TOKEN`), redaction, curl reproductions (`variables` are redacted), the safety gate and the
 generated `conftest.py` are the REST modules; `gql_runtime.py` only adds the GraphQL-specific assertions.
 `spec_diff.py` compares two GraphQL intakes (removed fields/operations, new required arguments, type changes).
-Not yet for GraphQL: integration, data-validation, fuzz and resilience generators (the REST ones are not applicable as-is); load testing via k6 arrives in Phase 3.
+Not yet for GraphQL: the resilience generator; load testing via k6 arrives in Phase 3.
 
 Only test APIs the user owns or is authorized to test. The safety gate applies to load/stress/fuzz as well.

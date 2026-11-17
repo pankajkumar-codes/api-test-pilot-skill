@@ -7,6 +7,13 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GraphQL data-validation tests, 2026-11-17)
+- `--types data-validation` now works for GraphQL (and is part of `all`): one violation per case on a valid baseline, rejection expected. Covers missing required input fields, wrong types and unknown enum values inside input objects, unknown input fields, and breaches of `@constraint` limits (`minLength`, `maxLength`, `min`, `max`, `format`).
+- The SDL parser now reads `@constraint` limits into the intake (`constraints` on arguments and input fields); values of the wrong kind are ignored. Introspection JSON has no directives, so constraint cases need the SDL.
+- The GraphQL mock enforces `@constraint` and rejects unknown input fields, and has a `novalidate` flaw that does neither. `stale`, `undeleted` and `novalidate` are unit-test flaws only: the eval table still lists the original 10 seeded GraphQL flaws.
+- Hardening: `@constraint` limits must be finite numbers within 10^12 (or strings of at most 200 characters), and a `minLength` above 10000 gets no too-short case, so a hostile schema cannot make the generator build a huge string or write an unimportable suite.
+- The GraphQL clean eval variant now runs 85 tests, all 10 seeded GraphQL flaws are still found, and a clean run of the whole suite is 557 pass and 18 skip.
+
 ### Added (GraphQL integration flows, 2026-11-17)
 - `--types integration` now works for GraphQL (and is part of `all`): per object type with a create, a read by id and a delete mutation, one flow runs create -> read -> list -> update -> read -> delete -> read (gone). It uses only the object it creates, cleans it up even when a step fails, and skips writes on production. A schema with no such type gets a generator note.
 - Fuzz follow-ups: `huge_whitespace` and `long_name` cases respect the byte limit, the opt-in test asserts the `deletePet` entry directly, and a test shows an unconfirmed remote target is refused before any request.

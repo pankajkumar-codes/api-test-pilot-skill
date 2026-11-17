@@ -351,7 +351,7 @@ def test_graphql_sdl_and_introspection_normalize_identically(tmp_path):
     path.write_text(json.dumps(intro))
     a, b = parse_graphql.build(str(FIXTURES / "shop.graphql")), parse_graphql.build(str(path))
     assert a["source"]["format"] == "sdl" and b["source"]["format"] == "introspection"
-    strip = lambda o: json.loads(json.dumps(o), object_hook=lambda d: {k: v for k, v in d.items() if k != "description"})  # noqa: E731
+    strip = lambda o: json.loads(json.dumps(o), object_hook=lambda d: {k: v for k, v in d.items() if k not in ("description", "constraints")})  # noqa: E731
     assert strip(a["graphql"]["operations"]) == strip(b["graphql"]["operations"])  # introspection omits SDL descriptions here
     assert strip(a["graphql"]["types"]) == strip(b["graphql"]["types"])
 
@@ -484,7 +484,7 @@ def test_graphql_http_200_with_errors_is_not_success(gql_suite, tmp_path):
 
 def test_graphql_unsupported_types_are_reported(gql_doc, tmp_path):
     with pytest.raises(IntakeError, match="Not available for GraphQL"):
-        gen_pytest.generate(gql_doc, tmp_path / "x", ["data-validation"])  # types GraphQL does not have yet
+        gen_pytest.generate(gql_doc, tmp_path / "x", ["resilience"])  # a type GraphQL does not have yet
 
 
 # ---------------------------------------------------------------- spec diff
