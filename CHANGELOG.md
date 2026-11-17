@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Checked (final full pass over v2, 2026-11-17)
+- Full suite on main: 604 pass and 23 skip with the example-app packages installed (593 and 34 with only the dev requirements). `ruff check`, `tools/validate_skill.py` and the zip build are clean. The gRPC suites also pass against real grpcurl 1.9.1 (32 tests in `test_grpc.py` and `test_grpc_real.py`).
+- Eval tables re-run on main: Petstore mock 325 pass, VAmPI mock 232 pass and 1 known failure, seeded FastAPI app 91 pass, GraphQL mock 102 pass; every seeded flaw is found except the documented VAmPI mass-assignment gap. `docs/evals.md` had stale clean-variant counts (326, 230 and 85) and now matches these runs.
+- Not run: k6 load tests (k6 is not installed here; CI runs them), gRPC load through ghz (not generated yet) and the AWS emulator.
+
 ### Added (local gateway and GraphQL examples, 2026-11-17)
 - `examples/aws-local/`: a FastAPI app that behaves like an API Gateway REST API in front of a function (stage prefix, `x-api-key`, usage-plan throttling, request validation errors, `502` for a failing function) and a strawberry GraphQL app with an API key. `tests/test_aws_local.py` runs the generated suites against both as real servers, clean and with seeded flaws (skipped unless fastapi, uvicorn and strawberry-graphql are installed).
 - GraphQL intake: `intake.py --api-key-header NAME` sends the credential in that header (from `APITEST_APIKEY_KEY`) instead of a bearer token. The runtime uses whichever scheme the intake declares.

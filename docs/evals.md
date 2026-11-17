@@ -140,7 +140,7 @@ mocks, so a "found" here means the check works on that flaw, not that it would f
 | `trace`: stack trace in error bodies | API8 | `test_api8_errors_do_not_leak_internals` | yes | `test_security::test_api8_errors_do_not_leak_internals` |
 | `crash`: quote in a name causes a database error (500) | API8/injection | `test_injection_addPet\[body_name\[0\]\]` | yes | `test_security::test_injection_addPet[body_name[0]]` |
 
-Clean variant: 326 passed, 0 failed, 7 skipped
+Clean variant: 325 passed, 0 failed, 7 skipped
 
 
 #### VAmPI (mock of the documented vulnerabilities) (mock-based, real target not run)
@@ -159,7 +159,7 @@ Clean variant: 326 passed, 0 failed, 7 skipped
 Known gaps (flaw not detected today):
 - `mass`: the register response does not echo the stored fields and no documented read endpoint exposes `admin`; the spec has a user read endpoint (`GET /users/v1/{username}`), but its path does not pair with `POST /users/v1/register`, and its documented response has no `admin` field, so a read-back cannot see the flag
 
-Clean variant: 230 passed, 1 failed, 12 skipped
+Clean variant: 232 passed, 1 failed, 10 skipped
 - known limitation, fails on the clean target: `test_api_views_users_login_user_response_contract` (login needs real credentials; the suite never sends spec-example passwords, so its success-path contract check gets a 400)
 
 
@@ -191,7 +191,7 @@ Clean variant: 91 passed, 0 failed, 5 skipped
 | `crash`: injection crashes the resolver | injection | `test_injection_pets` | yes | `test_graphql_security::test_injection_pets[search[0]]` |
 | `badshape`: a field has the wrong type and an enum value the schema lacks | contract | `test_contract_pets_matches_schema` | yes | `test_graphql_contract::test_contract_pets_matches_schema` |
 
-Clean variant: 85 passed, 0 failed, 5 skipped (includes the integration flow and the data-validation cases)
+Clean variant: 102 passed, 0 failed, 5 skipped (includes the integration flow, the data-validation cases and the resilience tests)
 
 #### Local gateway and GraphQL apps (`examples/aws-local`; real local servers, seeded by us; not the AWS emulator)
 
