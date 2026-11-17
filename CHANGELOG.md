@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (gRPC unary tests, 2026-11-17)
+- `intake.py` reads `.proto` files (proto2 and proto3, nested messages, `oneof`, `map`, imports below the proto's folder) and `gen_pytest.py` generates smoke, positive, negative, edge, contract and security suites for unary methods. They call the optional `grpcurl` tool, so nothing else is needed; without it every test skips.
+- Reports and repro lines show a gRPC call as an HTTP-shaped exchange with the auth header redacted. Streaming methods are listed and skipped.
+- Tested two ways with seeded flaws (missing auth, invalid input accepted, open reflection, wrong response shape, server fault on injection, leaked internals): against a stand-in `grpcurl` (always runs), and against a real `grpcio` server through real grpcurl 1.9.1 (`tests/test_grpc_real.py`, skipped unless grpcio, grpcio-tools and grpcurl are installed). Clean run: 73 tests pass, and every seeded flaw is found. Load tests through `ghz` come next.
+
 ### Added (GraphQL resilience tests, 2026-11-17)
 - `--types resilience` now works for GraphQL (and is part of `all`), so every pytest type is available for GraphQL. Repeatable reads, a response budget, page-size and cursor handling for list queries, an `intrusive` rate-limit burst (a 429 needs a valid `Retry-After`) and a repeated delete of an object the test created itself.
 - The GraphQL fuzzer skips the `long_name` case when the byte limit leaves no room for it, instead of always repeating the name twice.

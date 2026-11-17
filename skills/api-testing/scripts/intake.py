@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Auto-detect the input type and emit normalized intake JSON.
 
-Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql] [--url GRAPHQL_URL]
+Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql|grpc] [--url GRAPHQL_URL]
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ import parse_curl  # noqa: E402
 import parse_graphql  # noqa: E402
 import parse_openapi  # noqa: E402
 import parse_postman  # noqa: E402
+import parse_proto  # noqa: E402
 from _common import IntakeError, emit, load_document  # noqa: E402
 
 
@@ -25,6 +26,8 @@ def detect(path: str) -> str:
     head = p.read_text(encoding="utf-8-sig", errors="replace")[:4000].lstrip()
     if p.suffix.lower() in (".graphql", ".graphqls", ".gql") or re.search(r"^\s*(extend\s+)?(type\s+Query\b|schema\s*\{)", head, re.M):
         return "graphql"
+    if p.suffix.lower() == ".proto" or re.search(r"^\s*(syntax\s*=\s*\"proto[23]\"|service\s+\w+\s*\{)", head, re.M):
+        return "grpc"
     if head.startswith("curl") or "\ncurl " in head or head.startswith("$ curl"):
         return "curl"
     doc = load_document(path)
@@ -35,7 +38,7 @@ def detect(path: str) -> str:
             return "postman"
         if parse_graphql.looks_like_introspection(doc):
             return "graphql"
-    raise IntakeError("Unrecognized input. Expected OpenAPI/Swagger, a Postman collection, or curl commands.")
+    raise IntakeError("Unrecognized input. Expected OpenAPI/Swagger, a GraphQL schema, a .proto file, a Postman collection, or curl commands.")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,13 +46,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("input")
     ap.add_argument("-o", "--output")
     ap.add_argument("--summary", action="store_true")
-    ap.add_argument("--type", choices=("openapi", "postman", "curl", "graphql"))
+    ap.add_argument("--type", choices=("openapi", "postman", "curl", "graphql", "grpc"))
     ap.add_argument("--url", help="GraphQL endpoint URL (only used for GraphQL inputs)")
     args = ap.parse_args(argv)
     try:
         kind = args.type or detect(args.input)
         if kind == "graphql":
             doc = parse_graphql.build(args.input, args.url)
+        elif kind == "grpc":
+            doc = parse_proto.build(args.input)
         else:
             builder = {"openapi": parse_openapi.build, "postman": parse_postman.build, "curl": parse_curl.build}[kind]
             doc = builder(args.input)
@@ -62,8 +67,8 @@ def main(argv: list[str] | None = None) -> int:
     except RecursionError:
         print("error: the input is nested too deeply to parse safely", file=sys.stderr)
         return 2
-    if kind == "graphql" and args.summary:
-        print(parse_graphql.summarize_graphql(doc))
+    if kind in ("graphql", "grpc") and args.summary:
+        print((parse_graphql.summarize_graphql if kind == "graphql" else parse_proto.summarize_grpc)(doc))
         if args.output:
             emit(doc, args.output, False)
         return 0

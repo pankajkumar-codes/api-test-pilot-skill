@@ -70,7 +70,7 @@ Preparation is done on a branch; the outward-facing steps need the maintainer (s
 - [ ] CI green on GitHub (first run happens on the pull request)
 
 ## Out of scope for v1
-gRPC is deferred to v2. Not part of this skill at all (see DECISIONS.md, 2026-11-14): UI accessibility testing (a possible separate skill), mobile app testing, a hosted service.
+gRPC unary calls are part of v2 (streaming is not). Not part of this skill at all (see DECISIONS.md, 2026-11-14): UI accessibility testing (a possible separate skill), mobile app testing, a hosted service.
 
 ## Phase 8 — Executable chaos and skill gaps (2026-11-13)
 - [x] DECISIONS.md: chaos is no longer plan-only (overrides the Phase 0 decision)
@@ -88,5 +88,5 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Intake gap: multi-file specs
 - [x] Intake gap: OpenAPI callbacks/webhooks (listed in the intake, not tested)
 - [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [x] resilience
-- [ ] gRPC, unary only: stdlib `.proto` parser, functional tests through optional `grpcurl`, load through optional `ghz`
+- [ ] gRPC, unary only: [x] stdlib `.proto` parser, [x] functional, contract and security tests through optional `grpcurl`, [ ] load through optional `ghz`
 - [ ] Login success-path tests with real credentials from env vars

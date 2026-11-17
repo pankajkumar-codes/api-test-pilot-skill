@@ -14,7 +14,7 @@ metadata:
 Router only. Follow the steps in order; load a reference file only when its step needs it.
 
 ## 1. Intake
-Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands, GraphQL SDL or introspection JSON),
+Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands, GraphQL SDL or introspection JSON, `.proto` file for gRPC),
 base URL, auth method, environment (local/staging/prod).
 - Normalize the input: `python scripts/intake.py <file> -o intake.json --summary`
   (auto-detects the type; for GraphQL add `--url <endpoint>`; shape and edge cases in `references/intake.md`).
@@ -62,6 +62,7 @@ Report what was run and what was skipped; never state results the files do not c
 - `references/functional.md` — smoke, positive, negative, edge
 - `references/data-validation.md` — types, formats, enums, lengths, ranges, required fields
 - `references/graphql.md` — GraphQL intake, functional and security checks
+- `references/grpc.md` — gRPC (unary) intake, tests and `grpcurl` setup
 - `references/integration.md` — multi-endpoint flows (create, read, update, delete)
 - `references/contract.md` — schema conformance, breaking changes (`spec_diff.py`)
 - `references/security.md` — OWASP API Top 10 checks and the safety gate
@@ -73,4 +74,4 @@ Report what was run and what was skipped; never state results the files do not c
 - `references/fuzzing.md` — malformed-input fuzzing
 
 ## Not covered
-UI accessibility and mobile app testing (not API testing), a hosted service, and gRPC (planned for v2).
+UI accessibility and mobile app testing (not API testing), a hosted service, and gRPC streaming.

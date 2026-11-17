@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package common;
+
+message Ack { bool ok = 1; string message = 2; }
