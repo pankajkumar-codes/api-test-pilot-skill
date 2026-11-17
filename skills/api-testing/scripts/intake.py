@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Auto-detect the input type and emit normalized intake JSON.
 
-Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql|grpc] [--url GRAPHQL_URL]
+Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql|grpc] [--url GRAPHQL_URL] [--api-key-header NAME]
 """
 from __future__ import annotations
 
@@ -48,11 +48,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--summary", action="store_true")
     ap.add_argument("--type", choices=("openapi", "postman", "curl", "graphql", "grpc"))
     ap.add_argument("--url", help="GraphQL endpoint URL (only used for GraphQL inputs)")
+    ap.add_argument("--api-key-header", help="GraphQL: send the credential in this header (e.g. x-api-key) instead of a bearer token")
     args = ap.parse_args(argv)
     try:
         kind = args.type or detect(args.input)
         if kind == "graphql":
-            doc = parse_graphql.build(args.input, args.url)
+            doc = parse_graphql.build(args.input, args.url, args.api_key_header)
         elif kind == "grpc":
             doc = parse_proto.build(args.input)
         else:

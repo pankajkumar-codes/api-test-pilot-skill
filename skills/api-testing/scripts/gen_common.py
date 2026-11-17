@@ -403,3 +403,10 @@ class Module:
 def case_table(name: str, cases: list[tuple]) -> str:
     rows = ",\n".join("    (" + ", ".join(py(x) for x in c) + ")" for c in cases)
     return f"{name} = [\n{rows},\n]\n"
+
+
+def var_type(arg: dict) -> str:
+    """Type of the variable that carries a GraphQL argument. A non-null argument that has a default is optional, so its variable is
+    declared nullable (valid when the argument has a default) and can be left out of the request."""
+    t = arg["type"]
+    return t[:-1] if not arg["required"] and t.endswith("!") else t

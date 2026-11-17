@@ -7,6 +7,14 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (local gateway and GraphQL examples, 2026-11-17)
+- `examples/aws-local/`: a FastAPI app that behaves like an API Gateway REST API in front of a function (stage prefix, `x-api-key`, usage-plan throttling, request validation errors, `502` for a failing function) and a strawberry GraphQL app with an API key. `tests/test_aws_local.py` runs the generated suites against both as real servers, clean and with seeded flaws (skipped unless fastapi, uvicorn and strawberry-graphql are installed).
+- GraphQL intake: `intake.py --api-key-header NAME` sends the credential in that header (from `APITEST_APIKEY_KEY`) instead of a bearer token. The runtime uses whichever scheme the intake declares.
+- Fixed: a GraphQL argument that is non-null but has a default (`first: Int! = 20`) is optional, but its variable was still declared `Int!` and left out, so every server rejected the request. The variable is now declared nullable. Found by running the suite against the real strawberry server. The k6 GraphQL generator got the same fix.
+- SECURITY.md notes that a bearer token is visible in grpcurl's process arguments.
+- A clean run of the whole suite is now 593 pass and 34 skip with only the dev requirements (604 pass and 23 skip with the example-app packages installed).
+- The AWS emulator was not run: there is no Docker daemon in the build environment and the Debian package could not be located. These apps are stand-ins, not the emulator.
+
 ### Added (gRPC unary tests, 2026-11-17)
 - `intake.py` reads `.proto` files (proto2 and proto3, nested messages, `oneof`, `map`, imports below the proto's folder) and `gen_pytest.py` generates smoke, positive, negative, edge, contract and security suites for unary methods. They call the optional `grpcurl` tool, so nothing else is needed; without it every test skips.
 - Reports and repro lines show a gRPC call as an HTTP-shaped exchange with the auth header redacted. Streaming methods are listed and skipped.
