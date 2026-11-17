@@ -16,7 +16,7 @@ import pytest
 import requests
 
 from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call them as gr.<name>)
-    DB_ERROR_RE, UNSET, Api, burst, env_true, expect_fast, expect_injection_safe, expect_no_crash, fail, json_of,
+    DB_ERROR_RE, UNSET, Api, burst, burst_size, env_true, expect_fast, expect_injection_safe, expect_no_crash, fail, json_of,
     require_destructive, require_flag, retry_after_seconds, skip_if_paced, skip_writes_on_production,
 )
 

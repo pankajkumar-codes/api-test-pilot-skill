@@ -54,7 +54,7 @@ An earlier fuzz run found a real bug: `GET /api/v1/software-engineers?page=21474
 integer offset. It was fixed in the demo project, and the fuzz run above passed 7 of 7 afterwards. The chaos finding was a frozen database taking about 5 s to fail instead of failing fast: the demo set no read timeout on its database connection.
 That was "at the limit" of the 5 s default, not a measured hang (see [docs/evals.md](docs/evals.md)). It is now fixed in the demo
 ([spring-boot-demo#5](https://github.com/pankajkumar-codes/spring-boot-demo/pull/5): JDBC socket timeout, frozen database answers 503 in 2 to 3 s). The table and report above are the run
-before that fix; the chaos suite has not been rerun against the fixed demo yet, so the fix is checked by hand only, and the second chaos finding (`dep-blackhole`) was not rechecked.
+before that fix. On 2026-11-17 the chaos suite was rerun against the fixed demo (spring-boot-demo main 0acc5b5, local PostgreSQL 16, six experiments: proxy-latency, proxy-5xx, proxy-drop, payload, dep-outage, dep-slow): all 16 checks passed, and `dep-slow` now shows 4 of 8 requests failing during the freeze (p95 4.0 s, recovery 0.8 s) and no finding. The example report was not regenerated, and the second chaos finding (`dep-blackhole`) was not rechecked.
 
 What was not done on this target, so you can judge the numbers:
 - k6 ran **GET endpoints only, at the default rates** (about 4 to 10 req/s on average, up to 50 virtual users). That shows the demo is comfortable
@@ -351,6 +351,10 @@ $ echo $?
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - Real runs: one local Spring Boot service (all test types, k6 and chaos) and four public sandbox APIs read-only, as described under Results. No real-API detection rates are claimed, and nothing here is "production-tested".
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
+- **Not yet done, and not claimed:**
+  - gRPC load tests through `ghz` are not generated or run; gRPC unary tests are covered, against a local `grpcio` server and real grpcurl 1.9.1.
+  - The API gateway and GraphQL example apps in `examples/aws-local/` are local stand-ins written for the tests. The AWS emulator has not been run against them.
+  - VAmPI mass assignment is a known miss in the eval (see [docs/evals.md](docs/evals.md)), and the 27 of 28 figure is for seeded flaws in mocks, not real APIs.
 
 ## Develop
 

@@ -340,7 +340,7 @@ def security(sc: Schema, mod: Module) -> list[str]:
     mod.add(I + "def test_rate_limiting_present(gql):\n"
             "    gr.require_flag(\"APITEST_EXPECT_RATE_LIMIT\", \"this API is expected to rate-limit\")\n"
             "    gr.skip_if_paced(gql)\n"
-            "    n = int(os.environ.get(\"APITEST_RATE_BURST\", \"40\"))\n"
+            "    n = gr.burst_size(40)\n"
             "    codes = [gql.post(\"query { __typename }\").status_code for _ in range(n)]\n"
             "    assert 429 in codes, f\"[MEDIUM][API4:2023] {n} rapid requests were never throttled (no 429)\"\n")
     for label, path, query in sc.sensitive_paths():
@@ -568,7 +568,7 @@ def resilience(sc: Schema, mod: Module) -> list[str]:
                 "    resp = gql.run(op, **kw)\n    gr.expect_graceful(resp, label)\n"
                 f"    if at_most is not None and not gr.errors_of(resp):\n        gr.expect_page_size(resp, {op['name']!r}, at_most)\n")
     mod.add("@pytest.mark.intrusive\ndef test_rate_limit_behaviour(gql):\n"
-            "    gr.expect_rate_limit_behaviour(gql, int(os.environ.get(\"APITEST_RATE_BURST\", \"30\")))\n")
+            "    gr.expect_rate_limit_behaviour(gql, gr.burst_size(30))\n")
     table = flows(sc)
     if table:
         mod.add(f"FLOWS = {py({f['type']: f for f in table})}\n", is_test=False)
