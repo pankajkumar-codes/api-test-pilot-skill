@@ -74,3 +74,41 @@ def test_a_whole_file_ref_does_not_leak_the_internal_slot_name(tmp_path):
     (tmp_path / "openapi.json").write_text(json.dumps(spec))
     sch = parse_openapi.build(str(tmp_path / "openapi.json"))["endpoints"][0]["responses"]["200"]["schema"]
     assert sch == {"type": "string"}
+
+
+def test_wrongly_typed_hook_fields_become_warnings_not_crashes():
+    bad_ops = [
+        {"post": {"responses": 200}},
+        {"post": {"responses": True, "summary": 5}},
+        {"post": {"description": 12345}},
+        {"post": {"description": ["a"], "requestBody": {"content": {"application/json": 7}}}},
+        {"post": {"requestBody": {"content": {"application/json": {"schema": 5, "example": {"a": 1}}}}}},
+        {"post": {"requestBody": {"content": []}}},
+        {"post": {"requestBody": 3}},
+    ]
+    for i, op in enumerate(bad_ops):
+        spec = {**SPEC, "webhooks": {"w": op}}
+        doc = parse_openapi.parse(spec)
+        assert [h["name"] for h in doc.get("webhooks", [])].count("onEvent") == 1, i   # the good callback is still there
+
+
+def test_one_bad_hook_does_not_hide_the_others():
+    spec = {**SPEC, "webhooks": {"bad": {"post": {"requestBody": {"content": {"application/json": {"schema": {"$ref": "#/nope"}, "example": object}}}}},
+                                 "good": SPEC["webhooks"]["orderShipped"]}}
+    names = [h["name"] for h in parse_openapi.parse(spec)["webhooks"]]
+    assert "good" in names and "onEvent" in names
+
+
+def test_the_cap_warning_only_fires_when_something_was_dropped(monkeypatch):
+    monkeypatch.setattr(parse_openapi, "MAX_HOOKS", 2)
+    doc = parse_openapi.parse(SPEC)        # exactly two hooks: nothing dropped
+    assert len(doc["webhooks"]) == 2 and not any("webhooks and callbacks" in w for w in doc["warnings"])
+    monkeypatch.setattr(parse_openapi, "MAX_HOOKS", 1)
+    assert any("1 were not listed" in w for w in parse_openapi.parse(SPEC)["warnings"])
+
+
+def test_wrongly_typed_paths_and_responses_are_warnings_too():
+    base = {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}}
+    assert any("'paths'" in w for w in parse_openapi.parse({**base, "paths": 5})["warnings"])
+    doc = parse_openapi.parse({**base, "paths": {"/a": {"get": {"responses": True}}}})
+    assert any("'responses'" in w for w in doc["warnings"]) and doc["endpoints"][0]["responses"] == {}

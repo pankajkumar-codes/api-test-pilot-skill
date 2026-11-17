@@ -10,6 +10,7 @@ First release candidate, built in phases (see PLAN.md).
 ### Added (webhooks and callbacks, 2026-11-17)
 - OpenAPI 3.1 `webhooks` and operation `callbacks` are read into a `webhooks` list in the intake (name, method, payload schema and example, response codes; callbacks also the parent endpoint and expression). `intake.py --summary` lists them. They are calls the API makes to you, so no tests are generated for them. Secret-looking payload values are dropped, and at most 200 are listed.
 - A whole-file `$ref` no longer shows an internal name (`f4`) as the schema's `$name`.
+- Wrongly typed fields in a webhook or callback, a non-map `paths` and a non-map `responses` become warnings instead of crashing the intake.
 
 ### Added (multi-file specs, 2026-11-17)
 - OpenAPI specs split over several files are read: relative file `$ref`s to schemas, path items and parameters, and refs between the files, are resolved offline. Only `.yaml`, `.yml` and `.json` files inside the spec's folder are read (at most 50 files of 5 MB each). Absolute paths, URLs, `..` escapes, symlinks pointing out of the folder, unreadable or over-nested files are skipped with a warning. YAML aliases stay shared, so an alias-heavy spec does not blow up, and a spec without file refs is parsed exactly as before.
