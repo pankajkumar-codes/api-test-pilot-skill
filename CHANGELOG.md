@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 First release candidate, built in phases (see PLAN.md).
 
 ### Fixed (issue 22, 2026-11-17)
-- A schema built from nested YAML aliases (an alias bomb) no longer hangs intake: resolving stops after 50,000 nodes in one schema, leaves the rest out and adds a warning. Ordinary large schemas are unaffected.
+- A spec built from nested YAML aliases (an alias bomb) no longer hangs intake or writes gigabytes of JSON. Resolving stops after 50,000 nodes in one schema and 1,000,000 across all schemas, the examples and defaults an author wrote are cut at 10,000 nodes each, and the finished intake at 500,000 nodes. Each cut adds a warning, and the schema one names the schema. Ordinary large schemas are unaffected.
 
 ### Added (local gateway and GraphQL examples, 2026-11-17)
 - `examples/aws-local/`: a FastAPI app that behaves like an API Gateway REST API in front of a function (stage prefix, `x-api-key`, usage-plan throttling, request validation errors, `502` for a failing function) and a strawberry GraphQL app with an API key. `tests/test_aws_local.py` runs the generated suites against both as real servers, clean and with seeded flaws (skipped unless fastapi, uvicorn and strawberry-graphql are installed).

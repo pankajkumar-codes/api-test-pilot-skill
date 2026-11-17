@@ -26,13 +26,19 @@ SCHEMA_KEYS = (
     "uniqueItems", "nullable", "default", "const", "example", "readOnly", "writeOnly", "multipleOf",
 )
 MAX_DEPTH = 12
-MAX_SCHEMA_NODES = 50_000   # per top-level schema; nested YAML aliases can expand into a tree far larger than the file
+# Nested YAML aliases can expand into a tree far larger than the file. Three caps keep the intake small: nodes in one
+# schema, nodes across all schemas, and nodes in the finished document (which also covers examples and defaults).
+MAX_SCHEMA_NODES = 50_000
+MAX_TOTAL_SCHEMA_NODES = 1_000_000
+MAX_OUTPUT_NODES = 500_000
 
 
 class Resolver:
     def __init__(self, root: dict, warnings: list[str]):
         self.root, self.warnings = root, warnings
         self.nodes = 0
+        self.total = 0
+        self.where = ""
 
     def lookup(self, ref: str) -> Any:
         if not ref.startswith("#/"):
@@ -65,9 +71,15 @@ class Resolver:
             return {} if node in (None, True) else node
         if depth == 0:
             self.nodes = 0
+            ref = node.get("$ref")
+            self.where = ref.rsplit("/", 1)[-1] if isinstance(ref, str) else node.get("title") or "an inline schema"
         self.nodes += 1
-        if self.nodes > MAX_SCHEMA_NODES:
-            msg = f"Schema too large after resolving $refs and aliases (over {MAX_SCHEMA_NODES} nodes in one schema); the rest is left out"
+        self.total += 1
+        if self.nodes > MAX_SCHEMA_NODES or self.total > MAX_TOTAL_SCHEMA_NODES:
+            if self.total > MAX_TOTAL_SCHEMA_NODES:
+                msg = f"Schemas expand to more than {MAX_TOTAL_SCHEMA_NODES} nodes in all; the rest is left out"
+            else:
+                msg = f"Schema '{self.where}' is too large after resolving $refs and aliases (over {MAX_SCHEMA_NODES} nodes); the rest is left out"
             if msg not in self.warnings:
                 self.warnings.append(msg)
             return {"$truncated": True}
@@ -85,6 +97,9 @@ class Resolver:
                     out.setdefault("$name", name)
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
+        for k in ("example", "default", "enum", "const"):   # data the author wrote: may be an alias bomb
+            if isinstance(out.get(k), (dict, list)):
+                out[k] = redact_example(out[k])
         if out.get("format") == "password" or out.get("writeOnly"):  # sample values can be real secrets
             for drop in ("example", "default", "enum", "const"):
                 out.pop(drop, None)
@@ -421,6 +436,36 @@ def parse(doc: Any, filename: str = "") -> dict:
     }
     if hooks:
         out["webhooks"] = hooks
+    return _bounded(out, warnings)
+
+
+def _bounded(doc: dict, warnings: list[str]) -> dict:
+    """Copies the finished intake, stopping after MAX_OUTPUT_NODES nodes. Aliased examples and defaults share YAML nodes,
+    so a small file can still expand into gigabytes once it is written out as JSON."""
+    left = MAX_OUTPUT_NODES
+    cut = False
+    example_cut = False
+
+    def copy(node: Any) -> Any:
+        nonlocal left, cut, example_cut
+        if not isinstance(node, (dict, list)):
+            if node == "$truncated":   # left by redact_example when an example or default is huge
+                example_cut = True
+            return node
+        left -= 1
+        if left < 0:
+            cut = True
+            return "$truncated"
+        if isinstance(node, dict):
+            return {k: copy(v) for k, v in node.items()}
+        return [copy(v) for v in node]
+
+    out = {k: (v if k == "warnings" else copy(v)) for k, v in doc.items()}   # the warnings are small and must survive
+    out["warnings"] = list(warnings)
+    if example_cut and not cut:
+        out["warnings"].append("An example or default value is too large (nested aliases?); the rest of it is left out")
+    if cut:
+        out["warnings"].append(f"The spec expands to more than {MAX_OUTPUT_NODES} nodes (nested aliases in examples or defaults?); the rest is left out")
     return out
 
 
