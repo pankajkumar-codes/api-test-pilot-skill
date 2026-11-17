@@ -13,7 +13,7 @@ from pathlib import Path
 import _common
 from gen_common import Expr, Module, ident, py
 
-GQL_TYPES = ("smoke", "positive", "negative", "edge", "security")
+GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract")
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
 INJECTION = ["' OR '1'='1", "1; SELECT 1", '{"$ne": null}', "$(id)", "../../../../etc/passwd", "<script>apitest</script>", "{{7*7}}"]
@@ -164,12 +164,18 @@ def operations_source(sc: Schema) -> str:
         parts = [f"id={op['id']!r}", f"kind={op['kind']!r}", f"name={op['name']!r}", f"query={sc.query_text(op)!r}",
                  f"variables={py(sc.baseline_vars(op))}", f"args={py([{k: a[k] for k in ('name', 'type', 'named', 'kind', 'required', 'list')} for a in op['args']])}",
                  f"returns={op['returns']!r}", f"return_kind={op['return_kind']!r}",
-                 f"return_non_null={op['return_non_null']!r}", f"return_list={op['return_list']!r}"]
+                 f"return_non_null={op['return_non_null']!r}", f"return_list={op['return_list']!r}",
+                 f"return_type={op['return_type']!r}", f"selection={op['selection']!r}"]
         if minimal:
             parts.append(f"query_minimal={minimal!r}")
         rows.append("    gr.Operation(" + ",\n                 ".join(parts) + ")")
+    types = {n: {f["name"]: f["type"] for f in t.get("fields", [])}
+             for n, t in sc.types.items() if t.get("kind") in ("OBJECT", "INTERFACE")}
+    enums = {n: list(t.get("values") or []) for n, t in sc.types.items() if t.get("kind") == "ENUM"}
+    kinds = {n: t.get("kind") for n, t in sc.types.items()}
     return ('"""Operation table generated from the GraphQL intake. Contains no secrets: ids come from env vars."""\n'
-            "import gql_runtime as gr\n\nOPS = {o.id: o for o in [\n" + ",\n".join(rows) + ",\n]}\n")
+            "import gql_runtime as gr\n\nOPS = {o.id: o for o in [\n" + ",\n".join(rows) + ",\n]}\n"
+            f"\n# what the schema says each field looks like, for the contract tests\nTYPES = {py(types)}\nENUMS = {py(enums)}\nKINDS = {py(kinds)}\n")
 
 
 def smoke(sc: Schema, mod: Module) -> None:
@@ -362,12 +368,25 @@ def security(sc: Schema, mod: Module) -> list[str]:
     return notes
 
 
+def contract(sc: Schema, mod: Module) -> None:
+    """Run each read operation and check the answer has the shape the schema promises (types, enum values, non-null)."""
+    for op in sc.ops:
+        if op["kind"] != "query" or op["return_kind"] not in ("OBJECT", "INTERFACE") or not op["selection"]:
+            continue
+        nn = ", nonnull=True" if op["return_non_null"] else ""
+        mod.add(f"def {mod.unique('test_contract_' + op['name'] + '_matches_schema')}(gql):\n    op = OPS[{op['id']!r}]\n"
+                f"    resp = gql.run(op)\n    value = gr.expect_data(resp, {op['name']!r}{nn})\n"
+                "    gr.expect_shape(resp, value, op.return_type, op.selection, TYPES, ENUMS, KINDS, "
+                f"{op['return_list']!r})\n")
+
+
 MODULES = {
     "smoke": ("test_graphql_smoke.py", "GraphQL smoke tests", smoke),
     "positive": ("test_graphql_positive.py", "GraphQL positive tests", positive),
     "negative": ("test_graphql_negative.py", "GraphQL negative tests", negative),
     "edge": ("test_graphql_edge.py", "GraphQL edge-case tests", edge),
     "security": ("test_graphql_security.py", "GraphQL security tests (OWASP API Top 10)", security),
+    "contract": ("test_graphql_contract.py", "GraphQL contract tests (the answer matches the schema)", contract),
 }
 
 
@@ -403,7 +422,7 @@ def gql(base_url):
         if isinstance(extra, list):
             notes += extra
         if mod.tests:
-            files[fname] = mod.render("import gql_runtime as gr  # noqa: F401\nfrom operations import OPS  # noqa: F401\n").replace(
+            files[fname] = mod.render("import gql_runtime as gr  # noqa: F401\nfrom operations import ENUMS, KINDS, OPS, TYPES  # noqa: F401\n").replace(
                 "from endpoints import EP\n", "")
             counts[t] = mod.tests
     for name, src in files.items():

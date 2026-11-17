@@ -3,7 +3,7 @@
 Pipeline: `parse_graphql.py` (or `intake.py`, which auto-detects) -> intake JSON -> `gen_pytest.py` -> pytest.
 ```
 python scripts/intake.py schema.graphql -o intake.json --url http://localhost:4000/graphql   # SDL, or an introspection JSON file
-python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security
+python scripts/gen_pytest.py intake.json -o gql_tests --types all                          # smoke,positive,negative,edge,security,contract
 APITEST_BASE_URL=http://localhost:4000 APITEST_BEARERAUTH_TOKEN=... python -m pytest gql_tests -v -ra
 ```
 Get the schema from the user as SDL or as the result of the standard introspection query (saved as JSON). The parser is offline
@@ -32,6 +32,13 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
   variable type (Int<-string, enum<-unknown value, input<-string...). Anonymous access is checked only when you set `APITEST_GQL_REQUIRES_AUTH=yes`.
 - **edge** (queries): unicode, empty, special characters and 100k-char strings; 0/-1/int32 max/overflow numbers; huge page sizes; explicit `null` vs omitted; empty lists; lowercase enum values. Must be handled, never 5xx.
 
+## Contract tests
+`contract` runs each query that returns an object (no mutations: they write) with its default selection and checks the answer against what the schema declares:
+every selected field is present, scalars have the right JSON type (`Int` an integer, `Float` a number, `Boolean` a boolean, `String` a string, `ID` a string or integer),
+enum values are ones the schema lists, `null` only where the type is nullable (also list items), and list types arrive as arrays. Custom scalars are not checked.
+Only the selected scalar and enum fields are checked, up to 20 list items per answer; nested objects are not walked. Mismatches are MEDIUM findings.
+Needs the same ids as the positive tests (`APITEST_GQL_<ARG>`), otherwise the test skips and names the variable.
+
 ## Security checks (all `intrusive`: same safety gate as `references/security.md`)
 | Check | Fails when |
 |-------|-----------|
@@ -50,6 +57,6 @@ Subscriptions are listed but not tested (need WebSocket/SSE; v2).
 Credentials (`APITEST_BEARERAUTH_TOKEN`), redaction, curl reproductions (`variables` are redacted), the safety gate and the
 generated `conftest.py` are the REST modules; `gql_runtime.py` only adds the GraphQL-specific assertions.
 `spec_diff.py` compares two GraphQL intakes (removed fields/operations, new required arguments, type changes).
-Not yet for GraphQL: contract, integration, data-validation and resilience generators (the REST ones are not applicable as-is); load testing via k6 arrives in Phase 3.
+Not yet for GraphQL: integration, data-validation, fuzz and resilience generators (the REST ones are not applicable as-is); load testing via k6 arrives in Phase 3.
 
 Only test APIs the user owns or is authorized to test. The safety gate applies to load/stress/fuzz as well.

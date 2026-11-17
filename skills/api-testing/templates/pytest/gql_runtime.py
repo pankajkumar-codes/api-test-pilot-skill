@@ -47,6 +47,8 @@ class Operation:
     return_non_null: bool = False
     return_list: bool = False
     query_minimal: str | None = None
+    return_type: str = ""
+    selection: list = field(default_factory=list)
 
 
 class Gql(Api):
@@ -190,3 +192,72 @@ def expect_graceful(resp: requests.Response, what: str = "") -> None:
         fail(resp, f"{what or 'unusual input'}: server error {resp.status_code}", "MEDIUM")
     if resp.status_code == 200 and not isinstance(body_of(resp), dict):
         fail(resp, f"{what or 'unusual input'}: HTTP 200 body is not a JSON object", "MEDIUM")
+
+
+# --------------------------------------------------------------------------- contract
+_TYPE_RE = re.compile(r"^(\[)?\s*([A-Za-z_][A-Za-z0-9_]*)\s*(!)?\s*(\])?\s*(!)?$")
+
+
+def _split_type(text: str) -> tuple[bool, bool, bool, str]:
+    """'[Pet!]!' -> (is_list, list_non_null, item_non_null, 'Pet'); 'Int!' -> (False, True, True, 'Int')."""
+    m = _TYPE_RE.match(text.strip())
+    if not m:
+        return False, False, False, text
+    opening, named, inner_bang, closing, outer_bang = m.groups()
+    if opening and closing:
+        return True, bool(outer_bang), bool(inner_bang), named
+    return False, bool(inner_bang or outer_bang), bool(inner_bang or outer_bang), named
+
+
+def _scalar_problem(named: str, value: Any, enums: dict, kinds: dict) -> str | None:
+    if named == "Int":
+        return None if isinstance(value, int) and not isinstance(value, bool) else "an integer"
+    if named == "Float":
+        return None if isinstance(value, (int, float)) and not isinstance(value, bool) else "a number"
+    if named == "Boolean":
+        return None if isinstance(value, bool) else "a boolean"
+    if named == "String":
+        return None if isinstance(value, str) else "a string"
+    if named == "ID":
+        return None if isinstance(value, (str, int)) and not isinstance(value, bool) else "a string or integer"
+    if kinds.get(named) == "ENUM":
+        return None if value in enums.get(named, []) else f"one of {enums.get(named, [])}"
+    return None   # custom scalars carry anything
+
+
+def expect_shape(resp: requests.Response, value: Any, type_name: str, selection: list, types: dict, enums: dict,
+                 kinds: dict, is_list: bool = False) -> None:
+    """Check `value` (the answer for an operation) against what the schema declares for the selected fields."""
+    items = value if is_list and isinstance(value, list) else [value]
+    if is_list and value is not None and not isinstance(value, list):
+        fail(resp, f"expected a JSON array for a list type, got {type(value).__name__}", "MEDIUM")
+    fields = types.get(type_name, {})
+    for n, item in enumerate(items[:20]):
+        if item is None:
+            continue
+        where = f"{type_name}[{n}]" if is_list else type_name
+        if not isinstance(item, dict):
+            fail(resp, f"{where} should be an object, got {type(item).__name__}", "MEDIUM")
+        for name in selection:
+            if name not in item:
+                fail(resp, f"{where}.{name} was selected but is missing from the answer", "MEDIUM")
+            decl = fields.get(name)
+            if decl is None:
+                continue
+            val = item[name]
+            lst, lst_nn, item_nn, named = _split_type(decl)
+            if val is None:
+                if lst_nn:
+                    fail(resp, f"{where}.{name} is null although the schema declares {decl}", "MEDIUM")
+                continue
+            seq = val if lst else [val]
+            if lst and not isinstance(val, list):
+                fail(resp, f"{where}.{name} should be a list ({decl}), got {type(val).__name__}", "MEDIUM")
+            for one in seq:
+                if one is None:
+                    if item_nn:
+                        fail(resp, f"{where}.{name} has a null item although the schema declares {decl}", "MEDIUM")
+                    continue
+                bad = _scalar_problem(named, one, enums, kinds)
+                if bad:
+                    fail(resp, f"{where}.{name} should be {bad} ({decl}), got {type(one).__name__}", "MEDIUM")

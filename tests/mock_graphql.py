@@ -1,6 +1,6 @@
 """Local mock GraphQL server for validating generated suites (stdlib only; reuses parse_graphql's lexer/SDL parser).
 
-Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash
+Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape
 """
 from __future__ import annotations
 
@@ -191,6 +191,8 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                 del pets[p["id"]]
                 return True
         if tname == "Pet":
+            if "badshape" in bugs and fname in ("name", "species"):
+                return 123 if fname == "name" else "FISH"   # a number for a String, a value the enum does not have
             if fname == "owner":
                 return users[obj["owner"]]
             if fname == "friends":
