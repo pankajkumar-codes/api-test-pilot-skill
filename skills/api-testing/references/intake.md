@@ -14,6 +14,7 @@ absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it
   "info":    {"title": "...", "version": "..."},
   "servers": ["http://localhost:8080/v1"],
   "security_schemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "env": ["APITEST_BEARERAUTH_TOKEN"]}},
+  "webhooks": [],                           // optional, see Rules
   "endpoints": [{
     "id": "createPet", "method": "POST", "path": "/pets", "summary": "", "tags": [], "deprecated": false,
     "auth_required": true,
@@ -41,8 +42,11 @@ absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it
   expectations exist, so ask the user what "correct" means.
 - **GraphQL** (SDL or introspection JSON, `parse_graphql.py`): same top-level keys; the single endpoint is `POST /graphql`; an extra
   `graphql` block lists operations and types. Details in `references/graphql.md`.
-- Unsupported (warn the user): gRPC (v2), OpenAPI callbacks/webhooks, multi-file specs
-  (bundle first with `redocly bundle` or similar).
+- **Webhooks and callbacks** (OpenAPI 3.1 `webhooks`, operation `callbacks`): listed under a top-level `webhooks` array (only present
+  when there are some) as `{kind: webhook|callback, name, method, summary, request_body: {content_type, schema, example}, responses: ["200", ...]}`,
+  callbacks also carry `parent` (the endpoint id) and `expression`. They are calls the API makes to the client, so there is nothing to send
+  them to: no tests are generated, the summary lists them, and a plan can mention them as untested. Secret-looking payload values are dropped like everywhere else. At most 200 are listed.
+- Unsupported (warn the user): gRPC (v2).
 
 ## Ask the user when
 No `servers` (base URL), only variable base URLs, no 2xx responses documented, or the target environment

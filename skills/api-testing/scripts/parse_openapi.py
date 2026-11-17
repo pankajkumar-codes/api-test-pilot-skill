@@ -70,7 +70,9 @@ class Resolver:
                 return {"$unresolved": ref}
             out = self.schema(target, stack + (ref,), depth + 1)
             if isinstance(out, dict):
-                out.setdefault("$name", ref.rsplit("/", 1)[-1])
+                name = ref.rsplit("/", 1)[-1]
+                if not (ref.startswith(f"#/{BUNDLE_KEY}/") and ref.count("/") == 2):   # a whole-file ref has no name of its own
+                    out.setdefault("$name", name)
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
         if out.get("format") == "password" or out.get("writeOnly"):  # sample values can be real secrets
@@ -202,12 +204,65 @@ def _content_schema(r: Resolver, content: dict | None) -> tuple[str | None, Any,
     if not isinstance(content, dict) or not content:
         return None, None, None
     ctype = next((c for c in content if "json" in c), next(iter(content)))
-    media = content[ctype] or {}
+    media = content[ctype] if isinstance(content[ctype], dict) else {}
     example = media.get("example")
     if example is None and isinstance(media.get("examples"), dict):
         first = next(iter(media["examples"].values()), {})
         example = r.deref(first).get("value") if isinstance(first, dict) else None
     return ctype, r.schema(media.get("schema", {})), example
+
+
+MAX_HOOKS = 200
+
+
+def _hooks(r: Resolver, doc: dict, ops: list[tuple[str, dict]], warnings: list[str]) -> list[dict]:
+    """Webhooks (OpenAPI 3.1 top-level `webhooks`) and operation `callbacks`. They describe calls the API makes to the client, so
+    nothing can be sent to them; the intake keeps the name, method and payload schema so a plan can list them.
+    `ops` holds (endpoint id, operation) pairs whose callbacks are read."""
+    out: list[dict] = []
+    dropped = []
+
+    def add(kind: str, name: str, expression: str, item: Any, parent: str | None) -> None:
+        item = r.deref(item)
+        for method in HTTP_METHODS:
+            op = item.get(method)
+            if not isinstance(op, dict):
+                continue
+            if len(out) >= MAX_HOOKS:
+                dropped.append(name)
+                continue
+            try:
+                rb = r.deref(op.get("requestBody"))
+                ctype, sch, ex = _content_schema(r, rb.get("content"))
+                text = op.get("summary") or op.get("description") or ""
+                hook: dict[str, Any] = {"kind": kind, "name": name, "method": method.upper(),
+                                        "summary": (text if isinstance(text, str) else "").strip().split("\n")[0]}
+                if parent:
+                    hook["parent"] = parent
+                    hook["expression"] = expression
+                if ctype:
+                    hook["request_body"] = {"content_type": ctype, "schema": sch or {}}
+                    if ex is not None:
+                        hook["request_body"]["example"] = redact_example(ex)
+                responses = op.get("responses")
+                hook["responses"] = sorted(str(c) for c in responses) if isinstance(responses, dict) else []
+            except (TypeError, AttributeError, ValueError, KeyError):   # a payload the spec writer got wrong: skip it, keep the rest
+                warnings.append(f"{kind} '{name}' ({method.upper()}) could not be read and was skipped")
+                continue
+            out.append(hook)
+
+    hooks_map = doc.get("webhooks")
+    for name, item in (hooks_map.items() if isinstance(hooks_map, dict) else []):
+        add("webhook", str(name), "", item, None)
+    for ep_id, op in ops:
+        cbs = op.get("callbacks")
+        for cname, cb in (cbs.items() if isinstance(cbs, dict) else []):
+            for expression, item in r.deref(cb).items():
+                if isinstance(expression, str) and not expression.startswith("x-"):
+                    add("callback", str(cname), expression, item, ep_id)
+    if dropped:
+        warnings.append(f"more than {MAX_HOOKS} webhooks and callbacks: {len(dropped)} were not listed")
+    return out
 
 
 # --------------------------------------------------------------------------- main
@@ -246,7 +301,11 @@ def parse(doc: Any, filename: str = "") -> dict:
     global_sec = _security_reqs(doc.get("security"))
 
     endpoints: list[dict] = []
-    for path, item in (doc.get("paths") or {}).items():
+    hook_ops: list[dict] = []
+    paths = doc.get("paths")
+    if paths is not None and not isinstance(paths, dict):
+        warnings.append("'paths' is not a map and was ignored")
+    for path, item in (paths.items() if isinstance(paths, dict) else []):
         item = r.deref(item)
         if not isinstance(item, dict):
             continue
@@ -288,7 +347,10 @@ def parse(doc: Any, filename: str = "") -> dict:
                     body["other_content_types"] = [c for c in rb["content"] if c != ctype]
 
             responses: dict[str, dict] = {}
-            for status, resp in (op.get("responses") or {}).items():
+            raw_responses = op.get("responses")
+            if raw_responses is not None and not isinstance(raw_responses, dict):
+                warnings.append(f"{method.upper()} {path}: 'responses' is not a map and was ignored")
+            for status, resp in (raw_responses.items() if isinstance(raw_responses, dict) else []):
                 resp = r.deref(resp)
                 if swagger2:
                     ctype, sch = (op.get("produces") or doc.get("produces") or [None])[0], r.schema(resp.get("schema")) if resp.get("schema") else None
@@ -334,10 +396,12 @@ def parse(doc: Any, filename: str = "") -> dict:
             if not any(c.startswith("2") for c in responses):
                 warnings.append(f"{method.upper()} {path}: no 2xx response documented")
             endpoints.append(ep)
+            hook_ops.append(op)
 
     unique_ids(endpoints, warnings)
+    hooks = _hooks(r, doc, [(e["id"], op) for e, op in zip(endpoints, hook_ops)], warnings)
     info = doc.get("info") or {}
-    return {
+    out = {
         "source": {"type": "openapi", "version": version, "file": Path(filename).name if filename else ""},
         "info": {"title": info.get("title", ""), "version": str(info.get("version", ""))},
         "servers": servers,
@@ -345,6 +409,9 @@ def parse(doc: Any, filename: str = "") -> dict:
         "endpoints": endpoints,
         "warnings": warnings,
     }
+    if hooks:
+        out["webhooks"] = hooks
+    return out
 
 
 MAX_FILES = 50
