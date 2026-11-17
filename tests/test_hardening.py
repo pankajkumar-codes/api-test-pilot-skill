@@ -141,3 +141,23 @@ def test_graphql_ordinary_numbers_still_parse(tmp_path):
     f.write_text("type Query { a(n: Float = 1.5e3, m: Int = -7): Int }\n")
     p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
     assert p.returncode == 0, p.stderr[-500:]
+
+
+def test_yaml_alias_bomb_in_a_schema_is_capped_instead_of_hanging(tmp_path):
+    pytest.importorskip("yaml")
+    defs = ["a0: &a0 {type: string}"] + [f"a{i}: &a{i} {{type: object, properties: {{x: *a{i - 1}, y: *a{i - 1}}}}}" for i in range(1, 40)]
+    spec = ("openapi: 3.0.0\ninfo: {title: x, version: '1'}\nx-defs:\n" + "\n".join("  " + d for d in defs) +
+            "\npaths:\n  /a:\n    post:\n      requestBody:\n        content:\n          application/json:\n            schema: *a39\n"
+            "      responses:\n        '200': {description: ok}\n")
+    f = tmp_path / "bomb.yaml"
+    f.write_text(spec)
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0 and "Schema too large" in p.stdout + p.stderr, (p.returncode, p.stderr[-500:])
+
+
+def test_a_large_but_ordinary_schema_is_not_truncated():
+    import parse_openapi
+    warnings: list[str] = []
+    wide = {"type": "object", "properties": {f"p{i}": {"type": "string"} for i in range(2000)}}
+    out = parse_openapi.Resolver({}, warnings).schema(wide)
+    assert len(out["properties"]) == 2000 and not warnings

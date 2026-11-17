@@ -26,11 +26,13 @@ SCHEMA_KEYS = (
     "uniqueItems", "nullable", "default", "const", "example", "readOnly", "writeOnly", "multipleOf",
 )
 MAX_DEPTH = 12
+MAX_SCHEMA_NODES = 50_000   # per top-level schema; nested YAML aliases can expand into a tree far larger than the file
 
 
 class Resolver:
     def __init__(self, root: dict, warnings: list[str]):
         self.root, self.warnings = root, warnings
+        self.nodes = 0
 
     def lookup(self, ref: str) -> Any:
         if not ref.startswith("#/"):
@@ -61,6 +63,14 @@ class Resolver:
     def schema(self, node: Any, stack: tuple = (), depth: int = 0) -> Any:
         if not isinstance(node, dict):
             return {} if node in (None, True) else node
+        if depth == 0:
+            self.nodes = 0
+        self.nodes += 1
+        if self.nodes > MAX_SCHEMA_NODES:
+            msg = f"Schema too large after resolving $refs and aliases (over {MAX_SCHEMA_NODES} nodes in one schema); the rest is left out"
+            if msg not in self.warnings:
+                self.warnings.append(msg)
+            return {"$truncated": True}
         if "$ref" in node:
             ref = node["$ref"]
             if ref in stack or depth > MAX_DEPTH:

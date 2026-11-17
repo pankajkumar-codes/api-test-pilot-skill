@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (issue 22, 2026-11-17)
+- A schema built from nested YAML aliases (an alias bomb) no longer hangs intake: resolving stops after 50,000 nodes in one schema, leaves the rest out and adds a warning. Ordinary large schemas are unaffected.
+
 ### Added (local gateway and GraphQL examples, 2026-11-17)
 - `examples/aws-local/`: a FastAPI app that behaves like an API Gateway REST API in front of a function (stage prefix, `x-api-key`, usage-plan throttling, request validation errors, `502` for a failing function) and a strawberry GraphQL app with an API key. `tests/test_aws_local.py` runs the generated suites against both as real servers, clean and with seeded flaws (skipped unless fastapi, uvicorn and strawberry-graphql are installed).
 - GraphQL intake: `intake.py --api-key-header NAME` sends the credential in that header (from `APITEST_APIKEY_KEY`) instead of a bearer token. The runtime uses whichever scheme the intake declares.
