@@ -1,0 +1,122 @@
+"""Specs split over several files: relative $refs are read, anything outside the spec folder is not."""
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import parse_openapi
+SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "api-testing" / "scripts"
+
+
+def _write(root: Path, files: dict[str, str]) -> Path:
+    for name, text in files.items():
+        p = root / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text)
+    return root / "openapi.yaml"
+
+
+ROOT = """openapi: 3.0.0
+info: {title: mf, version: "1"}
+servers: [{url: "http://127.0.0.1:1"}]
+paths:
+  /pets:
+    $ref: ./paths/pets.yaml
+components:
+  schemas:
+    Id: {type: integer, readOnly: true}
+"""
+PETS = """post:
+  operationId: createPet
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema: {$ref: ../schemas/pet.yaml#/Pet}
+  responses:
+    "201":
+      description: ok
+      content:
+        application/json:
+          schema: {$ref: ../schemas/pet.yaml#/Pet}
+"""
+PET = """Pet:
+  type: object
+  required: [name]
+  properties:
+    id: {$ref: ../openapi.yaml#/components/schemas/Id}
+    name: {type: string}
+    friend: {$ref: "#/Pet"}
+"""
+
+
+def test_path_items_and_schemas_in_other_files_are_resolved(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": PETS, "schemas/pet.yaml": PET})
+    doc = parse_openapi.build(str(spec))
+    ep = doc["endpoints"][0]
+    props = ep["request_body"]["schema"]["properties"]
+    assert ep["id"] == "createPet" and props["name"] == {"type": "string"}
+    assert props["id"]["readOnly"] is True          # a ref from a copied file back to the root file
+    assert props["friend"] == {"$circular": "Pet"}   # a local ref inside a copied file points at that file
+    assert not [w for w in doc["warnings"] if "$ref" in w]
+
+
+def test_intake_cli_reads_a_split_spec(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": PETS, "schemas/pet.yaml": PET})
+    out = tmp_path / "intake.json"
+    subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(spec), "-o", str(out)], check=True, capture_output=True)
+    assert json.loads(out.read_text())["endpoints"][0]["id"] == "createPet"
+
+
+def test_files_outside_the_spec_folder_are_never_read(tmp_path):
+    (tmp_path / "outside.yaml").write_text("Leak:\n  type: string\n  example: canary-outside-value\n")
+    inner = tmp_path / "api"
+    spec = _write(inner, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                          "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", "../outside.yaml#/Leak")})
+    doc = parse_openapi.build(str(spec))
+    assert "canary-outside-value" not in json.dumps(doc)
+    assert any("outside the spec folder" in w for w in doc["warnings"])
+
+
+def test_absolute_paths_urls_and_missing_files_are_refused_with_a_warning(tmp_path):
+    for ref in ("/etc/hostname", "https://example.com/x.yaml#/A", "./nope.yaml#/A"):
+        spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                                 "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", ref)})
+        doc = parse_openapi.build(str(spec))
+        assert doc["warnings"] and doc["endpoints"][0]["request_body"]["schema"] == {"$unresolved": ref}, ref
+
+
+def test_a_symlink_out_of_the_folder_is_refused(tmp_path):
+    (tmp_path / "secret.yaml").write_text("S:\n  type: string\n  example: canary-linked-value\n")
+    inner = tmp_path / "api"
+    spec = _write(inner, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./pets.yaml"),
+                          "pets.yaml": PETS.replace("../schemas/pet.yaml#/Pet", "./link.yaml#/S")})
+    (inner / "link.yaml").symlink_to(tmp_path / "secret.yaml")
+    doc = parse_openapi.build(str(spec))
+    assert "canary-linked-value" not in json.dumps(doc) and any("outside the spec folder" in w for w in doc["warnings"])
+
+
+def test_two_files_that_point_at_each_other_do_not_loop(tmp_path):
+    spec = _write(tmp_path, {"openapi.yaml": ROOT.replace("./paths/pets.yaml", "./a.yaml"),
+                             "a.yaml": "post:\n  operationId: x\n  responses:\n    '200':\n      description: ok\n      content:\n        application/json:\n          schema: {$ref: ./b.yaml#/B}\n",
+                             "b.yaml": "B:\n  type: object\n  properties:\n    back: {$ref: ./b2.yaml#/C}\n",
+                             "b2.yaml": "C:\n  type: object\n  properties:\n    again: {$ref: ./b.yaml#/B}\n"})
+    doc = parse_openapi.build(str(spec))
+    assert doc["endpoints"][0]["responses"]["200"]["schema"]["type"] == "object"
+
+
+def test_too_many_or_too_large_files_are_skipped(tmp_path, monkeypatch):
+    monkeypatch.setattr(parse_openapi, "MAX_FILES", 1)
+    spec = _write(tmp_path, {"openapi.yaml": ROOT, "paths/pets.yaml": PETS, "schemas/pet.yaml": PET})
+    assert any("more than 1 referenced files" in w for w in parse_openapi.build(str(spec))["warnings"])
+    monkeypatch.setattr(parse_openapi, "MAX_FILES", 50)
+    monkeypatch.setattr(parse_openapi, "MAX_FILE_BYTES", 10)
+    assert any("larger than" in w for w in parse_openapi.build(str(spec))["warnings"])
+
+
+def test_an_in_memory_spec_still_leaves_file_refs_unresolved():
+    doc = parse_openapi.parse({"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "paths": {"/a": {"get": {
+        "responses": {"200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "./x.yaml#/A"}}}}}}}}})
+    assert any("External $ref" in w for w in doc["warnings"])

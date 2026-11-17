@@ -347,8 +347,94 @@ def parse(doc: Any, filename: str = "") -> dict:
     }
 
 
+MAX_FILES = 50
+MAX_FILE_BYTES = 5_000_000
+BUNDLE_KEY = "x-bundled"
+
+
+class _Bundler:
+    """Copy the files a spec points at with relative `$ref`s into the root document, so the resolver only sees local refs.
+    Only files inside the root spec's folder are read: an absolute path, a `..` that leaves the folder, a symlink out of it
+    and any URL are refused with a warning. Local refs inside a copied file are re-pointed at its copy."""
+
+    def __init__(self, root_file: Path, warnings: list[str]):
+        self.base = root_file.resolve().parent
+        self.root_file = root_file.resolve()
+        self.warnings = warnings
+        self.slots: dict[Path, str] = {}
+        self.copies: dict[str, Any] = {}
+
+    def _slot(self, target: Path) -> str | None:
+        if target in self.slots:
+            return self.slots[target]
+        if len(self.slots) >= MAX_FILES:
+            self._warn(f"more than {MAX_FILES} referenced files: the rest are not loaded")
+            return None
+        try:
+            if target.stat().st_size > MAX_FILE_BYTES:
+                self._warn(f"referenced file is larger than {MAX_FILE_BYTES // 1_000_000} MB, not loaded: {target.name}")
+                return None
+            doc = load_document(target)
+        except (IntakeError, OSError) as exc:
+            self._warn(f"referenced file could not be read ({target.name}): {exc}")
+            return None
+        slot = f"f{len(self.slots) + 1}"
+        self.slots[target] = slot
+        self.copies[slot] = doc          # filled in place below, so a ref cycle between files ends here
+        self.copies[slot] = self.walk(doc, target)
+        return slot
+
+    def _warn(self, msg: str) -> None:
+        if msg not in self.warnings:
+            self.warnings.append(msg)
+
+    def rewrite(self, ref: str, current: Path) -> str:
+        if ref.startswith("#"):
+            slot = self.slots.get(current)
+            return f"#/{BUNDLE_KEY}/{slot}{ref[1:]}" if slot else ref
+        file_part, _, frag = ref.partition("#")
+        if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", file_part) or file_part.startswith(("/", "\\")):
+            self._warn(f"External $ref not resolved (offline, only relative files are read): {ref}")
+            return ref
+        target = (current.parent / file_part).resolve()
+        if not target.is_relative_to(self.base):
+            self._warn(f"$ref points outside the spec folder and was not loaded: {ref}")
+            return ref
+        if not target.is_file():
+            self._warn(f"$ref file not found: {ref}")
+            return ref
+        if target == self.root_file:
+            return "#" + frag
+        slot = self._slot(target)
+        return ref if slot is None else f"#/{BUNDLE_KEY}/{slot}{frag}"
+
+    def walk(self, node: Any, current: Path) -> Any:
+        if isinstance(node, dict):
+            return {k: (self.rewrite(v, current) if k == "$ref" and isinstance(v, str) else self.walk(v, current))
+                    for k, v in node.items()}
+        if isinstance(node, list):
+            return [self.walk(v, current) for v in node]
+        return node
+
+
+def bundle(doc: Any, path: str) -> tuple[Any, list[str]]:
+    """Inline relative file refs of a spec read from `path`. Returns the document and any warnings."""
+    warnings: list[str] = []
+    if not isinstance(doc, dict):
+        return doc, warnings
+    b = _Bundler(Path(path), warnings)
+    b.slots[b.root_file] = ""
+    out = b.walk(doc, b.root_file)
+    if b.copies:
+        out[BUNDLE_KEY] = b.copies
+    return out, warnings
+
+
 def build(path: str) -> dict:
-    return parse(load_document(path), path)
+    doc, bundle_warnings = bundle(load_document(path), path)
+    out = parse(doc, path)
+    out["warnings"] = bundle_warnings + out["warnings"]
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
