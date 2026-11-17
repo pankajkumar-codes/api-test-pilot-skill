@@ -195,18 +195,14 @@ def expect_graceful(resp: requests.Response, what: str = "") -> None:
 
 
 # --------------------------------------------------------------------------- contract
-_TYPE_RE = re.compile(r"^(\[)?\s*([A-Za-z_][A-Za-z0-9_]*)\s*(!)?\s*(\])?\s*(!)?$")
-
-
-def _split_type(text: str) -> tuple[bool, bool, bool, str]:
-    """'[Pet!]!' -> (is_list, list_non_null, item_non_null, 'Pet'); 'Int!' -> (False, True, True, 'Int')."""
-    m = _TYPE_RE.match(text.strip())
-    if not m:
-        return False, False, False, text
-    opening, named, inner_bang, closing, outer_bang = m.groups()
-    if opening and closing:
-        return True, bool(outer_bang), bool(inner_bang), named
-    return False, bool(inner_bang or outer_bang), bool(inner_bang or outer_bang), named
+def _parse_type(text: str) -> tuple:
+    """'[[Pet!]]!' -> ('list', True, ('list', False, ('named', True, 'Pet'))). Unparseable text is treated as a plain name."""
+    text = text.strip()
+    non_null = text.endswith("!")
+    core = text[:-1].strip() if non_null else text
+    if core.startswith("[") and core.endswith("]"):
+        return ("list", non_null, _parse_type(core[1:-1]))
+    return ("named", non_null, core)
 
 
 def _scalar_problem(named: str, value: Any, enums: dict, kinds: dict) -> str | None:
@@ -225,39 +221,51 @@ def _scalar_problem(named: str, value: Any, enums: dict, kinds: dict) -> str | N
     return None   # custom scalars carry anything
 
 
-def expect_shape(resp: requests.Response, value: Any, type_name: str, selection: list, types: dict, enums: dict,
-                 kinds: dict, is_list: bool = False) -> None:
-    """Check `value` (the answer for an operation) against what the schema declares for the selected fields."""
-    items = value if is_list and isinstance(value, list) else [value]
-    if is_list and value is not None and not isinstance(value, list):
-        fail(resp, f"expected a JSON array for a list type, got {type(value).__name__}", "MEDIUM")
-    fields = types.get(type_name, {})
-    for n, item in enumerate(items[:20]):
-        if item is None:
-            continue
-        where = f"{type_name}[{n}]" if is_list else type_name
-        if not isinstance(item, dict):
-            fail(resp, f"{where} should be an object, got {type(item).__name__}", "MEDIUM")
+def _check(resp: requests.Response, value: Any, node: tuple, where: str, decl: str, on_object, enums: dict, kinds: dict,
+           budget: list) -> None:
+    kind, non_null, inner = node
+    if value is None:
+        if non_null:
+            fail(resp, f"{where} is null although the schema declares {decl}", "MEDIUM")
+        return
+    if kind == "list":
+        if not isinstance(value, list):
+            fail(resp, f"{where} should be a list ({decl}), got {type(value).__name__}", "MEDIUM")
+        for i, item in enumerate(value):
+            if budget[0] <= 0:
+                return
+            budget[0] -= 1
+            _check(resp, item, inner, f"{where}[{i}]", decl, on_object, enums, kinds, budget)
+        return
+    if kinds.get(inner) in ("OBJECT", "INTERFACE"):
+        on_object(value, where)
+        return
+    bad = _scalar_problem(inner, value, enums, kinds)
+    if bad:
+        fail(resp, f"{where} should be {bad} ({decl}), got {type(value).__name__}", "MEDIUM")
+
+
+def expect_shape(resp: requests.Response, value: Any, returns: str, selection: list, types: dict, enums: dict,
+                 kinds: dict) -> None:
+    """Check `value` (the answer for an operation whose return type is written `returns`, for example '[Pet!]!') against what
+    the schema declares for the selected fields. Lists may be nested; at most 20 items are looked at per answer."""
+    node = _parse_type(returns)
+    named = node
+    while named[0] == "list":
+        named = named[2]
+    type_name = named[2]
+    budget = [20]
+
+    def on_object(obj: Any, where: str) -> None:
+        if not isinstance(obj, dict):
+            fail(resp, f"{where} should be an object, got {type(obj).__name__}", "MEDIUM")
+        fields = types.get(type_name, {})
         for name in selection:
-            if name not in item:
+            if name not in obj:
                 fail(resp, f"{where}.{name} was selected but is missing from the answer", "MEDIUM")
             decl = fields.get(name)
-            if decl is None:
-                continue
-            val = item[name]
-            lst, lst_nn, item_nn, named = _split_type(decl)
-            if val is None:
-                if lst_nn:
-                    fail(resp, f"{where}.{name} is null although the schema declares {decl}", "MEDIUM")
-                continue
-            seq = val if lst else [val]
-            if lst and not isinstance(val, list):
-                fail(resp, f"{where}.{name} should be a list ({decl}), got {type(val).__name__}", "MEDIUM")
-            for one in seq:
-                if one is None:
-                    if item_nn:
-                        fail(resp, f"{where}.{name} has a null item although the schema declares {decl}", "MEDIUM")
-                    continue
-                bad = _scalar_problem(named, one, enums, kinds)
-                if bad:
-                    fail(resp, f"{where}.{name} should be {bad} ({decl}), got {type(one).__name__}", "MEDIUM")
+            if decl is not None:
+                _check(resp, obj[name], _parse_type(decl), f"{type_name}.{name}" if where == type_name else f"{where}.{name}",
+                       decl, lambda *_: None, enums, kinds, [20])
+
+    _check(resp, value, node, type_name, returns, on_object, enums, kinds, budget)

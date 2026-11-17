@@ -29,7 +29,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] references/graphql.md: positive/negative/edge adapted to GraphQL (errors arrive as 200 + `errors` array, so assert on the body, not just status)
 - [x] GraphQL security checks: query depth/complexity limits, introspection exposure in prod, batching/alias abuse, field-level authorization, injection in variables
 - [x] Reuse shared modules where possible: auth, redaction, safety gate and runtime reused; k6 load (Phase 3) and reporting (Phase 4; GraphQL results arrive as ordinary pytest/k6 output) reuse the shared intake endpoint shape
-- [~] GraphQL API in eval-apis.md validated against the mock stand-in (9 of 9); real DVGA run pending (Phase 5)
+- [~] GraphQL API in eval-apis.md validated against the mock stand-in (10 of 10); real DVGA run pending (Phase 5)
 
 ## Phase 3 — Non-functional modules
 - [x] references/load.md, stress.md, spike.md, soak.md → k6 scripts (`gen_k6.py`, `run_k6.py`; REST and GraphQL queries)

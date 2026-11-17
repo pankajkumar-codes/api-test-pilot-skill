@@ -27,7 +27,7 @@ For each server the **clean** variant must pass every generated test that is not
 | `ssrf` | internal URL accepted | `test_api7_ssrf_preview_url[...]` |
 | `paging` | page size ignored | `test_listPets_limit_one_returns_at_most_one` |
 | `rate_limit` without `Retry-After` | bad throttle response | `test_rate_limit_behaviour` |
-| GraphQL `introspection`, `nodepth`, `noalias`, `batching`, `fieldauth`, `bola`, `suggest`, `verbose`, `crash` | introspection on, no depth/alias/batch limit, field-level authz missing, BOLA, schema suggestions, verbose errors, injection crash | `test_introspection_disabled`, `test_query_depth_is_limited`, `test_alias_abuse_is_limited`, `test_batching_is_disabled_or_limited`, `test_field_authz_User_email`, `test_bola_pet`, `test_error_messages_do_not_suggest_schema_names`, `test_errors_do_not_leak_internals`, `test_injection_pets[search[0]]` |
+| GraphQL `introspection`, `nodepth`, `noalias`, `batching`, `fieldauth`, `bola`, `suggest`, `verbose`, `crash`, `badshape` | introspection on, no depth/alias/batch limit, field-level authz missing, BOLA, schema suggestions, verbose errors, injection crash, wrong field type and enum value | `test_introspection_disabled`, `test_query_depth_is_limited`, `test_alias_abuse_is_limited`, `test_batching_is_disabled_or_limited`, `test_field_authz_User_email`, `test_bola_pet`, `test_error_messages_do_not_suggest_schema_names`, `test_errors_do_not_leak_internals`, `test_injection_pets[search[0]]`, `test_contract_pets_matches_schema` |
 
 Also verified: the safety gate matrix (production blocks intrusive tests even on a local host, remote hosts need
 `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED`), no DELETE against existing data without `APITEST_ALLOW_DESTRUCTIVE`,
@@ -127,7 +127,7 @@ have no failing test, apart from listed known limitations. The expected-test lis
 mocks, so a "found" here means the check works on that flaw, not that it would find the same flaw in software we did not write.
 
 ### Results
-**Total: 26 of 27 seeded flaws found, 1 documented gap. 4 clean variants: 3 with zero failures, 1 with one listed limitation.** Whole run: about two minutes on 4 cores.
+**Total: 27 of 28 seeded flaws found, 1 documented gap. 4 clean variants: 3 with zero failures, 1 with one listed limitation.** Whole run: about two minutes on 4 cores.
 (Full run through `python evals/run_evals.py --target all --markdown`; the tables below are its output.)
 
 #### Swagger Petstore 3 (mock of the documented behaviour) (mock-based, real target not run)
@@ -189,8 +189,9 @@ Clean variant: 91 passed, 0 failed, 5 skipped
 | `suggest`: schema suggestions in errors | GraphQL | `test_error_messages_do_not_suggest_schema_names` | yes | `test_graphql_security::test_error_messages_do_not_suggest_schema_names` |
 | `verbose`: stack traces in errors | API8 | `test_errors_do_not_leak_internals` | yes | `test_graphql_security::test_errors_do_not_leak_internals` |
 | `crash`: injection crashes the resolver | injection | `test_injection_pets` | yes | `test_graphql_security::test_injection_pets[search[0]]` |
+| `badshape`: a field has the wrong type and an enum value the schema lacks | contract | `test_contract_pets_matches_schema` | yes | `test_graphql_contract::test_contract_pets_matches_schema` |
 
-Clean variant: 63 passed, 0 failed, 5 skipped
+Clean variant: 66 passed, 0 failed, 5 skipped
 
 ### What the evals changed in the skill (found by running, fixed, covered by tests in `tests/test_evals.py`)
 | Finding | Cause | Fix |

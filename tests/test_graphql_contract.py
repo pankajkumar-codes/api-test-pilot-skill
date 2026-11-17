@@ -73,8 +73,8 @@ KINDS = {"Pet": "OBJECT", "Species": "ENUM"}
     ({"id": True, "name": "x", "tag": None, "species": "DOG", "scores": []}, "Pet.id should be a string or integer"),
     ({"id": "1", "name": "x", "tag": 3, "species": "DOG", "scores": []}, "Pet.tag should be a string"),
     ({"id": "1", "name": "x", "tag": None, "species": "DOG", "scores": "none"}, "Pet.scores should be a list"),
-    ({"id": "1", "name": "x", "tag": None, "species": "DOG", "scores": [1, None]}, "has a null item"),
-    ({"id": "1", "name": "x", "tag": None, "species": "DOG", "scores": [1.5]}, "Pet.scores should be an integer"),
+    ({"id": "1", "name": "x", "tag": None, "species": "DOG", "scores": [1, None]}, "Pet.scores[1] is null although the schema declares [Int!]!"),
+    ({"id": "1", "name": "x", "tag": None, "species": "DOG", "scores": [1.5]}, "Pet.scores[0] should be an integer"),
     ({"id": "1", "tag": None, "species": "DOG", "scores": []}, "Pet.name was selected but is missing"),
 ])
 def test_the_shape_check_names_the_problem(gr, value, problem):
@@ -87,11 +87,56 @@ def test_the_shape_check_names_the_problem(gr, value, problem):
 def test_a_good_answer_and_nulls_where_allowed_pass(gr):
     sel = ["id", "name", "tag", "species", "scores"]
     gr.expect_shape(_R(), {"id": 7, "name": "x", "tag": None, "species": None, "scores": [1, 2]}, "Pet", sel, TYPES, ENUMS, KINDS)
-    gr.expect_shape(_R(), [{"id": "1", "name": "x", "tag": "t", "species": "CAT", "scores": []}, None], "Pet", sel, TYPES, ENUMS, KINDS, True)
+    gr.expect_shape(_R(), [{"id": "1", "name": "x", "tag": "t", "species": "CAT", "scores": []}, None], "[Pet]", sel, TYPES, ENUMS, KINDS)
     gr.expect_shape(_R(), None, "Pet", sel, TYPES, ENUMS, KINDS)
 
 
 def test_a_list_type_answered_with_an_object_fails(gr):
     with pytest.raises(BaseException) as err:
-        gr.expect_shape(_R(), {"id": "1"}, "Pet", ["id"], TYPES, ENUMS, KINDS, True)
-    assert "expected a JSON array" in str(err.value)
+        gr.expect_shape(_R(), {"id": "1"}, "[Pet!]!", ["id"], TYPES, ENUMS, KINDS)
+    assert "should be a list" in str(err.value)
+
+
+def test_nested_lists_are_walked_level_by_level(gr):
+    sel = ["id", "name"]
+    good = [[{"id": "1", "name": "a"}], [], [{"id": "2", "name": "b"}, None]]
+    gr.expect_shape(_R(), good, "[[Pet]!]!", sel, TYPES, ENUMS, KINDS)
+    for bad, problem in (([{"id": "1", "name": "a"}], "should be a list"),               # one level short
+                         ([[{"id": "1", "name": 5}]], "Pet[0][0].name should be a string"),
+                         ([None], "is null although the schema declares [[Pet]!]!"),
+                         ([[[]]], "should be an object")):
+        with pytest.raises(BaseException) as err:
+            gr.expect_shape(_R(), bad, "[[Pet]!]!", sel, TYPES, ENUMS, KINDS)
+        assert problem in str(err.value), (bad, str(err.value))
+
+
+def test_a_query_returning_nested_lists_gets_a_contract_test_and_passes_on_a_correct_server(tmp_path):
+    import http.server
+    import json
+    import threading
+
+    sdl = "type Query { grid: [[Cell!]!]! }\ntype Cell { id: ID! label: String }\n"
+    (tmp_path / "grid.graphql").write_text(sdl)
+    out = tmp_path / "suite"
+    gen_pytest.generate(parse_graphql.build(str(tmp_path / "grid.graphql")), out, ["contract"])
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            raw = json.dumps({"data": {"grid": [[{"id": "1", "label": "a"}, {"id": "2", "label": None}], []]}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        results, proc = run_suite(out, f"http://127.0.0.1:{srv.server_address[1]}", {"APITEST_TARGET_ENV": "local"})
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    assert passed(results) == ["test_graphql_contract::test_contract_grid_matches_schema"], proc.stdout[-1500:]

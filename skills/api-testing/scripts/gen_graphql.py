@@ -376,8 +376,7 @@ def contract(sc: Schema, mod: Module) -> None:
         nn = ", nonnull=True" if op["return_non_null"] else ""
         mod.add(f"def {mod.unique('test_contract_' + op['name'] + '_matches_schema')}(gql):\n    op = OPS[{op['id']!r}]\n"
                 f"    resp = gql.run(op)\n    value = gr.expect_data(resp, {op['name']!r}{nn})\n"
-                "    gr.expect_shape(resp, value, op.return_type, op.selection, TYPES, ENUMS, KINDS, "
-                f"{op['return_list']!r})\n")
+                f"    gr.expect_shape(resp, value, {op['returns']!r}, op.selection, TYPES, ENUMS, KINDS)\n")
 
 
 MODULES = {
