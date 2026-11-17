@@ -11,6 +11,7 @@ First release candidate, built in phases (see PLAN.md).
 - `--types resilience` now works for GraphQL (and is part of `all`), so every pytest type is available for GraphQL. Repeatable reads, a response budget, page-size and cursor handling for list queries, an `intrusive` rate-limit burst (a 429 needs a valid `Retry-After`) and a repeated delete of an object the test created itself.
 - The GraphQL fuzzer skips the `long_name` case when the byte limit leaves no room for it, instead of always repeating the name twice.
 - The GraphQL mock gains `ignorefirst`, `slowpets` and `throttle` flaws (unit-test only).
+- A clean run of the whole suite is now 565 pass and 18 skip.
 
 ### Added (GraphQL data-validation tests, 2026-11-17)
 - `--types data-validation` now works for GraphQL (and is part of `all`): one violation per case on a valid baseline, rejection expected. Covers missing required input fields, wrong types and unknown enum values inside input objects, unknown input fields, and breaches of `@constraint` limits (`minLength`, `maxLength`, `min`, `max`, `format`).
