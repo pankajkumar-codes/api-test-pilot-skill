@@ -121,6 +121,21 @@ def test_graphql_number_literal_that_is_too_large_is_a_readable_error(tmp_path, 
     assert "Traceback" not in p.stderr
 
 
+@pytest.mark.parametrize("default", ["[1, 1e999]", "{a: 1e999}", "[{a: [-1e999]}]"])
+def test_graphql_overflowing_float_nested_in_a_default_is_refused(tmp_path, default):
+    f = tmp_path / "nested.graphql"
+    f.write_text("type Query { a(n: [Float] = " + default + "): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 2 and "number too large" in p.stderr, (default, p.returncode, p.stderr[-500:])
+
+
+def test_graphql_constraint_limit_that_overflows_is_ignored_not_fatal(tmp_path):
+    f = tmp_path / "limit.graphql"
+    f.write_text("input In { m: Int @constraint(min: 1e999, max: 5) }\ntype Query { a(i: In): Int }\n")
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
+    assert p.returncode == 0, p.stderr[-500:]
+
+
 def test_graphql_ordinary_numbers_still_parse(tmp_path):
     f = tmp_path / "ok.graphql"
     f.write_text("type Query { a(n: Float = 1.5e3, m: Int = -7): Int }\n")

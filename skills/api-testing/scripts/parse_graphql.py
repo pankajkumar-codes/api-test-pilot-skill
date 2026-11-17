@@ -101,16 +101,27 @@ class Parser:
         return False
 
     # ---- values / types
+    def default_value(self) -> Any:
+        """A default value that ends up in the intake JSON, so a float that overflowed to infinity is refused."""
+        val = self.value()
+        todo = [val]
+        while todo:
+            cur = todo.pop()
+            if isinstance(cur, float) and not math.isfinite(cur):
+                raise IntakeError("GraphQL parse error: number too large")
+            if isinstance(cur, list):
+                todo.extend(cur)
+            elif isinstance(cur, dict):
+                todo.extend(cur.values())
+        return val
+
     def value(self) -> Any:
         k, v = self.next()
         if k in ("int", "float"):
             try:
-                num = int(v) if k == "int" else float(v)
+                return int(v) if k == "int" else float(v)
             except ValueError:  # int() refuses more than 4300 digits
                 raise IntakeError("GraphQL parse error: number too large") from None
-            if isinstance(num, float) and not math.isfinite(num):   # 1e999 overflows to inf, which JSON cannot hold
-                raise IntakeError("GraphQL parse error: number too large")
-            return num
         if k == "string":
             return v
         if k == "name":
@@ -166,7 +177,7 @@ class Parser:
             name = self.expect("name")
             self.expect("punct", ":")
             ref = self.type_ref()
-            default = self.value() if self.accept("punct", "=") else None
+            default = self.default_value() if self.accept("punct", "=") else None
             limits = self.directives()
             out.append({"name": name, "ref": ref, "default": default, "description": desc, **({"constraints": limits} if limits else {})})
         return out
@@ -240,7 +251,7 @@ def parse_sdl(text: str) -> dict:
                         # input field: name: Type = default
                         p.expect("punct", ":")
                         ref = p.type_ref()
-                        default = p.value() if p.accept("punct", "=") else None
+                        default = p.default_value() if p.accept("punct", "=") else None
                         limits = p.directives()
                         fields.append({"name": fname, "ref": ref, "default": default, "args": [], "description": fdesc,
                                        **({"constraints": limits} if limits else {})})
