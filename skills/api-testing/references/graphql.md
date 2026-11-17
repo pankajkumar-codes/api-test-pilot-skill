@@ -87,6 +87,6 @@ Needs the same ids as the positive tests (`APITEST_GQL_<ARG>`), otherwise the te
 Credentials (`APITEST_BEARERAUTH_TOKEN`), redaction, curl reproductions (`variables` are redacted), the safety gate and the
 generated `conftest.py` are the REST modules; `gql_runtime.py` only adds the GraphQL-specific assertions.
 `spec_diff.py` compares two GraphQL intakes (removed fields/operations, new required arguments, type changes).
-All pytest test types are available for GraphQL; load testing via k6 is described in the k6 reference.
+All pytest test types are available for GraphQL; load testing with k6 is in `load.md`.
 
 Only test APIs the user owns or is authorized to test. The safety gate applies to load/stress/fuzz as well.
