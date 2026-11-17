@@ -271,15 +271,28 @@ def is_secret_name(name: Any) -> bool:
     return isinstance(name, str) and bool(SECRET_KEY_RE.search(name))
 
 
+MAX_EXAMPLE_NODES = 10_000   # a YAML alias bomb shares nodes, so walking it as a tree would never finish
+
+
 def redact_example(value: Any, key: str = "") -> Any:
-    """Replace values of secret-looking keys in example payloads (any non-container value)."""
-    if isinstance(value, dict):
-        return {k: redact_example(v, k) for k, v in value.items()}
-    if isinstance(value, list):
-        return [redact_example(v, key) for v in value]
-    if key and is_secret_name(key) and value not in ("", None):
-        return "<redacted>"
-    return value
+    """Replace values of secret-looking keys in example payloads (any non-container value).
+    Stops after MAX_EXAMPLE_NODES nodes and puts "$truncated" in place of the rest."""
+    left = MAX_EXAMPLE_NODES
+
+    def walk(node: Any, k: str) -> Any:
+        nonlocal left
+        if isinstance(node, (dict, list)):
+            left -= 1
+            if left < 0:
+                return "$truncated"
+            if isinstance(node, dict):
+                return {name: walk(v, name) for name, v in node.items()}
+            return [walk(v, k) for v in node]
+        if k and is_secret_name(k) and node not in ("", None):
+            return "<redacted>"
+        return node
+
+    return walk(value, key)
 
 
 REDACTED = "<redacted>"

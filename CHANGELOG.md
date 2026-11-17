@@ -12,6 +12,9 @@ First release candidate, built in phases (see PLAN.md).
 - Eval tables re-run on main: Petstore mock 325 pass, VAmPI mock 232 pass and 1 known failure, seeded FastAPI app 91 pass, GraphQL mock 102 pass; every seeded flaw is found except the documented VAmPI mass-assignment gap. `docs/evals.md` had stale clean-variant counts (326, 230 and 85) and now matches these runs.
 - Not run: k6 load tests (k6 is not installed here; CI runs them), gRPC load through ghz (not generated yet) and the AWS emulator.
 
+### Fixed (issue 22, 2026-11-17)
+- A spec built from nested YAML aliases (an alias bomb) no longer hangs intake or writes gigabytes of JSON. Resolving stops after 50,000 nodes in one schema and 1,000,000 across all schemas, the examples and defaults an author wrote are cut at 10,000 nodes each, and the finished intake at 500,000 nodes. Each cut adds a warning, and the schema one names the schema. Ordinary large schemas are unaffected. Test counts were measured on this branch merged with main at f4f31b0: 613 pass and 34 skip with only the dev requirements.
+
 ### Added (local gateway and GraphQL examples, 2026-11-17)
 - `examples/aws-local/`: a FastAPI app that behaves like an API Gateway REST API in front of a function (stage prefix, `x-api-key`, usage-plan throttling, request validation errors, `502` for a failing function) and a strawberry GraphQL app with an API key. `tests/test_aws_local.py` runs the generated suites against both as real servers, clean and with seeded flaws (skipped unless fastapi, uvicorn and strawberry-graphql are installed).
 - GraphQL intake: `intake.py --api-key-header NAME` sends the credential in that header (from `APITEST_APIKEY_KEY`) instead of a bearer token. The runtime uses whichever scheme the intake declares.

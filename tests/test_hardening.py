@@ -141,3 +141,76 @@ def test_graphql_ordinary_numbers_still_parse(tmp_path):
     f.write_text("type Query { a(n: Float = 1.5e3, m: Int = -7): Int }\n")
     p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=120)
     assert p.returncode == 0, p.stderr[-500:]
+
+
+def test_yaml_alias_bomb_in_a_schema_is_capped_instead_of_hanging(tmp_path):
+    pytest.importorskip("yaml")
+    defs = ["a0: &a0 {type: string}"] + [f"a{i}: &a{i} {{type: object, properties: {{x: *a{i - 1}, y: *a{i - 1}}}}}" for i in range(1, 40)]
+    spec = ("openapi: 3.0.0\ninfo: {title: x, version: '1'}\nx-defs:\n" + "\n".join("  " + d for d in defs) +
+            "\npaths:\n  /a:\n    post:\n      requestBody:\n        content:\n          application/json:\n            schema: *a39\n"
+            "      responses:\n        '200': {description: ok}\n")
+    f = tmp_path / "bomb.yaml"
+    f.write_text(spec)
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "--summary"], capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0 and "too large after resolving" in p.stdout + p.stderr, (p.returncode, p.stderr[-500:])
+
+
+def _bomb_defs(levels: int = 40) -> str:
+    defs = ["a0: &a0 {type: string}"] + [f"a{i}: &a{i} {{type: object, properties: {{x: *a{i - 1}, y: *a{i - 1}}}}}" for i in range(1, levels)]
+    return "x-defs:\n" + "\n".join("  " + d for d in defs) + "\n"
+
+
+def _full_intake(tmp_path, spec: str):
+    f = tmp_path / "bomb.yaml"
+    f.write_text(spec)
+    out = tmp_path / "out.json"
+    p = subprocess.run([sys.executable, str(SCRIPTS / "intake.py"), str(f), "-o", str(out)], capture_output=True, text=True, timeout=120)
+    return p, out
+
+
+@pytest.mark.parametrize("where", ["media_example", "schema_example", "schema_default", "param_example"])
+def test_alias_bomb_in_an_example_or_default_does_not_hang_the_full_intake(tmp_path, where):
+    pytest.importorskip("yaml")
+    head = "openapi: 3.0.0\ninfo: {title: x, version: '1'}\n" + _bomb_defs()
+    media = {
+        "media_example": "            example: *a39\n            schema: {type: object}\n",
+        "schema_example": "            schema: {type: object, example: *a39}\n",
+        "schema_default": "            schema: {type: object, default: *a39}\n",
+        "param_example": "            schema: {type: object}\n",
+    }[where]
+    param = "      parameters:\n        - {name: q, in: query, example: *a39, schema: {type: string}}\n" if where == "param_example" else ""
+    spec = (head + "paths:\n  /a:\n    post:\n" + param + "      requestBody:\n        content:\n          application/json:\n" + media +
+            "      responses:\n        '200': {description: ok}\n")
+    p, out = _full_intake(tmp_path, spec)
+    assert p.returncode == 0, p.stderr[-500:]
+    assert out.stat().st_size < 300_000_000
+    tail = out.read_text()[-3000:]
+    assert "$truncated" in out.read_text()[:3_000_000] or "too large" in tail or "expands to more than" in tail
+    assert "too large" in tail or "expands to more than" in tail
+
+
+def test_many_operations_sharing_one_alias_bomb_stay_bounded(tmp_path):
+    pytest.importorskip("yaml")
+    ops = "".join(f"  /p{i}:\n    post:\n      requestBody:\n        content:\n          application/json:\n            schema: *a39\n"
+                  "      responses:\n        '200': {description: ok}\n" for i in range(100))
+    p, out = _full_intake(tmp_path, "openapi: 3.0.0\ninfo: {title: x, version: '1'}\n" + _bomb_defs() + "paths:\n" + ops)
+    assert p.returncode == 0, p.stderr[-500:]
+    assert out.stat().st_size < 300_000_000
+
+
+def test_the_alias_bomb_warning_names_the_schema(tmp_path):
+    pytest.importorskip("yaml")
+    spec = ("openapi: 3.0.0\ninfo: {title: x, version: '1'}\n" + _bomb_defs() + "components:\n  schemas:\n    Bomb: *a39\n"
+            "paths:\n  /a:\n    post:\n      requestBody:\n        content:\n          application/json:\n            schema: {$ref: '#/components/schemas/Bomb'}\n"
+            "      responses:\n        '200': {description: ok}\n")
+    p, out = _full_intake(tmp_path, spec)
+    assert p.returncode == 0, p.stderr[-500:]
+    assert "Schema 'Bomb' is too large" in out.read_text()
+
+
+def test_a_large_but_ordinary_schema_is_not_truncated():
+    import parse_openapi
+    warnings: list[str] = []
+    wide = {"type": "object", "properties": {f"p{i}": {"type": "string"} for i in range(2000)}}
+    out = parse_openapi.Resolver({}, warnings).schema(wide)
+    assert len(out["properties"]) == 2000 and not warnings
