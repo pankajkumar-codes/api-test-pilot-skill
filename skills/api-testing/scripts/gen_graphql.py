@@ -406,7 +406,7 @@ def _violations(named: str, kind: str, limits: dict) -> list[tuple[str, object]]
     key = "ENUM" if kind == "ENUM" else "INPUT_OBJECT" if kind == "INPUT_OBJECT" else named
     if key in WRONG_TYPE:
         out.append(("wrong_type", WRONG_TYPE[key]))
-    if isinstance(limits.get("minLength"), int) and limits["minLength"] >= 1:
+    if isinstance(limits.get("minLength"), int) and 1 <= limits["minLength"] <= MAX_LIMIT_PAD:
         out.append(("too_short", "a" * (limits["minLength"] - 1)))
     if isinstance(limits.get("maxLength"), int) and 0 <= limits["maxLength"] < MAX_LIMIT_PAD:
         out.append(("too_long", "a" * (limits["maxLength"] + 1)))

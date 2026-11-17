@@ -39,6 +39,21 @@ def test_odd_constraint_arguments_are_ignored(tmp_path):
     assert arg["constraints"] == {"max": 3}
 
 
+def test_hostile_limits_neither_crash_nor_break_the_suite(tmp_path):
+    sdl = tmp_path / "s.graphql"
+    sdl.write_text("type Query { a: String }\ntype Mutation { make(input: In!): String }\n"
+                   "input In { n: String! @constraint(minLength: 999999999) m: Int @constraint(min: 1e999, max: 99999999999999999999999999) "
+                   "k: String @constraint(minLength: 3, maxLength: 999999999) }\n")
+    doc = parse_graphql.build(str(sdl))
+    fields = {f["name"]: f for f in doc["graphql"]["types"]["In"]["fields"]}
+    assert "constraints" not in fields["m"] and fields["k"]["constraints"] == {"minLength": 3, "maxLength": 999999999}
+    out = tmp_path / "o"
+    gen_pytest.generate(doc, out, ["data-validation"])
+    src = (out / "test_graphql_data_validation.py").read_text()
+    compile(src, "generated", "exec")                      # importable: no inf or nan literal
+    assert "'k_too_short'" not in src and "input.k_too_short" in src and "input.n_too_short" not in src and len(src) < 20000
+
+
 def test_cases_are_generated_per_violation(suite):
     text = (suite / "test_graphql_data_validation.py").read_text()
     for label in ("input.name_missing", "input.name_too_short", "input.name_too_long", "input.tag_too_long", "input.species_wrong_type",

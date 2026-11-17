@@ -12,6 +12,7 @@ Secrets: argument/field default values of secret-looking names are dropped; cred
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -167,6 +168,7 @@ class Parser:
         return out
 
 
+MAX_LIMIT_MAGNITUDE = 10 ** 12   # larger limits are not meaningful and would only bloat the generated tests
 CONSTRAINT_KEYS = ("minLength", "maxLength", "min", "max", "format", "pattern", "exclusiveMin", "exclusiveMax")
 
 
@@ -174,7 +176,7 @@ def _fits(key: str, val: Any) -> bool:
     """Text keys take a string, limit keys a number (never a bool): anything else is ignored, not trusted."""
     if key in ("format", "pattern"):
         return isinstance(val, str) and len(val) <= 200
-    return isinstance(val, (int, float)) and not isinstance(val, bool)
+    return isinstance(val, (int, float)) and not isinstance(val, bool) and math.isfinite(val) and abs(val) <= MAX_LIMIT_MAGNITUDE
 
 
 def ref_str(ref: dict) -> str:
