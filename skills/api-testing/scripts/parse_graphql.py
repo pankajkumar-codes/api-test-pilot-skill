@@ -371,7 +371,15 @@ def scalar_selection(types: dict, type_name: str) -> list[str]:
     return out[:MAX_SELECTION]
 
 
-def normalize(parsed: dict, source: dict, url: str | None) -> dict:
+def _scheme(api_key_header: str | None) -> dict:
+    if api_key_header:
+        if not re.fullmatch(r"[A-Za-z0-9-]{1,60}", api_key_header):
+            raise IntakeError("--api-key-header must be a plain header name (letters, digits and dashes)")
+        return {"apiKey": {"type": "apiKey", "in": "header", "name": api_key_header, "env": [env_name("apiKey", "KEY")]}}
+    return {"bearerAuth": {"type": "http", "scheme": "bearer", "env": [env_name("bearerAuth", "TOKEN")]}}
+
+
+def normalize(parsed: dict, source: dict, url: str | None, api_key_header: str | None = None) -> dict:
     types, roots = parsed["types"], parsed["roots"]
     warnings: list[str] = []
     if "query" not in roots or roots["query"] not in types:
@@ -427,8 +435,11 @@ def normalize(parsed: dict, source: dict, url: str | None) -> dict:
             warnings.append(f"--url is not an http(s) URL: {clean!r}")
     if not servers:
         warnings.append("No endpoint URL: pass --url or set APITEST_BASE_URL (and APITEST_GQL_URL for a non-/graphql path) when running.")
-    warnings.append("GraphQL schemas do not declare authentication: a bearer token from APITEST_BEARERAUTH_TOKEN is sent when set. "
-                    "Tell me if some operations are public or use another scheme.")
+    if api_key_header:
+        warnings.append(f"The credential is sent in the {api_key_header} header, from {env_name('apiKey', 'KEY')}, when set.")
+    else:
+        warnings.append("GraphQL schemas do not declare authentication: a bearer token from APITEST_BEARERAUTH_TOKEN is sent when set. "
+                        "Tell me if some operations are public or use another scheme (--api-key-header NAME for an API key header).")
     body_schema = {"type": "object", "required": ["query"], "properties": {
         "query": {"type": "string"}, "variables": {"type": "object"}, "operationName": {"type": "string"}}}
     endpoint = {
@@ -440,7 +451,7 @@ def normalize(parsed: dict, source: dict, url: str | None) -> dict:
     }
     return {
         "source": source, "info": {"title": "GraphQL API", "version": ""}, "servers": servers,
-        "security_schemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "env": [env_name("bearerAuth", "TOKEN")]}},
+        "security_schemes": _scheme(api_key_header),
         "endpoints": [endpoint],
         "graphql": {"query_type": roots.get("query"), "mutation_type": roots.get("mutation"),
                     "subscription_type": roots.get("subscription"), "operations": ops, "types": type_out},
@@ -452,7 +463,7 @@ def looks_like_introspection(doc: Any) -> bool:
     return isinstance(doc, dict) and ("__schema" in doc or (isinstance(doc.get("data"), dict) and "__schema" in doc["data"]))
 
 
-def build(path: str, url: str | None = None) -> dict:
+def build(path: str, url: str | None = None, api_key_header: str | None = None) -> dict:
     p = Path(path)
     if not p.is_file():
         raise IntakeError(f"File not found: {path}")
@@ -462,7 +473,7 @@ def build(path: str, url: str | None = None) -> dict:
         parsed, fmt = parse_introspection(doc), "introspection"
     else:
         parsed, fmt = parse_sdl(text), "sdl"
-    return normalize(parsed, {"type": "graphql", "format": fmt, "file": p.name}, url)
+    return normalize(parsed, {"type": "graphql", "format": fmt, "file": p.name}, url, api_key_header)
 
 
 def summarize_graphql(doc: dict) -> str:

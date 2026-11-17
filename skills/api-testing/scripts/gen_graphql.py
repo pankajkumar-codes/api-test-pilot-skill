@@ -11,7 +11,7 @@ import re
 from pathlib import Path
 
 import _common
-from gen_common import Expr, Module, ident, py
+from gen_common import Expr, Module, ident, py, var_type
 
 GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "data-validation", "resilience", "fuzz")
 OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
@@ -64,7 +64,7 @@ class Schema:
         return ""
 
     def query_text(self, op: dict, selection: str | None = None) -> str:
-        decl = "(" + ", ".join(f"${a['name']}: {a['type']}" for a in op["args"]) + ")" if op["args"] else ""
+        decl = "(" + ", ".join(f"${a['name']}: {var_type(a)}" for a in op["args"]) + ")" if op["args"] else ""
         call = "(" + ", ".join(f"{a['name']}: ${a['name']}" for a in op["args"]) + ")" if op["args"] else ""
         sel = self.selection(op) if selection is None else selection
         return f"{op['kind']} Apitest{_camel(op['name'])}{decl} {{ {op['name']}{call}{sel} }}"

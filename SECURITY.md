@@ -36,6 +36,7 @@ load, stress, spike and soak). Use it only against systems you own or have writt
   heads-up to their security or operations team. Unauthorized testing can be illegal.
 - Keep credentials in environment variables. Reports redact common secret fields, but redaction is pattern-based:
   read a report before sharing it.
+- gRPC tests call `grpcurl`, which takes headers on its command line, so a bearer token is visible in the process list to other users of the same machine. Run gRPC suites on a machine you trust.
 - The Docker images named in `evals/README.md` (VAmPI, DVGA) are intentionally vulnerable. Run them on a loopback port only.
 
 ## Supported versions

@@ -140,3 +140,32 @@ def test_a_query_returning_nested_lists_gets_a_contract_test_and_passes_on_a_cor
         srv.shutdown()
         srv.server_close()
     assert passed(results) == ["test_graphql_contract::test_contract_grid_matches_schema"], proc.stdout[-1500:]
+
+
+# ---------------------------------------------------------------- non-null arguments with defaults, API key header
+def test_a_non_null_argument_with_a_default_is_optional_and_its_variable_nullable(tmp_path):
+    import gen_pytest
+    import parse_graphql
+    sdl = tmp_path / "s.graphql"
+    sdl.write_text("type Query { pets(first: Int! = 20, tag: String! = \"x\"): [String!]! }")
+    doc = parse_graphql.build(str(sdl))
+    out = tmp_path / "suite"
+    gen_pytest.generate(doc, out, ["smoke", "positive"])
+    text = (out / "operations.py").read_text()
+    assert "query ApitestPets($first: Int, $tag: String)" in text      # nullable variables: the request may leave them out
+
+
+def test_api_key_header_changes_the_scheme_and_the_runtime_sends_it(tmp_path, monkeypatch):
+    import gen_pytest
+    import parse_graphql
+    from _common import IntakeError
+    sdl = tmp_path / "s.graphql"
+    sdl.write_text("type Query { health: String }")
+    doc = parse_graphql.build(str(sdl), None, "x-api-key")
+    assert doc["security_schemes"] == {"apiKey": {"type": "apiKey", "in": "header", "name": "x-api-key", "env": ["APITEST_APIKEY_KEY"]}}
+    assert any("x-api-key" in w for w in doc["warnings"])
+    out = tmp_path / "suite"
+    gen_pytest.generate(doc, out, ["smoke"])
+    assert "apiKey" in (out / "conftest.py").read_text()
+    with pytest.raises(IntakeError):
+        parse_graphql.build(str(sdl), None, "bad header\r\nx: y")

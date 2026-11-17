@@ -120,6 +120,7 @@ checked: nothing imports it, and the other features run the same whether it is i
 | [k6](https://k6.io) | load, stress, spike and soak runs only | see step 3 below |
 | [grpcurl](https://github.com/fullstorydev/grpcurl) | gRPC tests only (without it they skip and say so) | see step 4 below |
 | [ghz](https://ghz.sh) | gRPC load tests only (planned, not generated yet) | see step 5 below |
+| fastapi, uvicorn, strawberry-graphql | the local gateway and GraphQL examples in `examples/aws-local` and their tests (`pip install -r examples/aws-local/requirements.txt`) | pip |
 | Docker | only for running a local emulator or demo services yourself | docker.com |
 
 `grpcio` is **not** needed: the gRPC tests call `grpcurl` as a program. Generating and reporting work offline; running tests needs network
@@ -343,7 +344,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (603 pass and 24 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about four minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (605 pass and 34 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about four minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached

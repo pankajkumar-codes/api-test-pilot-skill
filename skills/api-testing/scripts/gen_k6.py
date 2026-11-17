@@ -319,7 +319,7 @@ def graphql_endpoints(doc: dict, only: list[str] | None, notes: list[str]) -> li
         if skip:
             notes.append(f"query {name}: required argument without a sample value; skipped")
             continue
-        decl = "(" + ", ".join(f"${a['name']}: {a['type']}" for a in op["args"]) + ")" if op["args"] else ""
+        decl = "(" + ", ".join(f"${a['name']}: {gen_common.var_type(a)}" for a in op["args"]) + ")" if op["args"] else ""
         call = "(" + ", ".join(f"{a['name']}: ${a['name']}" for a in op["args"]) + ")" if op["args"] else ""
         query = f"query ApitestLoad{re.sub(r'[^A-Za-z0-9]', '', name)} {decl} {{ {name}{call}{sel} }}"
         out.append({
