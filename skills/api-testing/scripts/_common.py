@@ -398,6 +398,12 @@ def summarize(doc: dict) -> str:
     for ep in doc["endpoints"]:
         auth = "required" if ep.get("auth_required") else "public"
         rows.append(f"{ep['method']:7} {ep['path']:45} {auth}")
+    if doc.get("webhooks"):
+        rows.append("")
+        rows.append(f"Webhooks and callbacks ({len(doc['webhooks'])}, calls the API makes to you; listed, not tested):")
+        for h in doc["webhooks"]:
+            where = f"callback of {h['parent']}" if h.get("parent") else "webhook"
+            rows.append(f"  {h['method']:7} {h['name']} ({where})")
     for w in doc.get("warnings", []):
         rows.append(f"WARNING: {w}")
     return "\n".join(rows)

@@ -14,7 +14,7 @@ a GraphQL schema, a Postman collection or curl examples. It writes plain pytest 
 | Chaos | a fault-injection plan, plus runnable experiments (local fault proxies, dependency start/stop commands you supply, malformed and oversized payload bursts) with recovery-time measurement; same safety gate |
 | Reporting | one self-contained HTML report (plus JSON): results per test type, coverage per endpoint, findings ranked by severity, a repro command for each |
 
-Protocols: REST (OpenAPI 3.x and Swagger 2, including specs split over several files) and GraphQL.
+Protocols: REST (OpenAPI 3.x and Swagger 2, including specs split over several files, with webhooks and callbacks listed) and GraphQL.
 Scope: **gRPC is planned for v2** (it needs its own toolchain). **Not part of this skill at all:** UI accessibility and mobile app testing
 (they are not API testing; accessibility could become a separate skill) and a hosted service (the skill runs in your environment).
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
@@ -323,7 +323,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (506 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (514 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached

@@ -22,7 +22,7 @@ Passive checks (response headers, CORS, sensitive fields in responses) are ordin
 | API7 SSRF | url/uri/callback/webhook/redirect/target parameters given `169.254.169.254`, `127.0.0.1:22`, `file:///etc/passwd`; internal data in the response is HIGH, acceptance is MEDIUM | the probe only sends the URL; it never fetches anything itself |
 | API8 Misconfiguration | `nosniff`, HSTS (https), no version in `Server`/`X-Powered-By`; CORS must not reflect arbitrary origins with credentials; error bodies must not leak stack traces or DB errors | |
 | API9 Improper inventory | **plan only**: deprecated/undocumented versions and hosts; compare `intake.json` with traffic/gateway inventory | `spec_diff.py` shows deprecations |
-| API10 Unsafe consumption | **plan only**: third-party/webhook inputs the API trusts | |
+| API10 Unsafe consumption | **plan only**: third-party/webhook inputs the API trusts (webhooks and callbacks the spec declares are listed in the intake) | |
 | Injection (A03 classic) | 7 payloads (SQL, NoSQL, command, traversal, XSS, template) into string query params, body fields (3 per endpoint) and path ids; 5xx, DB errors/stack traces, file content, or unescaped HTML reflection fail | payloads are non-destructive probes |
 
 ## Findings

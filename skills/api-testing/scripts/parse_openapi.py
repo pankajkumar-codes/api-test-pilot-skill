@@ -70,7 +70,9 @@ class Resolver:
                 return {"$unresolved": ref}
             out = self.schema(target, stack + (ref,), depth + 1)
             if isinstance(out, dict):
-                out.setdefault("$name", ref.rsplit("/", 1)[-1])
+                name = ref.rsplit("/", 1)[-1]
+                if not (ref.startswith(f"#/{BUNDLE_KEY}/") and ref.count("/") == 2):   # a whole-file ref has no name of its own
+                    out.setdefault("$name", name)
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
         if out.get("format") == "password" or out.get("writeOnly"):  # sample values can be real secrets
@@ -210,6 +212,48 @@ def _content_schema(r: Resolver, content: dict | None) -> tuple[str | None, Any,
     return ctype, r.schema(media.get("schema", {})), example
 
 
+MAX_HOOKS = 200
+
+
+def _hooks(r: Resolver, doc: dict, ops: list[tuple[str, dict]], warnings: list[str]) -> list[dict]:
+    """Webhooks (OpenAPI 3.1 top-level `webhooks`) and operation `callbacks`. They describe calls the API makes to the client, so
+    nothing can be sent to them; the intake keeps the name, method and payload schema so a plan can list them.
+    `ops` holds (endpoint id, operation) pairs whose callbacks are read."""
+    out: list[dict] = []
+
+    def add(kind: str, name: str, expression: str, item: Any, parent: str | None) -> None:
+        item = r.deref(item)
+        for method in HTTP_METHODS:
+            op = item.get(method)
+            if not isinstance(op, dict) or len(out) >= MAX_HOOKS:
+                continue
+            rb = r.deref(op.get("requestBody"))
+            ctype, sch, ex = _content_schema(r, rb.get("content"))
+            hook: dict[str, Any] = {"kind": kind, "name": name, "method": method.upper(),
+                                    "summary": op.get("summary") or (op.get("description") or "").strip().split("\n")[0]}
+            if parent:
+                hook["parent"] = parent
+                hook["expression"] = expression
+            if ctype:
+                hook["request_body"] = {"content_type": ctype, "schema": sch or {}}
+                if ex is not None:
+                    hook["request_body"]["example"] = redact_example(ex)
+            hook["responses"] = sorted(str(c) for c in (op.get("responses") or {}))
+            out.append(hook)
+
+    for name, item in (doc.get("webhooks") or {}).items() if isinstance(doc.get("webhooks"), dict) else []:
+        add("webhook", str(name), "", item, None)
+    for ep_id, op in ops:
+        cbs = op.get("callbacks")
+        for cname, cb in (cbs.items() if isinstance(cbs, dict) else []):
+            for expression, item in (r.deref(cb).items()):
+                if isinstance(expression, str) and not expression.startswith("x-"):
+                    add("callback", str(cname), expression, item, ep_id)
+    if len(out) >= MAX_HOOKS:
+        warnings.append(f"more than {MAX_HOOKS} webhooks and callbacks: the rest are not listed")
+    return out
+
+
 # --------------------------------------------------------------------------- main
 def parse(doc: Any, filename: str = "") -> dict:
     if not isinstance(doc, dict):
@@ -246,6 +290,7 @@ def parse(doc: Any, filename: str = "") -> dict:
     global_sec = _security_reqs(doc.get("security"))
 
     endpoints: list[dict] = []
+    hook_ops: list[dict] = []
     for path, item in (doc.get("paths") or {}).items():
         item = r.deref(item)
         if not isinstance(item, dict):
@@ -334,10 +379,12 @@ def parse(doc: Any, filename: str = "") -> dict:
             if not any(c.startswith("2") for c in responses):
                 warnings.append(f"{method.upper()} {path}: no 2xx response documented")
             endpoints.append(ep)
+            hook_ops.append(op)
 
     unique_ids(endpoints, warnings)
+    hooks = _hooks(r, doc, [(e["id"], op) for e, op in zip(endpoints, hook_ops)], warnings)
     info = doc.get("info") or {}
-    return {
+    out = {
         "source": {"type": "openapi", "version": version, "file": Path(filename).name if filename else ""},
         "info": {"title": info.get("title", ""), "version": str(info.get("version", ""))},
         "servers": servers,
@@ -345,6 +392,9 @@ def parse(doc: Any, filename: str = "") -> dict:
         "endpoints": endpoints,
         "warnings": warnings,
     }
+    if hooks:
+        out["webhooks"] = hooks
+    return out
 
 
 MAX_FILES = 50
