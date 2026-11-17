@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 First release candidate, built in phases (see PLAN.md).
 
 ### Checked (final full pass over v2, 2026-11-17)
-- Full suite on main: 604 pass and 23 skip with the example-app packages installed (593 and 34 with only the dev requirements). `ruff check`, `tools/validate_skill.py` and the zip build are clean. The gRPC suites also pass against real grpcurl 1.9.1 (32 tests in `test_grpc.py` and `test_grpc_real.py`).
+- Full suite on main: 616 pass and 23 skip with the example-app packages installed (605 and 34 with only the dev requirements). `ruff check`, `tools/validate_skill.py` and the zip build are clean. The gRPC suites also pass against real grpcurl 1.9.1 (32 tests in `test_grpc.py` and `test_grpc_real.py`).
 - Eval tables re-run on main: Petstore mock 325 pass, VAmPI mock 232 pass and 1 known failure, seeded FastAPI app 91 pass, GraphQL mock 102 pass; every seeded flaw is found except the documented VAmPI mass-assignment gap. `docs/evals.md` had stale clean-variant counts (326, 230 and 85) and now matches these runs.
 - Not run: k6 load tests (k6 is not installed here; CI runs them), gRPC load through ghz (not generated yet) and the AWS emulator.
 
@@ -17,7 +17,7 @@ First release candidate, built in phases (see PLAN.md).
 - GraphQL intake: `intake.py --api-key-header NAME` sends the credential in that header (from `APITEST_APIKEY_KEY`) instead of a bearer token. The runtime uses whichever scheme the intake declares.
 - Fixed: a GraphQL argument that is non-null but has a default (`first: Int! = 20`) is optional, but its variable was still declared `Int!` and left out, so every server rejected the request. The variable is now declared nullable. Found by running the suite against the real strawberry server. The k6 GraphQL generator got the same fix.
 - SECURITY.md notes that a bearer token is visible in grpcurl's process arguments.
-- A clean run of the whole suite is now 593 pass and 34 skip with only the dev requirements (604 pass and 23 skip with the example-app packages installed).
+- A clean run of the whole suite is now 605 pass and 34 skip with only the dev requirements (616 pass and 23 skip with the example-app packages installed).
 - The AWS emulator was not run: there is no Docker daemon in the build environment and the Debian package could not be located. These apps are stand-ins, not the emulator.
 
 ### Added (gRPC unary tests, 2026-11-17)
