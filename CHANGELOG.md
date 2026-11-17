@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GraphQL resilience tests, 2026-11-17)
+- `--types resilience` now works for GraphQL (and is part of `all`), so every pytest type is available for GraphQL. Repeatable reads, a response budget, page-size and cursor handling for list queries, an `intrusive` rate-limit burst (a 429 needs a valid `Retry-After`) and a repeated delete of an object the test created itself.
+- The GraphQL fuzzer skips the `long_name` case when the byte limit leaves no room for it, instead of always repeating the name twice.
+- The GraphQL mock gains `ignorefirst`, `slowpets` and `throttle` flaws (unit-test only).
+
 ### Added (GraphQL data-validation tests, 2026-11-17)
 - `--types data-validation` now works for GraphQL (and is part of `all`): one violation per case on a valid baseline, rejection expected. Covers missing required input fields, wrong types and unknown enum values inside input objects, unknown input fields, and breaches of `@constraint` limits (`minLength`, `maxLength`, `min`, `max`, `format`).
 - The SDL parser now reads `@constraint` limits into the intake (`constraints` on arguments and input fields); values of the wrong kind are ignored. Introspection JSON has no directives, so constraint cases need the SDL.

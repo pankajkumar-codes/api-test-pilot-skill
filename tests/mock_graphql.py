@@ -1,11 +1,12 @@
 """Local mock GraphQL server for validating generated suites (stdlib only; reuses parse_graphql's lexer/SDL parser).
 
-Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape stale undeleted novalidate
+Seedable flaws (`bugs`): introspection nodepth noalias batching fieldauth bola suggest verbose crash badshape stale undeleted novalidate ignorefirst slowpets throttle
 """
 from __future__ import annotations
 
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -140,6 +141,7 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
              2: {"id": 2, "name": "Bob", "email": "bob@example.test", "passwordHash": "not-a-real-hash"}}
     lock = threading.Lock()
     nxt = [100]
+    hits = [0]
 
     class Ctx:
         def __init__(self, uid):
@@ -186,7 +188,9 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                     raise RuntimeError("SQLSTATE[42000]: Syntax error near '" + s + "'")
                 items = list(pets.values())
                 first = args.get("first")
-                if first is not None:
+                if "slowpets" in bugs:
+                    time.sleep(0.3)
+                if first is not None and "ignorefirst" not in bugs:
                     if first < 0:
                         raise GqlError("first must be >= 0")
                     items = items[:min(first, 100)]
@@ -327,6 +331,11 @@ def make_server(bugs=None) -> ThreadingHTTPServer:
                 return self.send(404, {"errors": [{"message": "not found"}]})
             n = int(self.headers.get("Content-Length") or 0)
             raw = self.rfile.read(n)
+            if "throttle" in bugs and b"query { __typename }" in raw:   # only the probe query is throttled
+                with lock:
+                    hits[0] += 1
+                if hits[0] > 12:
+                    return self.send(429, {"errors": [{"message": "slow down"}]})   # no Retry-After on purpose
             h = self.headers.get("Authorization", "")
             uid = TOKENS.get(h[7:]) if h.startswith("Bearer ") else None
             try:

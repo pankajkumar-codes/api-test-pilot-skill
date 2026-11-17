@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,8 +16,8 @@ import pytest
 import requests
 
 from apitest_runtime import (  # noqa: F401  (re-exported: generated tests call them as gr.<name>)
-    DB_ERROR_RE, UNSET, Api, env_true, expect_injection_safe, expect_no_crash, fail, json_of,
-    require_destructive, require_flag, skip_if_paced, skip_writes_on_production,
+    DB_ERROR_RE, UNSET, Api, burst, env_true, expect_fast, expect_injection_safe, expect_no_crash, fail, json_of,
+    require_destructive, require_flag, retry_after_seconds, skip_if_paced, skip_writes_on_production,
 )
 
 GQL_SEC = [["bearerAuth"]]
@@ -198,6 +199,47 @@ def expect_graceful(resp: requests.Response, what: str = "") -> None:
         fail(resp, f"{what or 'unusual input'}: server error {resp.status_code}", "MEDIUM")
     if resp.status_code == 200 and not isinstance(body_of(resp), dict):
         fail(resp, f"{what or 'unusual input'}: HTTP 200 body is not a JSON object", "MEDIUM")
+
+
+# --------------------------------------------------------------------------- resilience
+def _data_shape(resp: requests.Response) -> tuple:
+    b = body_of(resp)
+    data = b.get("data") if isinstance(b, dict) else None
+    if not isinstance(data, dict):
+        return (None,)
+    return tuple(sorted((k, type(v).__name__) for k, v in data.items()))
+
+
+def expect_repeatable(first: requests.Response, second: requests.Response) -> None:
+    """Two identical reads must agree on status, on whether they carry errors and on the fields and kinds of the data."""
+    if first.status_code != second.status_code:
+        fail(second, f"repeating an identical query changed the status ({first.status_code} -> {second.status_code})")
+    if bool(errors_of(first)) != bool(errors_of(second)):
+        fail(second, "repeating an identical query changed whether it reports errors")
+    if _data_shape(first) != _data_shape(second):
+        fail(second, "repeating an identical query changed the shape of the data")
+
+
+def expect_page_size(resp: requests.Response, field_name: str, at_most: int) -> None:
+    items = expect_data(resp, field_name)
+    if isinstance(items, list) and len(items) > at_most:
+        fail(resp, f"page size argument ignored: {len(items)} items came back, expected at most {at_most}")
+
+
+def expect_rate_limit_behaviour(gql: "Gql", n: int) -> None:
+    """If the API throttles, the 429/503 must say how long to back off (Retry-After) and the API must recover afterwards."""
+    skip_if_paced(gql)
+    responses = burst(lambda: gql.post("query { __typename }"), n)
+    limited = [r for r in responses if r.status_code in (429, 503)]
+    if not limited:
+        return  # no throttling seen in this burst, so nothing to check
+    wait = retry_after_seconds(limited[0])
+    if wait is None:
+        fail(limited[0], f"{limited[0].status_code} response has no valid Retry-After header", "LOW")
+    time.sleep(min(wait, 5.0))
+    again = gql.post("query { __typename }")
+    if again.status_code == 429 and wait <= 5.0:
+        fail(again, f"still throttled after waiting the advertised Retry-After ({wait:.0f}s)", "LOW")
 
 
 # --------------------------------------------------------------------------- contract

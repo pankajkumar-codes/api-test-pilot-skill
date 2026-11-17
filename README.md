@@ -192,7 +192,7 @@ python $SK/summarize_results.py --junit results/pytest.xml --intake intake.json 
 | **Everything including non-functional** | all of the above plus the k6, fuzz and chaos rows below | yes |
 
 The pytest types for `--types` are `smoke`, `positive`, `negative`, `edge`, `data-validation`, `integration`, `contract`, `security`,
-`resilience` and `fuzz`. Each one becomes one file, `api_tests/test_<type>.py`. `all` means every type except `fuzz`. GraphQL schemas support `smoke`, `positive`, `negative`, `edge`, `security`, `contract`, `integration`, `data-validation` and `fuzz`; `resilience` is still to come.
+`resilience` and `fuzz`. Each one becomes one file, `api_tests/test_<type>.py`. `all` means every type except `fuzz`. GraphQL schemas support `smoke`, `positive`, `negative`, `edge`, `security`, `contract`, `integration`, `data-validation`, `resilience` and `fuzz`: every pytest type now works for GraphQL.
 Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,integration`; *API quality* = `contract,resilience`.
 
 | Type | How to run it | Safety gate |

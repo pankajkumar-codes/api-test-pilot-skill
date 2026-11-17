@@ -45,13 +45,9 @@ def _object(resp: Any, op: Any) -> dict | None:
     return value if isinstance(value, dict) else None
 
 
-def run_flow(gql: Any, ops: dict, flow: dict) -> None:
-    rt.skip_writes_on_production()
-    create, read, delete = ops[flow["create"]], ops[flow["read"]], ops[flow["delete"]]
-    listing = ops[flow["list"]] if flow.get("list") else None
-    update = ops[flow["update"]] if flow.get("update") else None
-    id_field = flow["id_field"]
-
+def _create(gql: Any, ops: dict, flow: dict) -> tuple[Any, dict, dict]:
+    """Create the flow's object with a run-tagged body; returns (id, values that were sent, the variables used)."""
+    create, id_field = ops[flow["create"]], flow["id_field"]
     sent: dict[str, Any] = {}
     base = _vars(gql, create)
     for path in flow.get("tag", []):
@@ -64,6 +60,27 @@ def run_flow(gql: Any, ops: dict, flow: dict) -> None:
     obj_id = made.get(id_field) if made else None
     if obj_id is None:
         gr.fail(resp, f"{create.name} did not return `{id_field}`, so the flow cannot continue", "MEDIUM")
+    return obj_id, sent, base
+
+
+def run_repeated_delete(gql: Any, ops: dict, flow: dict) -> None:
+    """Deleting an object twice must not crash the server (the second call may report an error)."""
+    rt.skip_writes_on_production()
+    delete = ops[flow["delete"]]
+    obj_id, _, _ = _create(gql, ops, flow)
+    body = _vars(gql, delete, flow["delete_arg"], obj_id)
+    gql.post(delete.query, body)
+    again = gql.post(delete.query, body)
+    gr.expect_no_crash(again, f"second {delete.name} of the same id")
+
+
+def run_flow(gql: Any, ops: dict, flow: dict) -> None:
+    rt.skip_writes_on_production()
+    create, read, delete = ops[flow["create"]], ops[flow["read"]], ops[flow["delete"]]
+    listing = ops[flow["list"]] if flow.get("list") else None
+    update = ops[flow["update"]] if flow.get("update") else None
+    id_field = flow["id_field"]
+    obj_id, sent, base = _create(gql, ops, flow)
     deleted = False
     try:
         resp = gql.post(read.query, _vars(gql, read, flow["read_arg"], obj_id))
