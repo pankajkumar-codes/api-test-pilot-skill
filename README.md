@@ -84,8 +84,8 @@ the strict `page` rules). Whether the CORS and header findings matter for a publ
 ### Seeded flaws and tests of the skill itself
 - On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 3 findings, and data exposure, 1 finding). The other 3 failures come from
   using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 7.
-- 27 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
-  9 in a GraphQL mock). The matching generated test failed on 26 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
+- 28 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
+  10 in a GraphQL mock). The matching generated test failed on 27 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
   The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
 - The repository's own tests run on Python 3.11, 3.12 and 3.13 in CI.
 
@@ -323,10 +323,10 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (517 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (534 pass and 18 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about three and a half minutes
   on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
-- Detection of seeded flaws: 26 of 27 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
+- Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - Real runs: one local Spring Boot service (all test types, k6 and chaos) and four public sandbox APIs read-only, as described under Results. No real-API detection rates are claimed, and nothing here is "production-tested".
 - **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).

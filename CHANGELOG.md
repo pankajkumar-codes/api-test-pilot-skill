@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GraphQL contract tests, 2026-11-17)
+- `--types contract` now works for GraphQL (and is part of `all`): each query that returns an object is run with its default selection and the answer is checked against the schema: selected fields present, scalar JSON types, enum values, nulls only where the type allows them, list types as arrays, nested lists (`[[Item!]!]!`) level by level. Mismatches are MEDIUM findings. The generated `operations.py` carries the type table the check needs.
+- A tenth seeded GraphQL flaw (`badshape`: a number for a String, an enum value the schema lacks) joins the eval table: 27 of 28 seeded flaws are now found (the gap is still VAmPI mass assignment), and the GraphQL clean variant runs 66 tests.
+- Fixed in the same change: the README test count (a clean run with only the dev requirements is 534 pass and 18 skip).
+
 ### Added (webhooks and callbacks, 2026-11-17)
 - OpenAPI 3.1 `webhooks` and operation `callbacks` are read into a `webhooks` list in the intake (name, method, payload schema and example, response codes; callbacks also the parent endpoint and expression). `intake.py --summary` lists them. They are calls the API makes to you, so no tests are generated for them. Secret-looking payload values are dropped, and at most 200 are listed.
 - A whole-file `$ref` no longer shows an internal name (`f4`) as the schema's `$name`.

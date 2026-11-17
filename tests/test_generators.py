@@ -444,6 +444,7 @@ GQL_SEEDED = {
     "suggest": "test_graphql_security::test_error_messages_do_not_suggest_schema_names",
     "verbose": "test_graphql_security::test_errors_do_not_leak_internals",
     "crash": "test_graphql_security::test_injection_pets[search[0]]",
+    "badshape": "test_graphql_contract::test_contract_pet_matches_schema",
 }
 
 
@@ -483,7 +484,7 @@ def test_graphql_http_200_with_errors_is_not_success(gql_suite, tmp_path):
 
 def test_graphql_unsupported_types_are_reported(gql_doc, tmp_path):
     with pytest.raises(IntakeError, match="Not available for GraphQL"):
-        gen_pytest.generate(gql_doc, tmp_path / "x", ["contract"])
+        gen_pytest.generate(gql_doc, tmp_path / "x", ["integration"])
 
 
 # ---------------------------------------------------------------- spec diff

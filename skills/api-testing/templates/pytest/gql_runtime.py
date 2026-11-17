@@ -47,6 +47,8 @@ class Operation:
     return_non_null: bool = False
     return_list: bool = False
     query_minimal: str | None = None
+    return_type: str = ""
+    selection: list = field(default_factory=list)
 
 
 class Gql(Api):
@@ -190,3 +192,80 @@ def expect_graceful(resp: requests.Response, what: str = "") -> None:
         fail(resp, f"{what or 'unusual input'}: server error {resp.status_code}", "MEDIUM")
     if resp.status_code == 200 and not isinstance(body_of(resp), dict):
         fail(resp, f"{what or 'unusual input'}: HTTP 200 body is not a JSON object", "MEDIUM")
+
+
+# --------------------------------------------------------------------------- contract
+def _parse_type(text: str) -> tuple:
+    """'[[Pet!]]!' -> ('list', True, ('list', False, ('named', True, 'Pet'))). Unparseable text is treated as a plain name."""
+    text = text.strip()
+    non_null = text.endswith("!")
+    core = text[:-1].strip() if non_null else text
+    if core.startswith("[") and core.endswith("]"):
+        return ("list", non_null, _parse_type(core[1:-1]))
+    return ("named", non_null, core)
+
+
+def _scalar_problem(named: str, value: Any, enums: dict, kinds: dict) -> str | None:
+    if named == "Int":
+        return None if isinstance(value, int) and not isinstance(value, bool) else "an integer"
+    if named == "Float":
+        return None if isinstance(value, (int, float)) and not isinstance(value, bool) else "a number"
+    if named == "Boolean":
+        return None if isinstance(value, bool) else "a boolean"
+    if named == "String":
+        return None if isinstance(value, str) else "a string"
+    if named == "ID":
+        return None if isinstance(value, (str, int)) and not isinstance(value, bool) else "a string or integer"
+    if kinds.get(named) == "ENUM":
+        return None if value in enums.get(named, []) else f"one of {enums.get(named, [])}"
+    return None   # custom scalars carry anything
+
+
+def _check(resp: requests.Response, value: Any, node: tuple, where: str, decl: str, on_object, enums: dict, kinds: dict,
+           budget: list) -> None:
+    kind, non_null, inner = node
+    if value is None:
+        if non_null:
+            fail(resp, f"{where} is null although the schema declares {decl}", "MEDIUM")
+        return
+    if kind == "list":
+        if not isinstance(value, list):
+            fail(resp, f"{where} should be a list ({decl}), got {type(value).__name__}", "MEDIUM")
+        for i, item in enumerate(value):
+            if budget[0] <= 0:
+                return
+            budget[0] -= 1
+            _check(resp, item, inner, f"{where}[{i}]", decl, on_object, enums, kinds, budget)
+        return
+    if kinds.get(inner) in ("OBJECT", "INTERFACE"):
+        on_object(value, where)
+        return
+    bad = _scalar_problem(inner, value, enums, kinds)
+    if bad:
+        fail(resp, f"{where} should be {bad} ({decl}), got {type(value).__name__}", "MEDIUM")
+
+
+def expect_shape(resp: requests.Response, value: Any, returns: str, selection: list, types: dict, enums: dict,
+                 kinds: dict) -> None:
+    """Check `value` (the answer for an operation whose return type is written `returns`, for example '[Pet!]!') against what
+    the schema declares for the selected fields. Lists may be nested; at most 20 items are looked at per answer."""
+    node = _parse_type(returns)
+    named = node
+    while named[0] == "list":
+        named = named[2]
+    type_name = named[2]
+    budget = [20]
+
+    def on_object(obj: Any, where: str) -> None:
+        if not isinstance(obj, dict):
+            fail(resp, f"{where} should be an object, got {type(obj).__name__}", "MEDIUM")
+        fields = types.get(type_name, {})
+        for name in selection:
+            if name not in obj:
+                fail(resp, f"{where}.{name} was selected but is missing from the answer", "MEDIUM")
+            decl = fields.get(name)
+            if decl is not None:
+                _check(resp, obj[name], _parse_type(decl), f"{type_name}.{name}" if where == type_name else f"{where}.{name}",
+                       decl, lambda *_: None, enums, kinds, [20])
+
+    _check(resp, value, node, type_name, returns, on_object, enums, kinds, budget)

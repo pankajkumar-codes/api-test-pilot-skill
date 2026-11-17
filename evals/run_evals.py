@@ -96,6 +96,7 @@ GRAPHQL_FLAWS = {
     "suggest": flaw("schema suggestions in errors", "GraphQL", r"test_error_messages_do_not_suggest_schema_names"),
     "verbose": flaw("stack traces in errors", "API8", r"test_errors_do_not_leak_internals"),
     "crash": flaw("injection crashes the resolver", "injection", r"test_injection_pets"),
+    "badshape": flaw("a field has the wrong type and an enum value the schema lacks", "contract", r"test_contract_pets_matches_schema"),
 }
 
 TARGETS = {
