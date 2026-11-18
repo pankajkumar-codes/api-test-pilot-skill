@@ -12,7 +12,7 @@ import math
 from typing import Any
 
 SEV_ORDER = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]
-STATUS_CLASS = {"PASS": "ok", "FAIL": "bad", "INCOMPLETE": "warn", "INCONCLUSIVE": "warn"}
+STATUS_CLASS = {"PASS": "ok", "FAIL": "bad", "NOTES": "warn", "INCOMPLETE": "warn", "INCONCLUSIVE": "warn"}
 SCHEMA_VERSION = 1
 STATUS_ORDER = {"failed": 0, "error": 1, "skipped": 2, "passed": 3}
 STATUS_LABEL = {"failed": "FAIL", "error": "ERROR", "skipped": "SKIP", "passed": "PASS"}
@@ -69,6 +69,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         "k6": [{**k, "peak_text": mod.peak_line(k), "knee_text": mod.knee_text(k) if k.get("knee") else "",
                  "coverage_text": mod.coverage_text(k["coverage"]) if k.get("coverage") else ""} for k in r.k6],
         "run_problems": dict(sorted(r.problems.items())[:50]),
+        "cause_groups": mod.cause_groups(r)[:50],
         "unskip": [{"variable": v, "tests": n} for v, n in r.unskip_list(200)],
         "needs_example": {k: sorted(v) for k, v in sorted(r.needs_example.items())[:200]},
         "skips": dict(sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]),
@@ -133,7 +134,7 @@ def sev_pill(s: str) -> str:
 
 def section_stats(d: dict) -> str:
     t = d["totals"]
-    cards = [("Tests", t["total"]), ("Passed", t["passed"]), ("Failed", t["failed"]), ("Skipped", t["skipped"]), ("Errors", t["error"]),
+    cards = [("Tests", t["total"]), ("Passed", t["passed"]), ("Failed", t["failed"]), ("Could not run", t["skipped"] + t["error"]),
              ("Findings", d["findings_total"])]
     out = "".join(f'<div class="card"><div class="card-n">{e(n)}</div><div class="card-l">{e(l)}</div></div>' for l, n in cards)
     sev = "".join(f'<li>{sev_pill(s)} <b>{n}</b></li>' for s, n in d["severity_counts"].items() if n) or '<li class="muted">No findings</li>'
@@ -284,6 +285,12 @@ def section_findings(d: dict) -> str:
         f'<button class="chip" data-sev="{s.lower()}">{s} {n}</button>' for s, n in d["severity_counts"].items() if n)
     items = []
     shown = d.get("findings_shown", len(d["findings"]))
+    groups = d.get("cause_groups") or []
+    if groups and len(groups) < d["findings_total"]:
+        rows = "".join(f'<tr><td>{g["count"]}</td><td>{sev_pill(g["severity"])}</td><td>{e(g["cause"])}</td><td>{e(g["example"])}</td></tr>'
+                       for g in groups[:15])
+        items.append('<h3>Root causes</h3><div class="scroll"><table><thead><tr><th>Findings</th><th>Worst</th><th>Cause</th><th>Example endpoint</th></tr></thead>'
+                     f'<tbody>{rows}</tbody></table></div>')
     for f in d["findings"][:shown]:
         meta = [f"Type: {f['type']}", f"Rating: {f['rating']}"] + ([f"OWASP: {f['owasp']}"] if f["owasp"] else [])
         items.append(

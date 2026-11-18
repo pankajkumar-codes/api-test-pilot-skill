@@ -675,7 +675,7 @@ def expect_status(resp: requests.Response, codes: Any, what: str = "") -> None:
     if not _status_ok(resp.status_code, codes):
         if resp.status_code == 429:  # throttled: tells us nothing about correctness (the rate-limit checks look at 429 themselves)
             pytest.skip(f"throttled (429): {what or 'the call'} was rate limited, so this check has no verdict; "
-                        "lower the request volume or raise the target's limit")
+                        "slow the run down with APITEST_DELAY_MS=250 (or APITEST_RPS=4), or raise the target's rate limit for this client")
         fail(resp, f"{what or 'unexpected status'}: expected {list(codes)}, got {resp.status_code}")
 
 
