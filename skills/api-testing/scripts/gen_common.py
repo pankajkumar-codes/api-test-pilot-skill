@@ -199,7 +199,10 @@ def regex_sample(pattern: str, max_len: int = 200) -> str | None:
                 out.append(cats[av])
             elif op in (sp.MAX_REPEAT, sp.MIN_REPEAT):
                 lo, _hi, sub_ = av
-                out.append(gen(sub_) * lo)
+                part = gen(sub_)
+                if len(part) * lo > max_len:   # give up before building a huge string from nested counts
+                    raise ValueError("too long")
+                out.append(part * lo)
             elif op == sp.SUBPATTERN:
                 out.append(gen(av[3]))
             elif op == sp.BRANCH:

@@ -15,6 +15,8 @@ First release candidate, built in phases (see PLAN.md).
 - The structured-field name matcher also recognises prefix and compound names such as `emailAddress`, `phoneNumber`, `dob` and `api_key`, but not plain words like `address`, `codename` or `company`.
 
 ### Added (examples, ids file, no-scheme specs, issues 46, 51, 52)
+- The report (HTML, `report.json` field `unskip`, Markdown) carries the same "set these to run the skipped tests" list as the terminal summary.
+- The pattern generator gives up early on nested counts such as `((a{5000}){5000}){5000}` instead of building a huge string. An empty `APITEST_PATH_*` variable counts as unset and falls through to the ids file and the spec example.
 - Intake reads `x-example`, the OpenAPI 3.1 `examples` list and the first named `examples` entry as the example. A simple `pattern` (classes, ranges, counts, groups, first alternative) gets a generated matching value; patterns it cannot build, such as lookaheads, stay flagged as invented.
 - `APITEST_EXAMPLES_FILE` (`operationId.field` or `*.field` to a value) sets body fields and query parameters at run time; the report lists the fields whose invented value drew a 4xx ("give an example for these").
 - `APITEST_IDS_FILE` holds path and victim ids in one JSON file (an environment variable still wins). Every run ends with "Set these to run the skipped tests": each variable and how many tests it would unskip.

@@ -119,3 +119,42 @@ def test_report_says_which_fields_need_an_example(env, tmp_path):
     data_out = tmp_path / "r.html"
     summarize("--junit", tmp_path / "j.xml", "--base-url", url, "-o", data_out, "--date", "2026-11-18")
     assert json.loads(data_out.with_suffix(".json").read_text())["needs_example"]
+
+
+def test_report_lists_the_variables_to_set_and_what_they_unskip(env, tmp_path):
+    from test_reporting import summarize
+    d, url = env
+    run_suite(d / "suite", url, {}, junit=tmp_path / "j.xml")
+    md = tmp_path / "r.md"
+    summarize("--junit", tmp_path / "j.xml", "--base-url", url, "-o", md, "--format", "md", "--date", "2026-11-18")
+    text = md.read_text(encoding="utf-8")
+    assert "Set these to run the skipped tests" in text and "`APITEST_PATH_BUSINESS_ID`" in text
+    html = tmp_path / "r.html"
+    summarize("--junit", tmp_path / "j.xml", "--base-url", url, "-o", html, "--date", "2026-11-18")
+    unskip = json.loads(html.with_suffix(".json").read_text())["unskip"]
+    assert unskip and unskip[0]["variable"] == "APITEST_PATH_BUSINESS_ID" and unskip[0]["tests"] >= 1
+    assert "Set these to run the skipped tests" in html.read_text(encoding="utf-8")
+
+
+def test_nested_counts_do_not_blow_up_the_pattern_generator():
+    assert gen_common.regex_sample("((a{5000}){5000}){5000}") is None
+    assert re.fullmatch("[0-9]{2}", gen_common.regex_sample("^[0-9]{2}$"))
+
+
+def test_an_empty_id_variable_falls_through_to_the_ids_file_then_the_spec_default(env, monkeypatch, tmp_path):
+    import sys
+    d, _url = env
+    sys.path.insert(0, str(d / "suite"))
+    sys.modules.pop("apitest_runtime", None)
+    try:
+        import apitest_runtime as rt
+        f = tmp_path / "ids.json"
+        f.write_text(json.dumps({"path": {"thing_id": "from-file"}}))
+        monkeypatch.setenv("APITEST_PATH_THING_ID", "")
+        monkeypatch.setenv("APITEST_IDS_FILE", str(f))
+        assert rt.Api.pid(object(), "thing_id", "dflt") == "from-file"
+        monkeypatch.delenv("APITEST_IDS_FILE")
+        assert rt.Api.pid(object(), "thing_id", "dflt") == "dflt"
+    finally:
+        sys.path.remove(str(d / "suite"))
+        sys.modules.pop("apitest_runtime", None)
