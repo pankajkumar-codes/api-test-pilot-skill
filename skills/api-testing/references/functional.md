@@ -29,7 +29,7 @@ Headers the spec marks optional are not sent. If the server enforces one anyway,
   for PUT/DELETE, which may legitimately upsert or be idempotent, only "no 5xx" unless 404 is documented);
   malformed JSON / wrong content type / empty required body -> 4xx; error body validated against the documented error schema.
 - **Edge**: unicode must round-trip; special characters, empty strings, nulls, `int64` overflow and 100k-character
-  strings must not 5xx; documented min/max boundaries must be accepted. For fields whose name implies a structure (email, password, code, token, url, date, file name...) a run of `a` is not a valid value, so the length cases there only require a clean 2xx or 4xx. A 5xx is always a finding (MEDIUM).
+  strings must not 5xx; an empty object `{}` is sent when no property is required (no 5xx); documented min/max boundaries must be accepted. For fields whose name implies a structure (email, password, code, token, url, date, file name...) a run of `a` is not a valid value, so the length cases there only require a clean 2xx or 4xx. A 5xx is always a finding (MEDIUM).
 
 ## Data the tests need (environment variables)
 - Credentials: names are listed in `conftest.py` and by `intake.py` (`APITEST_<SCHEME>_TOKEN|USER|PASS|KEY`). Never ask for values in chat.

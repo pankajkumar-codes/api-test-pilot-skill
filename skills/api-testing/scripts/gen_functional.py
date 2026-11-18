@@ -145,6 +145,10 @@ def _body_edges(ep: dict, base: dict) -> list[tuple]:
     props = writable_props(schema)
     out: list[tuple] = []
     big_done = False
+    if props and not schema.get("required") and base:
+        # The baseline body already carries only the required properties. When none are required it carries the first few
+        # optional ones, so also send an empty object: catches servers that break on a record whose optional fields are all empty.
+        out.append(("no_optional_fields", {"body": {}}, "no_crash"))
     for k, sch in list(props.items())[:6]:
         def b(v, key=k):
             return {"body": {**base, key: v}}

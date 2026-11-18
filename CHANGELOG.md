@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (empty optional body, issue 50)
+- When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
+
 ### Added (examples, ids file, no-scheme specs, issues 46, 51, 52)
 - Intake reads `x-example`, the OpenAPI 3.1 `examples` list and the first named `examples` entry as the example. A simple `pattern` (classes, ranges, counts, groups, first alternative) gets a generated matching value; patterns it cannot build, such as lookaheads, stay flagged as invented.
 - `APITEST_EXAMPLES_FILE` (`operationId.field` or `*.field` to a value) sets body fields and query parameters at run time; the report lists the fields whose invented value drew a 4xx ("give an example for these").
