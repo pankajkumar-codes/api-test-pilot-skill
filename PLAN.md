@@ -89,4 +89,5 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Intake gap: OpenAPI callbacks/webhooks (listed in the intake, not tested)
 - [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [x] resilience
 - [ ] gRPC, unary only: [x] stdlib `.proto` parser, [x] functional, contract and security tests through optional `grpcurl`, [ ] load through optional `ghz`
+- [x] File GitHub issues for failed tests (`file_issues.py`: preview, confirm, group, dedupe, redact; DECISIONS 2026-11-18)
 - [ ] Login success-path tests with real credentials from env vars

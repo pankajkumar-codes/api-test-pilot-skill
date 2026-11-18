@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (GitHub issues for failed tests, 2026-11-18)
+- `scripts/file_issues.py`: files GitHub issues for the findings in `report.json`. Preview by default (offline, no token); `--create` shows the preview and asks for `yes` (or takes `--yes`), and refuses without a terminal or a token. Findings on the same endpoint with the same kind of failure become one issue; a hidden fingerprint makes reruns skip issues already filed (closed ones too, unless `--refile-closed`). Samples are scrubbed again, `--no-samples` leaves them out, the token comes from `APITEST_GITHUB_TOKEN` and is only sent over https. Limits: `--min-severity`, `--max-issues`. Reference: `references/issues.md`; tests: `tests/test_file_issues.py`, run against a local fake GitHub API.
+
 ### Checked (chaos rerun on the fixed demo, 2026-11-17)
 - Chaos rerun against spring-boot-demo main 0acc5b5 (JDBC socket timeout fix) on a local PostgreSQL 16, with the skill at f790ae6: proxy-latency, proxy-5xx, proxy-drop, payload, dep-outage and dep-slow, 16 checks, 16 passed, 0 failed. `dep-slow` (database frozen with SIGSTOP for 6 s): requests during the freeze failed with p95 4.0 s and the API recovered 0.8 s after SIGCONT; `dep-outage` recovered in 3.2 s. The earlier MEDIUM finding is gone. `dep-blackhole` was not rerun, the example report was not regenerated, and capacity was not measured.
 
