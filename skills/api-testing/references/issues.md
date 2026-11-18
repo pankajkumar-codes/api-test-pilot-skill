@@ -21,7 +21,8 @@ It shows the preview, then asks for `yes`. `--yes` skips the prompt; use it only
 - Duplicates: each issue carries a hidden `apitest-fingerprint` comment. A later run skips a fingerprint that already has an open issue, or a closed one unless `--refile-closed`. Only issues with the `--label` label (default `api-test`) are looked at. A fingerprint comes from endpoint, type and failure class, so a rerun of the same report never files twice.
 - Labels: `api-test` and `severity-<level>`. GitHub creates labels that do not exist when the token can push.
 - Redaction: every title and sample goes through the report scrubber again, plus the values of secret `APITEST_*` variables and the token. `--no-samples` also leaves out the response sample and the curl line, which is the right choice for a public repository.
-- Token: `APITEST_GITHUB_TOKEN`, else `GITHUB_TOKEN`. Sent only over https (loopback http is accepted for testing). Never printed.
+- Token: `APITEST_GITHUB_TOKEN`, else `GITHUB_TOKEN`. Sent only over https (loopback http is accepted for testing); a redirect to another host is refused. Never printed.
+- Text from the report cannot forge a fingerprint: `<!--` and `-->` are neutralised, and the last marker in a body is the one that counts. Only the newest 1,000 labelled issues are checked; a warning is printed when that cap is hit.
 
 ## Exit codes
 0 done or preview, 2 bad input, 3 not confirmed or no token, 4 some issues could not be created.

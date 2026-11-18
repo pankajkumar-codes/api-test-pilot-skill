@@ -53,7 +53,21 @@ LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 
 
 class FilerError(Exception):
-    pass
+    def __init__(self, message: str, status: int = 0):
+        super().__init__(message)
+        self.status = status
+
+
+class _SameHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only within the same host, so the token never travels to another one."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
+            raise urllib.error.HTTPError(req.full_url, code, "redirect to another host refused", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_OPENER = urllib.request.build_opener(_SameHostRedirect)
 
 
 def secrets_in_env() -> list[str]:
@@ -69,6 +83,8 @@ def scrub(text: object, secrets: list[str], limit: int) -> str:
     """Redact first, then cut, so a half-cut secret never slips through."""
     s = _common.redact_text(str(text), secrets)
     s = s.replace("\x00", "")
+    # report text comes from the target's responses: it must not be able to write a fingerprint marker of its own
+    s = s.replace("<!--", "<! --").replace("-->", "-- >")
     return s if len(s) <= limit else s[: limit - 1] + "…"
 
 
@@ -174,7 +190,7 @@ def render_candidate(g: dict, secrets: list[str], samples: bool) -> dict:
     body.append(f"<!-- apitest-fingerprint: {g['fingerprint']} -->")
     text = "\n\n".join(body)
     if len(text) > MAX_BODY:
-        text = text[: MAX_BODY - 80] + "\n\n(cut to fit the GitHub limit)\n" + body[-1]
+        text = text[: MAX_BODY - 200] + "\n`````\n\n(cut to fit the GitHub limit)\n\n" + body[-1]
     return {"fingerprint": g["fingerprint"], "severity": g["severity"], "endpoint": g["endpoint"], "kind": g["kind"],
             "title": title, "body": text, "count": n}
 
@@ -183,6 +199,7 @@ def render_candidate(g: dict, secrets: list[str], samples: bool) -> dict:
 class GitHub:
     def __init__(self, api_url: str, token: str, repo: str):
         self.base, self.token, self.repo = api_url.rstrip("/"), token, repo
+        self.capped = False
 
     def _call(self, method: str, path: str, payload: dict | None = None) -> tuple[object, dict]:
         data = json.dumps(payload).encode("utf-8") if payload is not None else None
@@ -191,7 +208,7 @@ class GitHub:
             "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "api-test-issue-filer",
             **({"Content-Type": "application/json"} if data else {})})
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with _OPENER.open(req, timeout=30) as r:
                 return json.loads(r.read(8_000_000) or b"null"), dict(r.headers)
         except urllib.error.HTTPError as e:
             msg = ""
@@ -201,7 +218,7 @@ class GitHub:
                 pass
             hint = {401: " (token rejected)", 403: " (no permission or rate limited)", 404: " (repo not found, or the token cannot see it)",
                     410: " (issues are disabled on this repo)", 422: " (GitHub refused the issue)"}.get(e.code, "")
-            raise FilerError(f"GitHub answered {e.code}{hint}: {scrub(msg, [self.token], 200)}") from None
+            raise FilerError(f"GitHub answered {e.code}{hint}: {scrub(msg, [self.token], 200)}", e.code) from None
         except (urllib.error.URLError, OSError, ValueError) as e:
             raise FilerError(f"cannot reach {self.base}: {type(e).__name__}") from None
 
@@ -216,13 +233,17 @@ class GitHub:
             for it in items:
                 if not isinstance(it, dict) or "pull_request" in it:
                     continue
-                m = MARKER_RE.search(_str(it.get("body")))
-                if m:
+                marks = MARKER_RE.findall(_str(it.get("body")))
+                if marks:
+                    # the marker we write is the last thing in the body
+                    fp = marks[-1]
                     # an open copy wins over a closed one
-                    if found.get(m.group(1)) != "open":
-                        found[m.group(1)] = "open" if it.get("state") == "open" else "closed"
+                    if found.get(fp) != "open":
+                        found[fp] = "open" if it.get("state") == "open" else "closed"
             if len(items) < 100:
                 break
+        else:
+            self.capped = True
         return found
 
     def create(self, title: str, body: str, labels: list[str]) -> str:
@@ -311,6 +332,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Target: {args.repo}  (issues in a public repository are public; samples are scrubbed, use --no-samples to leave them out)")
     if not looked_up:
         print("Duplicates not checked (no network in a plain preview); use --check-existing to look up issues already filed.")
+    if gh.capped:
+        print(f"Warning: only the newest {MAX_LIST_PAGES * 100} labelled issues were checked for duplicates; older ones may be filed again.")
     for c, state in skipped:
         print(f"  skip   [{c['severity']}] {c['endpoint']} ({c['kind']}): already filed, {state}")
     for c in todo:
@@ -346,7 +369,7 @@ def main(argv: list[str] | None = None) -> int:
         except FilerError as e:
             failed += 1
             print(f"  failed  {c['endpoint']}: {e}", file=sys.stderr)
-            if "rate limited" in str(e) or "401" in str(e):
+            if e.status in (401, 403, 429):
                 print("Stopping: the next calls would fail the same way.", file=sys.stderr)
                 break
     print(f"Done: {len(todo) - failed} created, {failed} failed, {len(skipped)} skipped as already filed.")

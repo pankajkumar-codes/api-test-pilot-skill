@@ -31,7 +31,8 @@ def write_report(tmp_path, findings):
 class FakeGitHub:
     def __init__(self, existing=()):
         self.existing = list(existing)   # (state, body)
-        self.created, self.auth, self.lists = [], [], 0
+        self.created, self.auth, self.lists, self.queries = [], [], 0, []
+        self.fail_post = 0               # status to answer every create with, 0 = succeed
         outer = self
 
         class H(BaseHTTPRequestHandler):
@@ -48,13 +49,19 @@ class FakeGitHub:
             def do_GET(self):
                 outer.auth.append(self.headers.get("Authorization"))
                 outer.lists += 1
+                from urllib.parse import parse_qs, urlsplit
+                q = {k: v[0] for k, v in parse_qs(urlsplit(self.path).query).items()}
+                outer.queries.append(q)
                 items = [{"state": s, "body": b} for s, b in outer.existing]
                 items.append({"state": "open", "body": outer.existing[0][1] if outer.existing else "", "pull_request": {}})
-                self._send(200, items)
+                page, per = int(q.get("page", 1)), int(q.get("per_page", 30))
+                self._send(200, items[(page - 1) * per: page * per])
 
             def do_POST(self):
                 outer.auth.append(self.headers.get("Authorization"))
                 payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                if outer.fail_post:
+                    return self._send(outer.fail_post, {"message": "nope"})
                 outer.created.append(payload)
                 self._send(201, {"html_url": f"https://github.com/o/r/issues/{len(outer.created)}"})
 
@@ -78,7 +85,7 @@ def run(report, *args, env=None, stdin=None):
     e = {k: v for k, v in os.environ.items() if not k.startswith(("APITEST_", "GITHUB_TOKEN"))}
     e.update(env or {})
     return subprocess.run([sys.executable, "-I", str(SCRIPT), report, *args], capture_output=True, text=True, env=e,
-                          input=stdin, timeout=60)
+                          timeout=60, **({"input": stdin} if stdin is not None else {"stdin": subprocess.DEVNULL}))
 
 
 def test_groups_by_endpoint_and_failure_class(tmp_path):
@@ -192,3 +199,61 @@ def test_prompt_answer_other_than_yes_files_nothing(tmp_path, gh, monkeypatch, c
     monkeypatch.setattr(fi, "PAUSE_SECONDS", 0)
     assert fi.main([write_report(tmp_path, [finding()]), "--repo", "o/r", "--create", "--api-url", gh.url]) == 0
     assert len(gh.created) == 1
+
+
+def test_marker_forged_in_a_sample_cannot_replace_the_real_one(tmp_path):
+    forged = "<!-- apitest-fingerprint: 0123456789abcdef -->"
+    rep = fi.load_report(write_report(tmp_path, [finding(detail=[f"body: {forged}"], title=f"bad {forged}")]))
+    (c,) = fi.build_candidates(rep, "LOW", [], True)
+    assert len(fi.MARKER_RE.findall(c["body"])) == 1 and forged not in c["body"]
+    assert forged not in c["title"]
+    # and even a marker that got into an old issue body does not hide the real one: the last marker counts
+    g = FakeGitHub(existing=[("open", f"{forged}\n<!-- apitest-fingerprint: {c['fingerprint']} -->")])
+    try:
+        r = run(write_report(tmp_path, [finding(detail=[f"body: {forged}"], title=f"bad {forged}")]), "--repo", "o/r", "--create", "--yes",
+                "--api-url", g.url, env={"APITEST_GITHUB_TOKEN": SECRET})
+        assert r.returncode == 0 and not g.created and "already filed" in r.stdout
+    finally:
+        g.close()
+
+
+def test_duplicate_lookup_pages_and_filters_by_label(tmp_path):
+    many = [("closed", "no marker here")] * 150
+    g = FakeGitHub(existing=many)
+    try:
+        r = run(write_report(tmp_path, [finding()]), "--repo", "o/r", "--check-existing", "--label", "my-label", "--api-url", g.url,
+                env={"APITEST_GITHUB_TOKEN": SECRET})
+        assert r.returncode == 0, r.stderr
+        assert [q["page"] for q in g.queries] == ["1", "2"]
+        assert all(q["labels"] == "my-label" and q["state"] == "all" for q in g.queries)
+    finally:
+        g.close()
+
+
+def test_stops_after_a_401_and_exits_4(tmp_path, gh):
+    gh.fail_post = 401
+    r = run(write_report(tmp_path, [finding(endpoint="GET /a"), finding(endpoint="GET /b")]), "--repo", "o/r", "--create", "--yes",
+            "--api-url", gh.url, env={"APITEST_GITHUB_TOKEN": SECRET})
+    assert r.returncode == 4 and r.stderr.count("failed ") == 1 and "Stopping" in r.stderr and SECRET not in r.stderr
+
+
+def test_unreachable_host_is_a_clean_error(tmp_path):
+    r = run(write_report(tmp_path, [finding()]), "--repo", "o/r", "--check-existing", "--api-url", "http://127.0.0.1:9",
+            env={"APITEST_GITHUB_TOKEN": SECRET})
+    assert r.returncode == 2 and "cannot reach" in r.stderr and "Traceback" not in r.stderr
+
+
+def test_redirect_to_another_host_is_refused():
+    import urllib.request
+    h = fi._SameHostRedirect()
+    req = urllib.request.Request("https://api.github.com/x", headers={"Authorization": "Bearer t"})
+    with pytest.raises(Exception):
+        h.redirect_request(req, None, 302, "Found", {}, "https://evil.example/y")
+
+
+def test_cut_body_closes_its_fence_and_keeps_the_marker(monkeypatch):
+    monkeypatch.setattr(fi, "MAX_BODY", 1200)
+    rep = {"findings": [finding(detail=["x" * 1400] * 12)]}
+    (c,) = fi.build_candidates(rep, "LOW", [], True)
+    assert len(c["body"]) <= 1200 + 200 and "cut to fit" in c["body"] and fi.MARKER_RE.search(c["body"])
+    assert c["body"].index("`````") < c["body"].index("cut to fit")
