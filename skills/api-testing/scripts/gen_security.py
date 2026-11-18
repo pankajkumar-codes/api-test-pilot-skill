@@ -52,6 +52,47 @@ def generate(doc: dict, mod: Module) -> None:
     _api7(eps, mod)
     _api8(doc, eps, mod)
     _injection(eps, mod)
+    _tenants(doc, eps, mod)
+    _roles(eps, mod)
+
+
+def tenant_param(doc: dict, eps: list[dict]) -> str | None:
+    """The path parameter that names the tenant: `doc["tenant_param"]` (gen_pytest --tenant-param), else a parameter that sits in
+    the first two segments of most protected paths (`/b/{business_id}/...`). At least three operations, 60% of them."""
+    if doc.get("tenant_param"):
+        return doc["tenant_param"]
+    protected = [e for e in eps if e.get("auth_required")]
+    counts: dict[str, int] = {}
+    for e in protected:
+        for seg in e["path"].strip("/").split("/")[:2]:
+            m = re.fullmatch(r"\{([^}/]+)\}", seg)
+            if m:
+                counts[m.group(1)] = counts.get(m.group(1), 0) + 1
+    if not counts:
+        return None
+    name, n = max(counts.items(), key=lambda kv: kv[1])
+    return name if n >= 3 and n * 10 >= len(protected) * 6 else None
+
+
+def _tenants(doc: dict, eps: list[dict], mod: Module) -> None:
+    param = tenant_param(doc, eps)
+    ops = [e["id"] for e in eps if param and e.get("auth_required") and any(p["name"] == param for p in path_params(e))]
+    if not ops:
+        return
+    mod.add(f"TENANT_OPS = {py(ops)}\n", is_test=False)
+    mod.add("@pytest.mark.intrusive\n@pytest.mark.parametrize(\"op_id\", TENANT_OPS)\n"
+            f"def {mod.unique('test_api1_tenant_isolation_matrix')}(api, op_id):\n"
+            f"    rt.tenant_isolation(api, EP[op_id], {param!r})  # needs APITEST_PATH_ and APITEST_VICTIM_ for the tenant\n")
+
+
+def _roles(eps: list[dict], mod: Module) -> None:
+    if not any(e.get("auth_required") for e in eps):
+        return
+    mod.add("ROLE_CASES = rt.role_cases(EP)   # from the file named by APITEST_ROLE_MATRIX; empty (so skipped) without it\n", is_test=False)
+    mod.add("@pytest.mark.intrusive\n"
+            "@pytest.mark.parametrize(\"op_id,role,allowed\", ROLE_CASES, ids=[f\"{o}-{r}-{'allow' if a else 'deny'}\" for o, r, a in ROLE_CASES])\n"
+            f"def {mod.unique('test_api5_role_matrix')}(api, op_id, role, allowed):\n"
+            "    rt.role_check(api, EP[op_id], role, allowed)\n")
 
 
 def _api2(doc: dict, eps: list[dict], mod: Module) -> None:

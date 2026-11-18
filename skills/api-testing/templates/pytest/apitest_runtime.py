@@ -1389,6 +1389,75 @@ class Api:
         return self._request("POST", url, timeout=self.timeout, allow_redirects=False, **kw)
 
 
+# --------------------------------------------------------------------------- tenant isolation and role matrix
+def tenant_isolation(api: "Api", ep: Endpoint, param: str) -> None:
+    """API1 across tenants. A control call with user A's own tenant id must succeed (else the check would prove nothing and
+    the test skips); the same call with another tenant's id (APITEST_VICTIM_<PARAM>) must be refused. Operations that change
+    data run only with APITEST_TENANT_WRITES=yes."""
+    if ep.method not in ("GET", "HEAD"):
+        if not env_true("APITEST_TENANT_WRITES"):
+            pytest.skip("tenant matrix covers reads only: set APITEST_TENANT_WRITES=yes to also call write operations in the other tenant")
+        skip_writes_on_production()
+        if ep.method == "DELETE":
+            require_destructive()
+    own = api.pid(param)
+    victim = api.pid(param, victim=True)
+    if str(own) == str(victim):
+        pytest.skip(f"APITEST_PATH_ and APITEST_VICTIM_ values for '{param}' are the same, so there is no other tenant to try")
+    others = {n: api.pid(n) for n in ep.path_params if n != param}
+    mine = api.send(ep, path={**others, param: own})
+    if not 200 <= mine.status_code < 300:
+        pytest.skip(f"control call with your own tenant answered {mine.status_code}, so the isolation check would prove nothing "
+                    "(seed the other ids with APITEST_PATH_*, or this operation needs a body or query the baseline cannot build)")
+    theirs = api.send(ep, path={**others, param: victim})
+    expect_denied(theirs, "API1:2023 BOLA", f"tenant isolation: user A reached tenant {param}={victim} that belongs to someone else")
+
+
+def role_cases(known: Any) -> list[tuple]:
+    """(operation id, role, allowed) from APITEST_ROLE_MATRIX: {"createFiling": {"allow": ["owner"], "deny": ["billing"]}}."""
+    out: list[tuple] = []
+    matrix = read_json_env_file("APITEST_ROLE_MATRIX")
+    for op, rule in matrix.items():
+        if op not in known or not isinstance(rule, dict):
+            continue
+        for role in rule.get("allow") or []:
+            out.append((op, str(role), True))
+        for role in rule.get("deny") or []:
+            out.append((op, str(role), False))
+    return out
+
+
+def role_check(api: "Api", ep: Endpoint, role: str, allowed: bool) -> None:
+    """Call `ep` with the token of one role (APITEST_TOKEN_<ROLE>). Allowed roles must not be refused with 401/403; denied
+    roles must be refused (4xx). The call changes data when the operation is a write, so the usual write gates apply."""
+    token = os.environ.get("APITEST_TOKEN_" + re.sub(r"[^A-Za-z0-9]+", "_", role).strip("_").upper())
+    if not token:
+        pytest.skip(f"no token for role '{role}': set APITEST_TOKEN_{re.sub(r'[^A-Za-z0-9]+', '_', role).strip('_').upper()}")
+    if ep.method not in ("GET", "HEAD"):
+        skip_writes_on_production()
+        if ep.method == "DELETE":
+            require_destructive()
+    AUTH_NAMES.add("authorization")
+    scheme = next(((api.schemes.get(s) or {}) for alt in ep.sec for s in alt), {})
+    headers, query = {}, None
+    if scheme.get("type") == "apiKey":
+        where, key = scheme.get("in", "header"), scheme.get("name", "X-API-Key")
+        if where == "query":
+            query = {**ep.query, key: token}
+        else:
+            headers[key] = token
+        AUTH_NAMES.add(key.lower())
+    else:
+        headers["Authorization"] = f"{(scheme.get('scheme') or 'bearer').capitalize()} {token}"
+    resp = api.send(ep, auth="none", headers=headers, **({"query": query} if query is not None else {}))
+    if allowed:
+        if resp.status_code in (401, 403):
+            fail(resp, f"role '{role}' is documented as allowed but was refused ({resp.status_code})", "MEDIUM", "API5:2023")
+        expect_no_crash(resp, f"role '{role}'")
+    else:
+        expect_denied(resp, "API5:2023 BFLA", f"role '{role}' is documented as denied but the call was not refused")
+
+
 def burst_size(default: int) -> int:
     """Size of a rate-limit burst: APITEST_RATE_BURST when it is a whole number from 1 to 1000, else `default`."""
     raw = os.environ.get("APITEST_RATE_BURST", "").strip()
