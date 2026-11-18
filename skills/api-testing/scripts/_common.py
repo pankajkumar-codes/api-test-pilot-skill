@@ -319,6 +319,20 @@ def secret_values_from_env(environ: "dict[str, str] | None" = None) -> list[str]
     for name, value in env.items():
         if name.startswith("APITEST_") and is_secret_name(name) and len(value) >= 4 and value.strip().lower() not in _FALSY_OR_TRUTHY:
             out.append(value)
+    out += _login_secret_values(env)
+    return out
+
+
+LOGIN_VALUE_VARS = ("APITEST_LOGIN_EMAIL", "APITEST_LOGIN_USERNAME")   # an account name is not a password, but it is still not report material
+
+
+def _login_secret_values(env) -> list[str]:
+    """Account names from APITEST_LOGIN_* and each cookie value in APITEST_COOKIES ("name=value; name2=value2")."""
+    out = [env[n] for n in LOGIN_VALUE_VARS if len(env.get(n, "")) >= 4]
+    for pair in (env.get("APITEST_COOKIES") or "").split(";"):
+        _, _, val = pair.strip().partition("=")
+        if len(val.strip()) >= 4:
+            out.append(val.strip())
     return out
 
 

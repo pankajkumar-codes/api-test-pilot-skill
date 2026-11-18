@@ -22,6 +22,9 @@ The generator prints the exact rerun command. The suite is `conftest.py` + `apit
 Headers the spec marks optional are not sent. If the server enforces one anyway, the failing write is reported as spec drift and names the header;
 `APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends them (see README).
 
+Run order: tests marked `destructive` run late and tests marked `session_end` (sign-out, revoke, password change) run last. For runs longer than the
+token lifetime set `APITEST_TOKEN_CMD`; for sign-in operations set `APITEST_LOGIN_*` and, for cookie-based refresh, `APITEST_COOKIES` (see README).
+
 ## Expectations the generated tests encode
 - **Positive**: status in the documented 2xx set; JSON body parses when documented as JSON; fields sent that the
   response also returns must come back unchanged (`expect_echo`).

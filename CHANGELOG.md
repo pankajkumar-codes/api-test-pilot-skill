@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (tokens, sign-in and cookies, issues 44, 45)
+- Generated tests that call an endpoint that probably ends the caller's session (sign-out, revoke, password change or reset, session end or replace) carry a `session_end` marker and run after every other test, so they cannot invalidate the token the rest of the run uses.
+- `APITEST_TOKEN_CMD` (and `_B`): a command that prints a fresh token, run without a shell when a credentialed call gets 401 (rate-limited to once per 5 s, 100 per run); the call is then repeated once. The token is never printed.
+- `APITEST_LOGIN_EMAIL`, `_USERNAME`, `_PASSWORD`, `_OTP` fill the matching body fields of sign-in style operations; `APITEST_COOKIES` sends cookies such as an HttpOnly refresh token. These values, and each cookie value, are scrubbed from failure messages and reports.
+
 ### Added (empty optional body, issue 50)
 - When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
 
