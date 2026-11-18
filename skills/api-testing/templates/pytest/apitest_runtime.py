@@ -316,10 +316,17 @@ def describe(resp: requests.Response) -> str:
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
 
+# Client errors a made-up request value can cause. 401, 403, 429 and 5xx say something about the API whatever was sent.
+INPUT_REJECTED = {400, 404, 409, 410, 413, 415, 422}
+
+
 def fail(resp: requests.Response | None, msg: str, severity: str | None = None, owasp: str | None = None) -> None:
+    guessed = getattr(resp, "_guessed", ())
+    if resp is not None and resp.status_code in INPUT_REJECTED and guessed:
+        # The spec gave no example, so the server may simply be rejecting the value we invented: not evidence of a defect.
+        severity, msg = "INFO", "needs an example: " + msg
     tag = "".join(f"[{t}]" for t in (severity, owasp) if t)
     suffix = f"\n  {describe(resp)}" if resp is not None else ""
-    guessed = getattr(resp, "_guessed", ())
     if resp is not None and 400 <= resp.status_code < 500 and guessed:
         suffix += ("\n  note: the spec gives no example or default for required parameter(s) or field(s) "
                    + ", ".join(guessed) + ", so the request used an invented value; a "

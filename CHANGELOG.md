@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (report evidence and report.json, issues 41, 43)
+- A failure that is a 400, 404, 409, 410, 413, 415 or 422 on a request that used an invented value (no `example` or default in the spec) is now tagged INFO and titled "needs an example", not HIGH or MEDIUM. 401, 403, 429 and 5xx keep their normal rating.
+- `report.json` now lists every finding (up to 5000) instead of the first 100. New fields: `findings_shown` (how many the page and Markdown list) and `findings_truncated`.
+
 ### Fixed (tenant-scoped APIs, issues 38, 39, 40)
 - Integration flows no longer fail with `KeyError` for resources under a tenant path such as `/b/{business_id}/...`. Path parameters that no create step in the flow produces are read from `APITEST_PATH_<NAME>`; when one is not set the flow skips and names the variable.
 - The "request without credentials must be rejected" test uses a configured `APITEST_PATH_<NAME>` id (or a spec default) when there is one, for read operations; write operations always use a made-up id so a wrongly accepted unauthenticated write cannot change real data. With a made-up id it also accepts 404, because many APIs resolve the path before they check who is asking, and says so in the test message.

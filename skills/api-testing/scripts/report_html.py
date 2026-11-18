@@ -18,6 +18,7 @@ STATUS_ORDER = {"failed": 0, "error": 1, "skipped": 2, "passed": 3}
 STATUS_LABEL = {"failed": "FAIL", "error": "ERROR", "skipped": "SKIP", "passed": "PASS"}
 MAX_CASES_SHOWN = 3000   # per report; the JSON keeps all of them
 HTTP_BUDGET_CHARS = 4_000_000   # request/response text shown on the page; failures get it first
+JSON_MAX_FINDINGS = 5000   # findings kept in report.json (findings_truncated says when this cut applies)
 JSON_HTTP_BUDGET_CHARS = 20_000_000   # the same limit for report.json, which keeps more than the page
 
 
@@ -37,7 +38,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
     findings = [{
         "severity": f.severity, "title": f.title, "endpoint": f.endpoint, "type": f.kind, "rating": f.rating,
         "owasp": f.owasp, "detail": list(f.lines), "reproduce": list(f.commands), "note": f.note,
-    } for f in ordered[:limit]]
+    } for f in ordered[:JSON_MAX_FINDINGS]]
     coverage = [{
         "endpoint": key, "types": sorted(v["types"]), "passed": v["passed"], "failed": v["failed"],
         "skipped": v["skipped"], "errors": v["error"], "k6": v["k6"].rstrip("; "),
@@ -62,6 +63,8 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         "by_type": {t: {**v, "total": sum(v.values())} for t, v in sorted(by.items())},
         "severity_counts": {s: sum(1 for f in r.findings if f.severity == s) for s in SEV_ORDER},
         "findings": findings, "findings_total": len(r.findings),
+        # report.json carries every finding (up to JSON_MAX_FINDINGS); the page and the Markdown list the first --max-findings
+        "findings_shown": min(limit, len(findings)), "findings_truncated": len(findings) < len(r.findings),
         "coverage": coverage, "endpoints_without_results": none_run, "has_intake": bool(r.index.eps),
         "k6": r.k6,
         "run_problems": dict(sorted(r.problems.items())[:50]),
@@ -259,7 +262,8 @@ def section_findings(d: dict) -> str:
     chips = '<button class="chip on" data-sev="all">All</button>' + "".join(
         f'<button class="chip" data-sev="{s.lower()}">{s} {n}</button>' for s, n in d["severity_counts"].items() if n)
     items = []
-    for f in d["findings"]:
+    shown = d.get("findings_shown", len(d["findings"]))
+    for f in d["findings"][:shown]:
         meta = [f"Type: {f['type']}", f"Rating: {f['rating']}"] + ([f"OWASP: {f['owasp']}"] if f["owasp"] else [])
         items.append(
             f'<details class="finding sev-{e(f["severity"].lower())}" data-sev="{e(f["severity"].lower())}"><summary>{sev_pill(f["severity"])} '
@@ -268,8 +272,8 @@ def section_findings(d: dict) -> str:
             f'<h4>What happened vs expected</h4><pre>{e(chr(10).join(f["detail"]) or "(no detail in the result file)")}</pre>'
             f'<h4>Reproduce</h4><div class="cmd"><pre>{e(chr(10).join(f["reproduce"]))}</pre><button class="copy" type="button">Copy</button></div>'
             + (f'<p class="note">{e(f["note"])}</p>' if f["note"] else "") + '</div></details>')
-    more = d["findings_total"] - len(d["findings"])
-    tail = f'<p class="muted">{more} more finding(s) not shown (least severe last); raise <code>--max-findings</code> to list them.</p>' if more > 0 else ""
+    more = d["findings_total"] - shown
+    tail = f'<p class="muted">{more} more finding(s) not shown (least severe last); raise <code>--max-findings</code> to list them here' + ('; report.json has all of them' if not d.get('findings_truncated') else '') + '.</p>' if more > 0 else ""
     return f'<section><h2>Findings, most severe first</h2><div class="chips">{chips}</div>{"".join(items)}{tail}</section>'
 
 
