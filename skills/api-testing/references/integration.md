@@ -10,7 +10,7 @@ created and read gets one lifecycle test:
 4. update (PUT/PATCH with one string field changed) -> read again -> the change is visible
 5. delete -> status; read again -> must be a 4xx (no ghost resource)
 
-Nested resources (`/pets/{petId}/toys`) create their ancestors first; cleanup runs child-before-parent even when an
+Path parameters that no create step produces (for example a tenant id in `/b/{business_id}/...`) come from `APITEST_PATH_<NAME>`; without it the flow skips and names the variable. Nested resources (`/pets/{petId}/toys`) create their ancestors first; cleanup runs child-before-parent even when an
 assertion fails (`cleanup` fixture, best effort, never masks the test result). A resource whose ancestor cannot be created
 through the API is reported as a generator note instead of a broken test.
 

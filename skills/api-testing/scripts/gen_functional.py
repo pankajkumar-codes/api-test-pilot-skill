@@ -1,10 +1,24 @@
 """Generators for smoke, positive, negative and edge pytest modules (see references/functional.md)."""
 from __future__ import annotations
 
+import re
+
 from gen_common import (
     admin_line, BODY_METHODS, SAFE_METHODS, Expr, Module, case_table, error_codes, has_json_body, is_id_param, optional_query,
     params_in, path_params, py, sample_body, supported_body, writable_props,
 )
+
+# Field names that imply a structure. A run of "a" is not a valid value for these, so a length edge case there only checks
+# that the answer is a clean 4xx or success (no 5xx, no hang) instead of demanding success.
+STRUCTURED_NAME_RE = re.compile(
+    r"(^|[_\-.])(e?-?mail|password|passwd|pwd|pass|code|otp|pin|token|secret|url|uri|link|date|time|phone|mobile|"
+    r"file_?name|filename|extension|ext|iban|gstin|pan|zip|postal|pincode|uuid|guid|ip|host|domain)($|[_\-.])|"
+    r"(Email|Password|Code|Otp|Token|Url|Uri|Date|Phone|FileName|Filename)$", re.I)
+
+
+def _structured(name: str) -> bool:
+    return bool(STRUCTURED_NAME_RE.search(name))
+
 
 SPECIAL = "!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/~`"
 
@@ -75,11 +89,15 @@ def negative(doc: dict, mod: Module) -> None:
             continue
         ref, eid = _ref(ep), ep["id"]
         if ep.get("auth_required"):
-            body = f"    ep = {ref}\n"
-            path = f", path={_missing_ids(ep)}" if path_params(ep) else ""
-            mod.add(f"def {mod.unique('test_' + eid + '_rejects_missing_credentials')}(api):\n{body}"
-                    f"    resp = api.send(ep, auth=\"none\"{path})\n"
-                    '    rt.expect_status(resp, (401, 403), "request without credentials must be rejected")\n')
+            if path_params(ep):
+                mod.add(f"def {mod.unique('test_' + eid + '_rejects_missing_credentials')}(api):\n    ep = {ref}\n"
+                        f"    path, invented = api.probe_path(ep{'' if ep['method'] in SAFE_METHODS else ', use_real=False'})\n"
+                        '    resp = api.send(ep, auth="none", path=path)\n'
+                        "    rt.expect_unauthenticated(resp, invented)\n")
+            else:
+                mod.add(f"def {mod.unique('test_' + eid + '_rejects_missing_credentials')}(api):\n    ep = {ref}\n"
+                        '    resp = api.send(ep, auth="none")\n'
+                        "    rt.expect_unauthenticated(resp)\n")
         if any(is_id_param(p, ep) for p in path_params(ep)) and ep["method"] in ("GET", "PUT", "PATCH", "DELETE"):
             codes = error_codes(ep)
             if ep["method"] in ("GET", "PATCH"):
@@ -138,9 +156,9 @@ def _body_edges(ep: dict, base: dict) -> list[tuple]:
             out.append((f"{k}_special_chars", b(SPECIAL[: hi] if hi else SPECIAL), "no_crash"))
             out.append((f"{k}_empty_string", b(""), "reject" if (lo or 0) >= 1 else "no_crash"))
             if (lo or 0) >= 1:
-                out.append((f"{k}_min_length", b(Expr(f'"a" * {lo}')), "success"))
+                out.append((f"{k}_min_length", b(Expr(f'"a" * {lo}')), "no_crash" if _structured(k) else "success"))
             if hi:
-                out.append((f"{k}_max_length", b(Expr(f'"a" * {hi}')), "success"))
+                out.append((f"{k}_max_length", b(Expr(f'"a" * {hi}')), "no_crash" if _structured(k) else "success"))
             elif not big_done:
                 out.append((f"{k}_100k_chars", b(Expr('"a" * 100_000')), "no_crash"))
                 big_done = True

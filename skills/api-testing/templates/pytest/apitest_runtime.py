@@ -553,6 +553,17 @@ def expect_ok(resp: requests.Response, ep: Endpoint, what: str = "") -> None:
     expect_status(resp, ep.ok or ("2xx",), what or "request with valid input should succeed")
 
 
+def expect_unauthenticated(resp: requests.Response, invented: bool = False, what: str = "") -> None:
+    """A call without credentials must be refused with 401 or 403. When the path held an invented id, 404 is accepted too:
+    many APIs resolve the path before they check who is asking, and nothing was served, so it is not a hole.
+    Set APITEST_PATH_<NAME> to a real id to get the strict check."""
+    codes = (401, 403, 404) if invented else (401, 403)
+    msg = what or "request without credentials must be rejected"
+    if invented:
+        msg += " (path id was invented, so 404 is accepted; set APITEST_PATH_<NAME> for a strict check)"
+    expect_status(resp, codes, msg)
+
+
 def expect_no_crash(resp: requests.Response, what: str = "") -> None:
     if resp.status_code >= 500:
         fail(resp, f"{what or 'server error'}: 5xx on unusual input (expected a handled 4xx or success)", "MEDIUM")
@@ -1059,6 +1070,22 @@ class Api:
         if kind in ("integer", "number"):
             return 2147483000
         return str(uuid.uuid4()) if fmt == "uuid" else "does-not-exist-" + uuid.uuid4().hex[:8]
+
+    def probe_path(self, ep: "Endpoint", use_real: bool = True) -> tuple[dict, bool]:
+        """Path values for a probe that is not about the resource itself (no credentials, bad credentials). A configured
+        APITEST_PATH_* id (or a spec default) is used when there is one, so the answer does not depend on a missing record.
+        use_real=False (write operations: an unauthenticated DELETE that wrongly succeeds must not hit existing data) always
+        invents the values. Returns (values, invented): invented is True when any value was made up."""
+        out, invented = {}, False
+        for name, meta in ep.path_params.items():
+            key = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").upper()
+            real = (os.environ.get("APITEST_PATH_" + key) or meta.get("default")) if use_real else None
+            if real not in (None, ""):
+                out[name] = real
+            else:
+                out[name] = self.missing_id(meta.get("type") or "string", meta.get("format"))
+                invented = True
+        return out, invented
 
     # ---- sending
     def _pace(self) -> None:
