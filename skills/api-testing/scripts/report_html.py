@@ -68,6 +68,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         "coverage": coverage, "endpoints_without_results": none_run, "has_intake": bool(r.index.eps),
         "k6": r.k6,
         "run_problems": dict(sorted(r.problems.items())[:50]),
+        "needs_example": {k: sorted(v) for k, v in sorted(r.needs_example.items())[:200]},
         "skips": dict(sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]),
         "inputs": [{"kind": k, "file": n, "sha256_prefix": d} for k, n, d in r.inputs],
         "command": command,
@@ -282,6 +283,9 @@ def section_limits(d: dict) -> str:
     if d["run_problems"]:
         items.append("<h3>Run problems</h3><ul>" + "".join(f"<li>{e(k)}" + (f" (x{v})" if v > 1 else "") + "</li>" for k, v in d["run_problems"].items()) + "</ul>")
     lim = []
+    if d.get("needs_example"):
+        lim.append("Give an example (spec <code>example</code> or <code>APITEST_EXAMPLES_FILE</code>) for these invented values: "
+                   + "; ".join(f"{e(k)}: {e(', '.join(v))}" for k, v in list(d["needs_example"].items())[:30]))
     if d["skips"]:
         lim += [f"{n} x {e(reason)}" for reason, n in d["skips"].items()]
     if d["endpoints_without_results"]:

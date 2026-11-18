@@ -155,6 +155,68 @@ def name_hint(name: str, kind: str | None) -> Any:
     return next((v for rx, v in table if rx.search(name)), None)
 
 
+def regex_sample(pattern: str, max_len: int = 200) -> str | None:
+    """A string that matches `pattern`, for the simple patterns specs use (classes, ranges, \\d \\w, counts, groups, first
+    alternative), or None when it cannot build one. The result is checked against the pattern before it is returned."""
+    try:
+        import re._parser as sp   # Python 3.11+
+        tree = sp.parse(pattern)
+        cre = re.compile(pattern)
+    except Exception:
+        return None
+    cats = {sp.CATEGORY_DIGIT: "7", sp.CATEGORY_WORD: "a", sp.CATEGORY_SPACE: " ", sp.CATEGORY_NOT_DIGIT: "a",
+            sp.CATEGORY_NOT_WORD: "-", sp.CATEGORY_NOT_SPACE: "a"}
+
+    def one_of(items) -> str | None:
+        for op, av in items:
+            if op == sp.LITERAL:
+                return chr(av)
+            if op == sp.RANGE:
+                return chr(av[0])
+            if op == sp.CATEGORY and av in cats:
+                return cats[av]
+        return None
+
+    def gen(nodes) -> str:
+        out = []
+        for op, av in nodes:
+            if op == sp.LITERAL:
+                out.append(chr(av))
+            elif op == sp.NOT_LITERAL:
+                out.append("a" if av != ord("a") else "b")
+            elif op == sp.ANY:
+                out.append("a")
+            elif op == sp.IN:
+                if av and av[0][0] == sp.NEGATE:
+                    banned = {chr(x[1]) for x in av[1:] if x[0] == sp.LITERAL}
+                    out.append(next(c for c in "a1_-X" if c not in banned))
+                else:
+                    c = one_of(av)
+                    if c is None:
+                        raise ValueError("class")
+                    out.append(c)
+            elif op == sp.CATEGORY:
+                out.append(cats[av])
+            elif op in (sp.MAX_REPEAT, sp.MIN_REPEAT):
+                lo, _hi, sub_ = av
+                out.append(gen(sub_) * lo)
+            elif op == sp.SUBPATTERN:
+                out.append(gen(av[3]))
+            elif op == sp.BRANCH:
+                out.append(gen(av[1][0]))
+            elif op == sp.AT:
+                pass
+            else:
+                raise ValueError(str(op))
+        return "".join(out)
+
+    try:
+        s = gen(tree)
+    except Exception:
+        return None
+    return s if len(s) <= max_len and cre.search(s) else None
+
+
 def _first_type(schema: dict) -> str | None:
     t = schema.get("type")
     return t[0] if isinstance(t, list) and t else t
@@ -179,7 +241,10 @@ def sample(schema: Any, name: str = "", depth: int = 0) -> Any:
         if is_secret_name(name) or schema.get("format") == "password":
             return PLACEHOLDER
         fmt = schema.get("format", "")
-        s = _FORMAT_SAMPLES.get(fmt) or (None if schema.get("pattern") else name_hint(name, "string")) \
+        pat = regex_sample(schema["pattern"], schema.get("maxLength") or 200) if schema.get("pattern") else None
+        if pat is not None and len(pat) < (schema.get("minLength") or 0):
+            pat = None
+        s = _FORMAT_SAMPLES.get(fmt) or pat or (None if schema.get("pattern") else name_hint(name, "string")) \
             or (f"sample-{name}" if name else "sample")
         lo, hi = schema.get("minLength"), schema.get("maxLength")
         if isinstance(lo, int) and len(s) < lo:
@@ -255,7 +320,7 @@ def is_guessed(p: dict) -> bool:
         return False
     t = _first_type(sch)
     if t == "string":
-        return not sch.get("format") and not sch.get("pattern")
+        return not sch.get("format") and not (sch.get("pattern") and regex_sample(sch["pattern"], sch.get("maxLength") or 200) is not None)
     if t in ("integer", "number"):
         return not isinstance(sch.get("minimum"), (int, float)) and not isinstance(sch.get("maximum"), (int, float))
     return t in ("boolean", "array", "object", None)

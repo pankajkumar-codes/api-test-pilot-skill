@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Auto-detect the input type and emit normalized intake JSON.
 
-Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql|grpc] [--url GRAPHQL_URL] [--api-key-header NAME]
+Usage:  python intake.py <file> [-o intake.json] [--summary] [--type openapi|postman|curl|graphql|grpc] [--url GRAPHQL_URL] [--api-key-header NAME] [--assume-bearer [--public-paths GLOBS]]
 """
 from __future__ import annotations
 
@@ -49,6 +49,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--type", choices=("openapi", "postman", "curl", "graphql", "grpc"))
     ap.add_argument("--url", help="GraphQL endpoint URL (only used for GraphQL inputs)")
     ap.add_argument("--api-key-header", help="GraphQL: send the credential in this header (e.g. x-api-key) instead of a bearer token")
+    ap.add_argument("--assume-bearer", action="store_true",
+                    help="OpenAPI with no security scheme: treat every operation as needing a bearer token (APITEST_BEARERAUTH_TOKEN)")
+    ap.add_argument("--public-paths", help="with --assume-bearer: comma-separated path globs that stay public, e.g. '/health,/docs*,/auth/login'")
     args = ap.parse_args(argv)
     try:
         kind = args.type or detect(args.input)
@@ -59,6 +62,11 @@ def main(argv: list[str] | None = None) -> int:
         else:
             builder = {"openapi": parse_openapi.build, "postman": parse_postman.build, "curl": parse_curl.build}[kind]
             doc = builder(args.input)
+            if kind == "openapi":
+                if args.assume_bearer:
+                    parse_openapi.apply_assumed_bearer(doc, [g.strip() for g in (args.public_paths or "").split(",") if g.strip()])
+                else:
+                    parse_openapi.warn_if_no_scheme(doc)
     except IntakeError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

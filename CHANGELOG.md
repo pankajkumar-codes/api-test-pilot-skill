@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (examples, ids file, no-scheme specs, issues 46, 51, 52)
+- Intake reads `x-example`, the OpenAPI 3.1 `examples` list and the first named `examples` entry as the example. A simple `pattern` (classes, ranges, counts, groups, first alternative) gets a generated matching value; patterns it cannot build, such as lookaheads, stay flagged as invented.
+- `APITEST_EXAMPLES_FILE` (`operationId.field` or `*.field` to a value) sets body fields and query parameters at run time; the report lists the fields whose invented value drew a 4xx ("give an example for these").
+- `APITEST_IDS_FILE` holds path and victim ids in one JSON file (an environment variable still wins). Every run ends with "Set these to run the skipped tests": each variable and how many tests it would unskip.
+- Intake warns when a spec declares no security scheme; `--assume-bearer` (with `--public-paths` globs) makes the other operations need a bearer token. Not done from issue 46: the setup stage that creates the objects itself, tracked as a follow-up.
+
 ### Added (optional headers the server enforces, issue 42)
 - A write that answers 400, 412, 422 or 428 with a body naming a header the spec declares optional (`idempotency_key_required`, `if_match_required`) is reported as spec drift (LOW): "the server seems to require header X; the spec says optional", with the setting that fixes it.
 - `APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends those headers on every operation that declares them. A bare `Idempotency-Key` gets a fresh unique value per call, any other name gets `*`, and `Name=value` sets the value.
