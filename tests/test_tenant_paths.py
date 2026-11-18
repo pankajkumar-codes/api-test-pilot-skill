@@ -146,3 +146,25 @@ def test_max_length_on_an_email_field_only_checks_for_a_clean_answer(suite, serv
     assert mx and all(s == "passed" for s, _ in mx.values()), mx   # a run of "a" gets 422, which is a clean rejection
     assert not [k for k in failed(res) if "max_length" in k], failed(res)
     assert passed(res)
+
+
+@pytest.mark.parametrize("name,expected", [
+    ("email", True), ("emailAddress", True), ("phoneNumber", True), ("dob", True), ("api_key", True), ("userEmail", True),
+    ("name", False), ("description", False), ("address", False), ("codename", False), ("company", False)])
+def test_structured_field_names(name, expected):
+    import gen_functional
+    assert gen_functional._structured(name) is expected
+
+
+def test_documented_401_contract_does_not_fail_on_a_404_for_an_invented_id(tmp_path, server):
+    spec = json.loads(json.dumps(SPEC))
+    spec["paths"]["/b/{business_id}/things"]["get"]["responses"]["401"] = {"description": "no", "content": {
+        "application/json": {"schema": {"type": "object", "properties": {"detail": {"type": "string"}}}}}}
+    (tmp_path / "s.json").write_text(json.dumps(spec))
+    gen_pytest.generate(parse_openapi.build(str(tmp_path / "s.json")), tmp_path / "suite", ["contract"])
+    res, _ = run_suite(tmp_path / "suite", server, BASE)
+    got = {k: v for k, v in res.items() if "error_contract_401" in k}
+    assert got and all(s == "skipped" and "APITEST_PATH_" in m for s, m in got.values()), got
+    res, _ = run_suite(tmp_path / "suite", server, {**BASE, "APITEST_PATH_BUSINESS_ID": "biz1"})
+    got = {k: v for k, v in res.items() if "error_contract_401" in k}
+    assert got and all(s == "passed" for s, _ in got.values()), got

@@ -11,7 +11,7 @@ def _ref(ep: dict) -> str:
     return f"EP[{ep['id']!r}]"
 
 
-def _missing_ids(ep: dict) -> str:
+def _missing_ids(ep: dict) -> str:  # still used by the 404 contract test
     return "{" + ", ".join(
         f'{p["name"]!r}: api.missing_id({((p.get("schema") or {}).get("type") or "string")!r}, '
         f'{(p.get("schema") or {}).get("format")!r})' for p in path_params(ep)) + "}"
@@ -30,10 +30,10 @@ def generate(doc: dict, mod: Module) -> None:
                     "    resp = api.send(ep)\n    rt.expect_ok(resp, ep)\n    rt.expect_contract(resp, ep)\n")
         resp_docs = ep["responses"]
         if "401" in resp_docs and resp_docs["401"].get("schema") and ep.get("auth_required"):
-            path = f", path={_missing_ids(ep)}" if path_params(ep) else ""
-            mod.add(f"def {mod.unique('test_' + eid + '_error_contract_401')}(api):\n    ep = {ref}\n"
-                    f'    resp = api.send(ep, auth="none"{path})\n    rt.expect_status(resp, (401,))\n'
-                    "    rt.expect_contract(resp, ep)\n")
+            real = "" if ep["method"] in ("GET", "HEAD") else ", use_real=False"   # a write is never sent with a real id unauthenticated
+            probe = (f"    path, invented = api.probe_path(ep{real})\n" if path_params(ep) else "    path, invented = {}, False\n")
+            mod.add(f"def {mod.unique('test_' + eid + '_error_contract_401')}(api):\n    ep = {ref}\n{probe}"
+                    '    resp = api.send(ep, auth="none", path=path)\n    rt.expect_unauthenticated_contract(resp, ep, invented)\n')
         if "404" in resp_docs and resp_docs["404"].get("schema") and path_params(ep) and ep["method"] == "GET":
             mod.add(f"def {mod.unique('test_' + eid + '_error_contract_404')}(api):\n    ep = {ref}\n"
                     f"    resp = api.send(ep, path={_missing_ids(ep)})\n    rt.expect_status(resp, (404,))\n"

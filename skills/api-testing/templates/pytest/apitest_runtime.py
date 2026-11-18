@@ -657,6 +657,16 @@ def expect_unauthenticated(resp: requests.Response, invented: bool = False, what
     expect_status(resp, codes, msg)
 
 
+def expect_unauthenticated_contract(resp: requests.Response, ep: Endpoint, invented: bool) -> None:
+    """The documented 401 body. With an invented path id an API that resolves the path first answers 404, which says nothing
+    about its 401 body, so that case skips and names the variable that makes the check strict."""
+    if invented and resp.status_code == 404:
+        pytest.skip("the API answered 404 for an invented path id before checking credentials, so its 401 body was not seen: "
+                    "set APITEST_PATH_<NAME> for the ids in this path")
+    expect_status(resp, (401,), "request without credentials must be rejected")
+    expect_contract(resp, ep)
+
+
 def expect_no_crash(resp: requests.Response, what: str = "") -> None:
     if resp.status_code >= 500:
         fail(resp, f"{what or 'server error'}: 5xx on unusual input (expected a handled 4xx or success)", "MEDIUM")
