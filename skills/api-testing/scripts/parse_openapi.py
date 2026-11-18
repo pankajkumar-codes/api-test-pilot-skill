@@ -634,7 +634,7 @@ def apply_assumed_bearer(doc: dict, public_paths: list[str] | None = None) -> in
     doc["security_schemes"]["bearerAuth"]["assumed"] = True
     changed = 0
     for ep in doc["endpoints"]:
-        if ep.get("auth_required") or any(fnmatch.fnmatchcase(ep["path"], g) for g in public_paths or []):
+        if not isinstance(ep, dict) or ep.get("auth_required") or any(fnmatch.fnmatchcase(ep["path"], g) for g in public_paths or []):
             continue
         ep["security"], ep["auth_required"] = [["bearerAuth"]], True
         changed += 1
@@ -646,7 +646,7 @@ def apply_assumed_bearer(doc: dict, public_paths: list[str] | None = None) -> in
 
 def warn_if_no_scheme(doc: dict) -> None:
     """An API that needs a token but whose spec declares none looks fully public to the skill; say so in the intake."""
-    if doc.get("endpoints") and not doc.get("security_schemes") and not any(e.get("auth_required") for e in doc["endpoints"]):
+    if doc.get("endpoints") and not doc.get("security_schemes") and not any(isinstance(e, dict) and e.get("auth_required") for e in doc["endpoints"]):
         doc.setdefault("warnings", []).append(
             "the spec declares no security scheme, so every operation is treated as public (no credentials sent, no authentication or "
             "authorization tests). If the API answers 401 without a token, rerun intake with --assume-bearer "
