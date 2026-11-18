@@ -308,7 +308,11 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
         import gen_grpc
         return gen_grpc.generate(doc, out, types, base_url_override)
     base_url = default_base_url(doc, base_url_override)
-    chosen = [t for t in REST_TYPES if t not in OPT_IN_TYPES] if types == ["all"] else types
+    if "all" in types:   # `all` plus extras, e.g. `all,fuzz`: everything not opt-in, and the opt-in types named next to it
+        chosen = [t for t in REST_TYPES if t not in OPT_IN_TYPES or t in types]
+        types = chosen
+    else:
+        chosen = types
     unknown = [t for t in chosen if t not in REST_TYPES]
     if unknown:
         raise _common.IntakeError(f"Unknown test type(s): {', '.join(unknown)}. Choose from: {', '.join(REST_TYPES)}, all (fuzz is opt-in)")

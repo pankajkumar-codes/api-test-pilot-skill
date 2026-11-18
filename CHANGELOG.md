@@ -24,6 +24,12 @@ First release candidate, built in phases (see PLAN.md).
 ### Added (empty optional body, issue 50)
 - When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
 
+### Added (driver, environment check, local Postgres chaos example, issues 54, 55)
+- `scripts/run_all.py <spec> --out DIR`: intake, generation, a first pass without session-ending tests, a second pass with only those, the report, and the variables to set to run the skipped tests. It never sets the safety-gate variables and does not start chaos or k6 runs (their commands are printed). Exit code 0 no findings, 1 findings, 2 a step could not run.
+- `gen_pytest.py --types all,fuzz` runs everything plus the opt-in fuzz suite; plain `all` still leaves fuzz out. The gate for fuzz is unchanged.
+- `scripts/check_env.py` (also `run_all.py --check-env`) lists what is missing before a run: Python 3.11+, pytest, requests, PyYAML, k6, grpcurl, with install hints, and says whether the target needs the gate variables. `--needs k6,grpcurl` makes optional tools required.
+- `references/chaos.md` has an example for a local PostgreSQL cluster (`su postgres -c ...`, SIGSTOP and SIGCONT for the slow case) and explains why to probe an endpoint that reads the database.
+
 ### Changed (report polish, issue 53)
 - The result line counts findings in cause groups ("239 finding(s) in 6 cause group(s)") and gives a "could not run" figure (skipped plus errored) beside passed and failed. The variables that would unskip the most tests are named on the first screen ("To run more tests set: APITEST_VICTIM_X (31), ...").
 - A **Root causes** table (Markdown and HTML, and `cause_groups` in report.json) comes before the individual findings when something repeats. The cause is the test name with the operation id removed.

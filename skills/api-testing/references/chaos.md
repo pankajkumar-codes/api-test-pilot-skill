@@ -36,6 +36,19 @@ Dependency commands live in a JSON file, as argv lists (no shell), and every fau
 {"dependencies": [{"name": "postgres", "stop": ["docker", "stop", "pg"], "start": ["docker", "start", "pg"],
                    "slow_on": ["..."], "slow_off": ["..."]}]}
 ```
+Example for a PostgreSQL cluster on the same machine (adapt the data directory and user; `su` needs root, so run the experiment as root or use `sudo -u postgres`
+as the first two argv items). Stop and start are the outage, SIGSTOP and SIGCONT freeze and thaw the server processes for the slow case (clients wait instead of
+getting a refusal):
+```
+{"dependencies": [{"name": "postgres",
+  "stop":    ["su", "postgres", "-c", "pg_ctl -D /var/lib/postgresql/16/main stop -m fast"],
+  "start":   ["su", "postgres", "-c", "pg_ctl -D /var/lib/postgresql/16/main -l /tmp/pg.log start -w"],
+  "slow_on":  ["pkill", "-STOP", "-u", "postgres", "-x", "postgres"],
+  "slow_off": ["pkill", "-CONT", "-u", "postgres", "-x", "postgres"]}]}
+```
+Run it with a probe that goes through the database: `--probe /orders` (any cheap GET that reads a table). Health endpoints often answer from memory, so a probe on
+`/health` keeps passing while the database is down and the experiment reports no impact. Without `--probe` the intake's first parameterless GET is used, which may not touch the database either.
+
 Commands are never guessed or inferred from the spec. They run only with `--allow-hooks`, only against loopback targets, are printed (secret-looking
 arguments and `user:password@` in URLs masked; do not put secrets in commands anyway) before anything runs. The undo runs on error, Ctrl-C, SIGTERM and SIGHUP; signals are held while it runs, an undo stays pending until it has run, and the commands run in their own session (`MANUAL ACTION REQUIRED` is printed if even that fails).
 
