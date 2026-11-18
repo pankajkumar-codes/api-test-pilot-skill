@@ -5,7 +5,6 @@ import json
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-import pytest
 
 import gen_pytest
 import parse_openapi
