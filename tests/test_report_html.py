@@ -300,3 +300,13 @@ def test_exchange_volume_is_budgeted_failures_first():
         cases.append({"type": "t", "name": f"n{i}", "status": "failed" if i == 3 else "passed", "http": {"total": 1, "items": [item]}})
     keep = report_html.allocate_http(cases, 3000)
     assert 3 in keep and len(keep) < 6
+
+
+def test_json_lists_every_finding_while_the_page_keeps_the_limit(tmp_path):
+    cases = [("api_tests.test_security", f"test_bola_{i}", "fail", "x", f"[HIGH] hole {i}\nGET /pets/{i} -> 200") for i in range(8)]
+    out = build(tmp_path, "--max-findings", "3", cases=cases)
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    assert data["findings_total"] == 8 and len(data["findings"]) == 8
+    assert data["findings_shown"] == 3 and data["findings_truncated"] is False
+    text = out.read_text(encoding="utf-8")
+    assert text.count('class="finding ') == 3 and "5 more finding(s)" in text and "report.json has all of them" in text

@@ -316,10 +316,58 @@ def describe(resp: requests.Response) -> str:
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
 
+def optional_header_values(ep: "Endpoint") -> dict:
+    """Headers to send although the spec marks them optional: APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match=*.
+    Only names the operation declares are sent. A bare Idempotency-Key gets a fresh unique value per call; any other name
+    gets the value after `=`, else "*"."""
+    out: dict = {}
+    declared = {n.lower(): n for n in ep.optional_headers}
+    for item in os.environ.get("APITEST_SEND_OPTIONAL_HEADERS", "").split(","):
+        name, _, val = item.strip().partition("=")
+        real = declared.get(name.strip().lower())
+        if not real:
+            continue
+        if val:
+            out[real] = val
+        elif real.lower() == "idempotency-key":
+            out[real] = "apitest-" + uuid.uuid4().hex
+        else:
+            out[real] = "*"
+    return out
+
+
+def _flat(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def header_drift(resp: Any) -> list[str]:
+    """Optional headers the answer to a failed write names as required (the spec says optional)."""
+    if resp is None or resp.status_code not in (400, 412, 422, 428) or resp.request.method in ("GET", "HEAD", "OPTIONS"):
+        return []
+    sent = {k.lower() for k in resp.request.headers}
+    body = _flat(resp.text or "")
+    return [n for n in getattr(resp, "_optional_headers", ()) if n.lower() not in sent and _flat(n) in body]
+
+
+# Client errors a made-up request value can cause. 401, 403, 429 and 5xx say something about the API whatever was sent.
+INPUT_REJECTED = {400, 404, 409, 410, 413, 415, 422}
+
+
 def fail(resp: requests.Response | None, msg: str, severity: str | None = None, owasp: str | None = None) -> None:
+    guessed = getattr(resp, "_guessed", ())
+    if resp is not None and resp.status_code in INPUT_REJECTED and guessed:
+        # The spec gave no example, so the server may simply be rejecting the value we invented: not evidence of a defect.
+        severity, msg = "INFO", "needs an example: " + msg
+    drift = header_drift(resp)
+    if drift:
+        # The server enforces a header the spec calls optional: a finding about the spec, and the likely cause of this failure.
+        severity = severity if severity not in (None, "INFO") else "LOW"
+        msg = f"spec drift: the server seems to require header {', '.join(drift)}, the spec says optional. {msg}"
     tag = "".join(f"[{t}]" for t in (severity, owasp) if t)
     suffix = f"\n  {describe(resp)}" if resp is not None else ""
-    guessed = getattr(resp, "_guessed", ())
+    if drift:
+        suffix += ("\n  note: set APITEST_SEND_OPTIONAL_HEADERS=" + ",".join(drift) +
+                   " to send it on every operation that declares it, and mark it required in the spec.")
     if resp is not None and 400 <= resp.status_code < 500 and guessed:
         suffix += ("\n  note: the spec gives no example or default for required parameter(s) or field(s) "
                    + ", ".join(guessed) + ", so the request used an invented value; a "
@@ -433,6 +481,7 @@ class Endpoint:
     query: dict = field(default_factory=dict)        # baseline valid query (required params)
     guessed: tuple = ()                              # required query params / body fields ("body.name") whose baseline value is invented
     headers: dict = field(default_factory=dict)      # baseline valid headers (required params)
+    optional_headers: tuple = ()                     # headers the spec declares as optional (APITEST_SEND_OPTIONAL_HEADERS can send them)
     body: Any = UNSET                                # baseline valid JSON body
     unique: dict = field(default_factory=dict)       # body fields that get a run tag on baseline creates: name -> {"max": maxLength}
     content_type: str | None = None
@@ -1149,6 +1198,7 @@ class Api:
             ep.path)
         q = dict(ep.query) if query is UNSET else dict(query)
         h = dict(ep.headers)
+        h.update(optional_header_values(ep))
         h.update(headers or {})
         cookies: dict = {}
         if ep.sec and auth in ("default", "invalid"):
@@ -1174,6 +1224,7 @@ class Api:
         resp = self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
                              timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
         resp._sent_body = kwargs.get("json", kwargs.get("data", UNSET)) if raw is None else UNSET  # type: ignore[attr-defined]
+        resp._optional_headers = tuple(ep.optional_headers)  # type: ignore[attr-defined]
         resp._guessed = tuple(  # type: ignore[attr-defined]
             n for n in ep.guessed
             if (n.startswith("body.") and body is UNSET and raw is None) or (n in q and q[n] == ep.query.get(n)))
