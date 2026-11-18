@@ -254,6 +254,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_READ_ONLY=yes` | send only GET, HEAD and OPTIONS, no active probes (for public sandboxes) |
 | `APITEST_ALLOW_DESTRUCTIVE=yes` | allow tests that delete or overwrite data; they run last |
 | `APITEST_<SCHEME>_TOKEN` (for example `APITEST_BEARERAUTH_TOKEN`) | credentials; `intake.py` prints the names your spec needs |
+| `APITEST_SEND_OPTIONAL_HEADERS` | comma list of headers the spec marks optional but the server needs, for example `Idempotency-Key,If-Match`. Sent on every operation that declares them: `Idempotency-Key` gets a fresh unique value per call, others get `*` or the value after `=` (`If-Match=\"v1\"`) |
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
 | `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (`email`, `username`, `slug` ...) with a run id, or pin its 4-character prefix to reproduce a run (a rerun then repeats the same values) |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |

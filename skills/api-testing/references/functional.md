@@ -19,6 +19,9 @@ APITEST_BASE_URL=http://localhost:8080 APITEST_BEARERAUTH_TOKEN=... python -m py
 The generator prints the exact rerun command. The suite is `conftest.py` + `apitest_runtime.py` (helpers, copied) +
 `endpoints.py` (the endpoint table with valid baseline requests) + `test_<type>.py`.
 
+Headers the spec marks optional are not sent. If the server enforces one anyway, the failing write is reported as spec drift and names the header;
+`APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends them (see README).
+
 ## Expectations the generated tests encode
 - **Positive**: status in the documented 2xx set; JSON body parses when documented as JSON; fields sent that the
   response also returns must come back unchanged (`expect_echo`).

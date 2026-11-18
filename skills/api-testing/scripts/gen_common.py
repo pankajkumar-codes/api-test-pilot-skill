@@ -292,6 +292,12 @@ def baseline(ep: dict) -> dict:
     return {"path_params": pp, "query": query, "headers": headers}
 
 
+def optional_header_names(ep: dict) -> list[str]:
+    """Headers the spec declares but marks optional (Idempotency-Key, If-Match...). Credentials and content headers are left out."""
+    return [p["name"] for p in params_in(ep, "header") if not p.get("required") and not is_secret_name(p["name"])
+            and p["name"].lower() not in ("authorization", "content-type", "accept")]
+
+
 def optional_query(ep: dict) -> dict:
     return {p["name"]: v for p in params_in(ep, "query") if not p.get("required")
             and not is_secret_name(p["name"]) and not is_guessed(p) and (v := param_value(p)) is not None}

@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (optional headers the server enforces, issue 42)
+- A write that answers 400, 412, 422 or 428 with a body naming a header the spec declares optional (`idempotency_key_required`, `if_match_required`) is reported as spec drift (LOW): "the server seems to require header X; the spec says optional", with the setting that fixes it.
+- `APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends those headers on every operation that declares them. A bare `Idempotency-Key` gets a fresh unique value per call, any other name gets `*`, and `Name=value` sets the value.
+
 ### Fixed (report evidence and report.json, issues 41, 43)
 - A failure that is a 400, 404, 409, 410, 413, 415 or 422 on a request that used an invented value (no `example` or default in the spec) is now tagged INFO and titled "needs an example", not HIGH or MEDIUM. 401, 403, 429 and 5xx keep their normal rating.
 - `report.json` now lists every finding (up to 5000) instead of the first 100. New fields: `findings_shown` (how many the page and Markdown list) and `findings_truncated`.
