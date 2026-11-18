@@ -111,6 +111,19 @@ def generate(doc: dict, mod: Module) -> list[str]:
             continue
         L = [f"def {mod.unique('test_flow_' + coll.strip('/').replace('/', '_').replace('{', '').replace('}', '') + '_lifecycle')}(api, cleanup):",
              "    ids = {}"]
+        # Path parameters that no create step produces (a tenant or business id in front of every path) must come from the
+        # environment. api.pid skips the flow with the variable name when the value is not set, instead of a KeyError.
+        made = {c["param"] for c in chain}
+        used = [r["read"], *(chain_c["create"] for chain_c in chain)]
+        used += [r[k] for k in ("list", "update", "patch", "delete") if r.get(k)]
+        used += [c["delete"] for c in chain if c.get("delete")]
+        seeded: dict[str, dict] = {}
+        for ep_used in used:
+            for p in path_params(ep_used):
+                if p["name"] not in made:
+                    seeded.setdefault(p["name"], ep_used)
+        for name, ep_used in sorted(seeded.items()):
+            L.append(f"    ids[{name!r}] = api.pid({name!r}, EP[{ep_used['id']!r}].path_params.get({name!r}, {{}}).get('default'))")
         for i, c in enumerate(chain):
             cep, param = c["create"], c["param"]
             known = {p["name"] for p in path_params(cep)}

@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (tenant-scoped APIs, issues 38, 39, 40)
+- Integration flows no longer fail with `KeyError` for resources under a tenant path such as `/b/{business_id}/...`. Path parameters that no create step in the flow produces are read from `APITEST_PATH_<NAME>`; when one is not set the flow skips and names the variable.
+- The "request without credentials must be rejected" test uses a configured `APITEST_PATH_<NAME>` id (or a spec default) when there is one, for read operations; write operations always use a made-up id so a wrongly accepted unauthenticated write cannot change real data. With a made-up id it also accepts 404, because many APIs resolve the path before they check who is asking, and says so in the test message.
+- The `minLength` and `maxLength` edge cases for fields whose name implies a structure (email, password, code, otp, token, url, date, phone, file name and similar) no longer demand success from a run of `a`; they only require a clean answer (2xx or 4xx, never 5xx).
+
 ### Checked (chaos rerun on the fixed demo, 2026-11-17)
 - Chaos rerun against spring-boot-demo main 0acc5b5 (JDBC socket timeout fix) on a local PostgreSQL 16, with the skill at f790ae6: proxy-latency, proxy-5xx, proxy-drop, payload, dep-outage and dep-slow, 16 checks, 16 passed, 0 failed. `dep-slow` (database frozen with SIGSTOP for 6 s): requests during the freeze failed with p95 4.0 s and the API recovered 0.8 s after SIGCONT; `dep-outage` recovered in 3.2 s. The earlier MEDIUM finding is gone. `dep-blackhole` was not rerun, the example report was not regenerated, and capacity was not measured.
 

@@ -22,11 +22,11 @@ The generator prints the exact rerun command. The suite is `conftest.py` + `apit
 ## Expectations the generated tests encode
 - **Positive**: status in the documented 2xx set; JSON body parses when documented as JSON; fields sent that the
   response also returns must come back unchanged (`expect_echo`).
-- **Negative**: no credentials -> 401/403; unknown id -> 404 (exactly 404 only if the spec documents it, else any 4xx;
+- **Negative**: no credentials -> 401/403 (404 is also accepted when the path id had to be invented; set `APITEST_PATH_<NAME>` for the strict check on GET. Write operations always use an invented id, so an unauthenticated write that wrongly succeeds cannot change real data); unknown id -> 404 (exactly 404 only if the spec documents it, else any 4xx;
   for PUT/DELETE, which may legitimately upsert or be idempotent, only "no 5xx" unless 404 is documented);
   malformed JSON / wrong content type / empty required body -> 4xx; error body validated against the documented error schema.
 - **Edge**: unicode must round-trip; special characters, empty strings, nulls, `int64` overflow and 100k-character
-  strings must not 5xx; documented min/max boundaries must be accepted. A 5xx is always a finding (MEDIUM).
+  strings must not 5xx; documented min/max boundaries must be accepted. For fields whose name implies a structure (email, password, code, token, url, date, file name...) a run of `a` is not a valid value, so the length cases there only require a clean 2xx or 4xx. A 5xx is always a finding (MEDIUM).
 
 ## Data the tests need (environment variables)
 - Credentials: names are listed in `conftest.py` and by `intake.py` (`APITEST_<SCHEME>_TOKEN|USER|PASS|KEY`). Never ask for values in chat.
