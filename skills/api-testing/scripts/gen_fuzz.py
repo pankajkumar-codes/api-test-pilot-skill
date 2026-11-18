@@ -23,14 +23,16 @@ def generate(doc: dict, mod: Module) -> list[str]:
         if ep["method"] in ("HEAD", "OPTIONS", "TRACE", "CONNECT"):
             continue
         query = [p["name"] for p in params_in(ep, "query") if isinstance(p.get("name"), str) and NAME_RE.match(p["name"])]
-        rows.append((ep["id"], {"query": query[:20]}))
+        rows.append((ep["id"], {"query": query[:20], "method": ep["method"]}))
     if not rows:
         notes.append("fuzz: no endpoint to fuzz")
         return notes
+    for _, spec in rows:
+        spec["total"] = len(rows)   # lets the runtime split the run budget fairly between endpoints
     table = "FUZZ_SPECS = {\n" + ",\n".join(f"    {py(i)}: {py(spec)}" for i, spec in rows) + ",\n}\n"
     mod.add(table, is_test=False)
     mod.add('''@pytest.mark.intrusive
-@pytest.mark.parametrize("ep_id", sorted(FUZZ_SPECS))
+@pytest.mark.parametrize("ep_id", sorted(FUZZ_SPECS, key=lambda i: (FUZZ_SPECS[i]["method"] == "GET", i)))   # writes first
 def test_fuzz(api, ep_id):
     """Seeded, bounded fuzzing of one endpoint: no 5xx, hangs, crashes, leaks or header injection."""
     fz.fuzz_endpoint(api, EP[ep_id], FUZZ_SPECS[ep_id])

@@ -268,7 +268,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
 | `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (`email`, `username`, `slug` ...) with a run id, or pin its 4-character prefix to reproduce a run (a rerun then repeats the same values) |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |
-| `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run |
+| `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run. The request budget is split between endpoints; the rate defaults to 50/s against a loopback target and 5/s elsewhere |
 
 The full list is in `skills/api-testing/references/` (one file per test type).
 

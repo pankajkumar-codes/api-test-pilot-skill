@@ -37,6 +37,8 @@ HARD_MAX_CASES = 500
 HARD_MAX_BYTES = 1 << 20
 HARD_MAX_REQUESTS = 5000
 HARD_MAX_RPS = 20.0
+HARD_MAX_RPS_LOCAL = 100.0   # a loopback target cannot be hurt by the request rate the way a shared one can
+MIN_SHARE = 16               # fewest cases an endpoint gets, so the hostile-input pass always fits
 MAX_NEST = 100
 MAX_FINDINGS_SHOWN = 10
 
@@ -73,6 +75,13 @@ CONTENT_TYPES = ["text/plain", "application/xml", "multipart/form-data", "applic
 RAW_PATHS = ["%00", "%2e%2e%2f", "..%5c", "%252e%252e%252f", "%c0%af", "a%0d%0ab", "%", "%ff"]
 # Tried first. These find real bugs most often, so a small --cases budget still hits them.
 PRIORITY = {"sql_quote", "crlf", "nul", "xss", "template", "long_string", "int64_overflow", "null", "traversal", "emoji"}
+# Sent first to every endpoint (see build_cases): the inputs that most often crash a server. NUL goes into every body field and
+# query parameter; each of the others into one field, rotating, so a small share still covers them all.
+HOSTILE: list[tuple[str, Any]] = [
+    ("nul", "a\x00b"), ("long_string", None), ("lone_surrogate", "\ud800"), ("control_chars", "".join(chr(i) for i in range(1, 32))),
+    ("emoji", "\U0001F600" * 20), ("rtl_override", "‮abc‬"), ("negative", -1), ("huge_int", 10 ** 30),
+    ("empty_list", []), ("empty_object", {}), ("null", None),
+]
 EXTRA_KEYS = ["__proto__", "constructor", "$where", "_id", ""]
 UNKNOWN_QUERY = ["q", "id", "limit", "offset", "sort", "filter", "page", "debug"]
 
@@ -101,12 +110,13 @@ def _env_number(name: str, default: float, lo: float, hi: float, cast=float):
     return cast(min(max(value, lo), hi))  # anything above the hard cap is clamped
 
 
-def config() -> Config:
+def config(local: bool = False) -> Config:
+    """`local`: the target is a loopback host, so the default request rate is 50/s (cap 100) instead of 5/s (cap 20)."""
     return Config(
         seed=_env_number("APITEST_FUZZ_SEED", 1337, 0, 2 ** 31, int),
         cases=_env_number("APITEST_FUZZ_CASES", 40, 1, HARD_MAX_CASES, int),
         max_bytes=_env_number("APITEST_FUZZ_MAX_BYTES", 65536, 1024, HARD_MAX_BYTES, int),
-        rps=_env_number("APITEST_FUZZ_RPS", 5, 0.1, HARD_MAX_RPS),
+        rps=_env_number("APITEST_FUZZ_RPS", 50 if local else 5, 0.1, HARD_MAX_RPS_LOCAL if local else HARD_MAX_RPS),
         budget=_env_number("APITEST_FUZZ_MAX_REQUESTS", 2000, 1, HARD_MAX_REQUESTS, int),
         slow_ms=_env_number("APITEST_FUZZ_SLOW_MS", 5000, 100, 120000, int),
         nest=_env_number("APITEST_FUZZ_NESTING", 40, 2, MAX_NEST, int),
@@ -248,10 +258,34 @@ def build_cases(ep: Any, spec: dict, cfg: Config) -> list[dict]:
             path_cases.append({"label": f"path.{name}=raw{i}", "send": {"path": {name: rt.RawPath(raw_seg)}}})
     classes.append(path_cases)
 
-    out: list[dict] = []
+    out: list[dict] = _hostile_cases(ep, spec, cfg, base if has_body else None, names, long_str)
     for group in itertools.zip_longest(*[c for c in classes if c]):  # round-robin, so every class gets a turn
         out += [c for c in group if c is not None]
-    return out[: cfg.cases]
+    return out[: max(cfg.cases, 0)]
+
+
+def _hostile_cases(ep: Any, spec: dict, cfg: Config, base: Any, query_names: list[str], long_str: str) -> list[dict]:
+    """The first requests of every endpoint: NUL in each body field (up to 6) and query parameter (up to 3), then each other
+    hostile value in one field, rotating through the fields."""
+    out: list[dict] = []
+    paths = [p for p in _leaf_paths(base) if p][:6] if base is not None else []
+    qnames = query_names[:3]
+    nul = HOSTILE[0][1]
+    for path in paths:
+        out.append({"label": f"hostile.body.{_label(path)}=nul", "send": {"body": _set(base, path, nul)}})
+    for name in qnames:
+        out.append({"label": f"hostile.query.{name}=nul", "send": {"query": {**ep.query, name: _q(nul, cfg)}}})
+    slots = [("body", p) for p in paths] + [("query", n) for n in qnames]
+    for i, (hname, val) in enumerate(HOSTILE[1:]):
+        if not slots:
+            break
+        val = _capped(long_str if hname == "long_string" else val, cfg)
+        where, target = slots[i % len(slots)]
+        if where == "body":
+            out.append({"label": f"hostile.body.{_label(target)}={hname}", "send": {"body": _set(base, target, val)}})
+        else:
+            out.append({"label": f"hostile.query.{target}={hname}", "send": {"query": {**ep.query, target: _q(val, cfg)}}})
+    return out
 
 
 def _q(value: Any, cfg: Config) -> Any:
@@ -291,10 +325,20 @@ def _repro(exc: requests.exceptions.RequestException) -> str | None:
     return rt.curl_of(stub)
 
 
+def share_of_budget(cfg: Config, endpoints: Any) -> Config:
+    """Per-endpoint budget: with N endpoints the run budget is split so every endpoint gets cases (at least MIN_SHARE, at most
+    --cases), instead of the first endpoints using it all. `cfg.budget` stays the hard ceiling for the whole run."""
+    if isinstance(endpoints, int) and endpoints > 0:
+        share = max(MIN_SHARE, min(cfg.cases, cfg.budget // endpoints))
+        return Config(cfg.seed, share, cfg.max_bytes, cfg.rps, cfg.budget, cfg.slow_ms, cfg.nest)
+    return cfg
+
+
 def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
     """Run the fuzz cases for one endpoint; fail with a ranked list of findings (or pass)."""
     spec = spec or {}
-    cfg = config()
+    cfg = config(local=rt.is_local_host(getattr(api, "host", None)))
+    cfg = share_of_budget(cfg, spec.get("total"))
     if ep.method == "DELETE":
         rt.require_destructive()
     if ep.method in ("POST", "PUT", "PATCH", "DELETE"):
