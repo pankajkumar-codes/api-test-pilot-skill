@@ -269,6 +269,18 @@ what was expected and a command to reproduce it), k6 numbers with threshold resu
 (`chaos_run.py` writes a JUnit file you pass with `--junit`; chaos cases have no request or response bodies). It follows
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
 
+### File GitHub issues for the failures (optional)
+
+`file_issues.py` turns the findings in `reports/report.json` into GitHub issues. It is opt-in and previews by default (no network, no token):
+
+```
+python $SK/file_issues.py reports/report.json --repo OWNER/NAME            # preview
+export APITEST_GITHUB_TOKEN=...                                            # a token that may create issues on the repo
+python $SK/file_issues.py reports/report.json --repo OWNER/NAME --create   # preview, then asks you to type yes
+```
+
+Failures on the same endpoint with the same kind of failure become one issue that lists every occurrence. Each issue carries a hidden fingerprint, so a rerun skips what is already filed (open, or closed unless `--refile-closed`). Samples are scrubbed again before they leave your machine, and `--no-samples` leaves them out (use it for a public repository). `--min-severity` (default MEDIUM) and `--max-issues` (default 20) bound a run. Details: `skills/api-testing/references/issues.md`. It exits 0 on success or preview, 2 on bad input, 3 when not confirmed or no token, 4 when some issues could not be created.
+
 Exit codes, for scripts and CI: pytest exits 0 when every test passed, 1 when any failed, and 4 when the safety gate stops a remote target that has no
 `APITEST_TARGET_ENV`. `run_k6.py` exits 3 when the gate refuses the target, 4 when k6 is not installed, otherwise with k6's own code (99 when a threshold is crossed).
 `chaos_run.py` exits 0 (all passed or skipped), 1 (an experiment found a problem), 2 (bad input), 3 (gate refused) or 4 (cut short by a signal; partial results are written).

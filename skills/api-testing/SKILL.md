@@ -56,6 +56,11 @@ Collect JUnit XML (`pytest --junitxml=results/pytest.xml`) and k6 summaries (`re
 Writes a self-contained HTML report and `reports/report.json` next to it: summary, per-type breakdown, per-endpoint coverage, findings ranked by severity, a reproducible command per finding (`references/reporting.md`). `-o report.md` still writes Markdown (`templates/report.md`).
 Report what was run and what was skipped; never state results the files do not contain.
 
+## 7. File issues (optional)
+Only when the user asks. Preview first: `python scripts/file_issues.py reports/report.json --repo OWNER/NAME`.
+Creating needs `--create` and the user's confirmation; the token is the user's `APITEST_GITHUB_TOKEN`, never set or printed by you.
+Groups by endpoint and failure, skips issues already filed, scrubs samples (`references/issues.md`).
+
 ## Reference files (load on demand)
 - `references/test-types.md` — the 18 test types and what each checks
 - `references/intake.md` — normalized intake JSON, parser behavior and limits
@@ -70,6 +75,7 @@ Report what was run and what was skipped; never state results the files do not c
 - `references/load.md` — k6 setup, caps and the launcher; load profile
 - `references/stress.md`, `references/spike.md`, `references/soak.md` — the other k6 profiles
 - `references/reporting.md` — building the report, severity rules, what it never prints
+- `references/issues.md` — filing GitHub issues for failures (preview, confirm, duplicates, redaction)
 - `references/chaos.md` — chaos plans and runnable experiments (`chaos_run.py`)
 - `references/fuzzing.md` — malformed-input fuzzing
 
