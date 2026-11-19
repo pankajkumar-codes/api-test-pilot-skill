@@ -56,6 +56,7 @@ HARD_MAX_TOTAL_S = 1800
 HARD_MAX_FAULT_S = 120
 HARD_MAX_PAYLOAD = 1024 * 1024
 HARD_MAX_BURST = 100
+HARD_MAX_PAYLOAD_ENDPOINTS = 500
 HARD_MAX_OUTAGE_S = 60
 HARD_MAX_RECOVERY_WAIT_S = 120
 STREAK = 5            # healthy answers in a row that count as "recovered"
@@ -514,9 +515,13 @@ class Runner:
             self.add(Result("test_chaos_payload").skip("read-only mode (APITEST_READ_ONLY=yes): POST/PUT/PATCH bursts are not sent"))
             return
         eps = [e for e in self.doc.get("endpoints", []) if e["method"] in ("POST", "PUT", "PATCH") and gen_common.has_json_body(e)]
-        if a.payload_endpoints:
+        if isinstance(a.payload_endpoints, list):   # operation ids named by the user
             eps = [e for e in eps if e["id"] in a.payload_endpoints]
-        eps = eps[:3]
+            limit = HARD_MAX_PAYLOAD_ENDPOINTS
+        else:   # a count, "all" (as many as the run budget allows) or the default of 3
+            limit = HARD_MAX_PAYLOAD_ENDPOINTS if a.payload_endpoints == "all" else min(a.payload_endpoints or 3, HARD_MAX_PAYLOAD_ENDPOINTS)
+        untried = max(0, len(eps) - limit)
+        eps = eps[:limit]
         if not eps:
             self.add(Result("test_chaos_payload").skip("no POST/PUT/PATCH endpoint with a JSON body in the intake"))
             return
@@ -530,6 +535,8 @@ class Runner:
             "truncated_body": None,
         }
         scheme, host, port, prefix = split_base(self.base)
+        if untried:
+            print(f"payload experiment: {len(eps)} write endpoints will be tried, {untried} will not (use --payload-endpoints N or all)", file=sys.stderr)
         for ep in eps:
             path = re.sub(r"\{[^}]+\}", "1", ep["path"])
             for cname, make in cases.items():
@@ -599,6 +606,10 @@ class Runner:
                 if ok < 3:
                     res.fail("HIGH", "the API was not healthy right after the burst", f"{3 - ok} of 3 health probes failed")
                 self.add(res)
+        if untried:
+            self.add(Result("test_chaos_payload_not_tried").skip(
+                f"payload bursts were sent to {len(eps)} of {len(eps) + untried} write endpoints; {untried} not tried "
+                "(--payload-endpoints N or all, within the run budget)"))
 
     # ---- orchestration
     def run(self, experiments: list[str], deps: dict[str, dict]) -> None:
@@ -675,6 +686,14 @@ def pick_probes(doc: dict, explicit: list[str]) -> list[str]:
     return out[:3]
 
 
+def payload_endpoints_arg(value: str):
+    if value == "all":
+        return "all"
+    if value.isdigit() and int(value) >= 1:
+        return int(value)
+    return [v for v in value.split(",") if v]
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="chaos_run.py", description=__doc__.split("\n\n")[0])
     ap.add_argument("intake")
@@ -696,7 +715,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fail-fast-ms", type=float, default=5000, help="requests failing slower than this during a dependency fault are a finding")
     ap.add_argument("--timeout-s", type=float, default=10, help="client timeout of one probe")
     ap.add_argument("--max-total-s", type=float, default=600, help=f"whole-run budget (hard max {HARD_MAX_TOTAL_S})")
-    ap.add_argument("--payload-endpoints", type=lambda s: s.split(","), default=[], help="endpoint ids for the payload experiment (default: first 3 writes)")
+    ap.add_argument("--payload-endpoints", type=payload_endpoints_arg, default=None,
+                    help=f"payload experiment: a number N of write endpoints, all, or comma-separated ids (default: first 3; hard max {HARD_MAX_PAYLOAD_ENDPOINTS}; the run budget still applies)")
     ap.add_argument("--payload-bytes", type=int, default=256 * 1024, help=f"oversized body size (hard max {HARD_MAX_PAYLOAD})")
     ap.add_argument("--burst", type=int, default=10, help=f"requests per payload case (hard max {HARD_MAX_BURST})")
     ap.add_argument("--wait-for-target-s", type=float, default=0, help="wait up to this long for the API to answer (and, with --dep-proxy, to connect through the proxy) before starting")

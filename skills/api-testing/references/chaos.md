@@ -24,7 +24,7 @@ active, removes the fault, and measures **recovery time** (first 5 consecutive h
 | Experiment | What is injected | Needs |
 |---|---|---|
 | `proxy-latency`, `proxy-5xx`, `proxy-drop`, `proxy-truncate`, `proxy-blackhole` | faults on the network path in front of the API (local proxy on 127.0.0.1) | nothing |
-| `payload` | oversized, malformed, deeply nested, wrong-type and truncated bodies in bursts (first 3 write endpoints; 4xx expected, 5xx or a hang is a finding) | a POST/PUT/PATCH with a JSON body |
+| `payload` | oversized, malformed, deeply nested, wrong-type and truncated bodies in bursts (first 3 write endpoints, or `--payload-endpoints N`, `all`, or a list of operation ids, within the run budget and a hard maximum of 500; the report lists how many were not tried; 4xx expected, 5xx or a hang is a finding) | a POST/PUT/PATCH with a JSON body |
 | `dep-outage`, `dep-slow` | start/stop (or slow on/off) commands **you wrote** for a dependency | `--dependency-config`, `--allow-hooks`, loopback target |
 | `dep-latency`, `dep-blackhole`, `dep-reset` | TCP faults between the API and a dependency | `--dep-proxy 15432=127.0.0.1:5432`: point the API's dependency address at `127.0.0.1:15432`, start the API, then run with `--wait-for-target-s 90` |
 
