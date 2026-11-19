@@ -942,7 +942,10 @@ HARNESS = """
 const __ENV = %(env)s;
 const STATUS = %(status)s;
 const SENT = [];
-const http = {request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
+const TOKENS = %(tokens)s; let TOKEN_FETCHES = 0;
+{ const step = %(step)s; let t = Date.now(); if (step > 0) { Date.now = () => (t += step); } }
+const http = {get: (u, p) => { TOKEN_FETCHES++; return {status: 200, body: TOKENS[Math.min(TOKEN_FETCHES - 1, TOKENS.length - 1)]}; },
+              request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b, auth: (p.headers || {}).Authorization}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
                                           return {status: STATUS[path] || 200, body: ''}; }};
 const FILES = %(files)s; const open = (p) => { if (!(p in FILES)) throw new Error('no such file'); return FILES[p]; };
 const FULL = [];
@@ -956,17 +959,17 @@ try {
   const data = setup();
   const before = SENT.length;
   for (let i = 0; i < 300; i++) { __default(data); }
-  out = {data: data, full: FULL, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
+  out = {data: data, full: FULL, tokenFetches: TOKEN_FETCHES, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
 } catch (e) { out = {error: String(e.message), lines: LINES}; }
 console_log(JSON.stringify(out));
 """
 
 
-def _node_run(script_path: Path, env: dict, status: dict, files: dict | None = None) -> dict:
+def _node_run(script_path: Path, env: dict, status: dict, files: dict | None = None, token_replies: list | None = None, clock_step_ms: int = 0) -> dict:
     text = script_path.read_text(encoding="utf-8")
     text = re.sub(r"^import .*$", "", text, flags=re.M)
     text = text.replace("export default function (data)", "function __default(data)").replace("export function", "function").replace("export const", "const")
-    harness = HARNESS % {"env": json.dumps(env), "status": json.dumps(status), "files": json.dumps(files or {}), "script": text}
+    harness = HARNESS % {"env": json.dumps(env), "status": json.dumps(status), "files": json.dumps(files or {}), "tokens": json.dumps(token_replies or ["unused"]), "step": clock_step_ms, "script": text}
     proc = subprocess.run([shutil.which("node"), "--input-type=commonjs", "-e", harness], capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, proc.stderr[-1500:]
     return json.loads(proc.stdout.strip().splitlines()[-1])
@@ -1093,3 +1096,120 @@ def test_launcher_explains_exit_108_from_the_coverage_line(rest_doc, tmp_path):
     other.chmod(0o755)
     quiet = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{other}'", results=tmp_path / "res2")
     assert quiet.returncode == 108 and "baseline probe" not in quiet.stdout
+
+# ---------------------------------------------------------------- token refresh for long runs
+def _token_script(tmp_path, body):
+    path = tmp_path / "tok.py"
+    path.write_text(body)
+    return f"{sys.executable} {path}"
+
+
+def test_token_source_serves_fresh_tokens_on_a_secret_loopback_path(tmp_path):
+    import urllib.error
+    import urllib.request
+    sys.path.insert(0, str(SCRIPTS))
+    import run_k6
+    counter = tmp_path / "n"
+    cmd = _token_script(tmp_path, f"import pathlib\np=pathlib.Path({str(counter)!r})\nn=int(p.read_text()) if p.exists() else 0\n"
+                                  "p.write_text(str(n+1))\nprint('tok-%d' % n)\n")
+    import shlex
+    src = run_k6.TokenSource(shlex.split(cmd), dict(os.environ))
+    assert src.fresh() == "tok-0" and src.fresh() == "tok-0", "no force: the cached token"
+    server, url = run_k6.serve_tokens(src)
+    try:
+        assert url.startswith("http://127.0.0.1:") and len(url.rsplit("/", 1)[1]) >= 20
+        assert urllib.request.urlopen(url, timeout=5).read() == b"tok-0"  # inside the minimum gap, so still the cached one
+        base = url.rsplit("/", 1)[0]
+        with pytest.raises(urllib.error.HTTPError) as err:
+            urllib.request.urlopen(base + "/wrong", timeout=5)
+        assert err.value.code == 404
+        src._at -= 10  # past the gap: the next request runs the command again
+        assert urllib.request.urlopen(url, timeout=5).read() == b"tok-1"
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.parametrize("body,needle", [
+    ("import sys\nsys.exit(3)\n", "exited with status 3"),
+    ("print('two words')\n", "must print one token"),
+    ("print('')\n", "must print one token"),
+    ("print('x' * 5000)\n", "must print one token"),
+])
+def test_bad_token_commands_stop_the_run_without_showing_their_output(rest_doc, tmp_path, body, needle):
+    out = _generated(rest_doc, tmp_path)
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", str(_fake_k6(tmp_path)), results=tmp_path / "res",
+                        env=clean_env(APITEST_TOKEN_CMD=_token_script(tmp_path, body)))
+    assert proc.returncode == 2 and needle in proc.stderr and "two words" not in proc.stderr + proc.stdout
+
+
+def test_token_refresh_feeds_the_variable_and_url_to_k6_and_never_prints_the_token(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    assert json.loads((out / "manifest.json").read_text())["tokenEnv"] == ["APITEST_BEARERAUTH_TOKEN"]
+    fake = tmp_path / "fake k6.sh"   # records what the child sees
+    fake.write_text('#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = "--summary-export" ] && out="$2"; shift; done\n'
+                    'echo \'{"metrics":{}}\' > "$out"\n'
+                    f'echo "$APITEST_BEARERAUTH_TOKEN|$APITEST_TOKEN_URL" > {tmp_path / "seen.txt"}\nexit 0\n')
+    fake.chmod(0o755)
+    cmd = _token_script(tmp_path, "print('tok-SECRET-123')\n")
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res",
+                        env=clean_env(APITEST_TOKEN_CMD=cmd, APITEST_TOKEN_REFRESH_S="240"))
+    assert proc.returncode == 0 and "feeds APITEST_BEARERAUTH_TOKEN; every 240 s and after a 401" in proc.stdout
+    token, url = (tmp_path / "seen.txt").read_text().strip().split("|")
+    assert token == "tok-SECRET-123" and url.startswith("http://127.0.0.1:")
+    assert "tok-SECRET-123" not in proc.stdout + proc.stderr and url not in proc.stdout + proc.stderr
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is needed to run the script logic")
+def test_script_fetches_a_token_before_the_first_request_and_again_after_a_401(rest_doc, tmp_path):
+    gen_k6.generate(rest_doc, tmp_path / "k6", ["load"], base_url="http://localhost:9", rate=3, quick=True, only=["listPets"])
+    env = {"APITEST_BASE_URL": "http://localhost:9", "APITEST_BEARERAUTH_TOKEN": "initial", "APITEST_K6_BASELINE": "off",
+           "APITEST_TOKEN_URL": "http://127.0.0.1:1/nonce"}
+    run = _node_run(tmp_path / "k6" / "load.js", env, {"/pets": 401}, files=None, token_replies=["fresh-1", "fresh-2", "fresh-3"],
+                    clock_step_ms=6000)  # each clock read moves 6 s, so the 5 s gap between refetches has passed
+    auth = [r["auth"] for r in run["full"] if r["u"].endswith("/pets") or "/pets?" in r["u"]]
+    assert auth and auth[0] == "Bearer fresh-1", auth[:3]
+    assert "Bearer fresh-2" in auth, "a 401 triggers one more fetch"
+    assert run["tokenFetches"] >= 2
+    assert not any("fresh" in line or "initial" in line for line in run["lines"]), "the token is never logged"
+    quick = _node_run(tmp_path / "k6" / "load.js", env, {"/pets": 401}, files=None, token_replies=["fresh-1", "fresh-2"])
+    assert quick["tokenFetches"] == 1, "a stream of 401s inside the 5 s gap does not hammer the token command"
+    off = _node_run(tmp_path / "k6" / "load.js", {k: v for k, v in env.items() if k != "APITEST_TOKEN_URL"}, {}, files=None)
+    assert {r["auth"] for r in off["full"]} == {"Bearer initial"} and off["tokenFetches"] == 0
+
+
+def test_k6_script_regular_expressions_stay_within_k6_repeat_limits():
+    """k6's regular expression engine rejects a repeat count above 1000 (the script then fails to start with exit 107);
+    node accepts them, so the node-based tests cannot see it."""
+    text = (ROOT / "skills" / "api-testing" / "templates" / "k6" / "k6_script.js").read_text(encoding="utf-8")
+    counts = [int(n) for m in re.finditer(r"\{(\d*),?(\d+)\}", text) for n in [m.group(2)]]
+    assert max(counts) <= 1000, f"repeat count {max(counts)} is more than k6 allows"
+
+
+def test_docker_with_a_token_command_keeps_the_file_mounts(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    ids = tmp_path / "ids.json"
+    ids.write_text("{}")
+    fake_docker = tmp_path / "bin" / "docker"
+    fake_docker.parent.mkdir()
+    fake_docker.write_text(f'#!/bin/sh\necho "$@" > {tmp_path / "docker-args.txt"}\nexit 0\n')
+    fake_docker.chmod(0o755)
+    env = clean_env(PATH=f"{fake_docker.parent}:{os.environ['PATH']}", APITEST_IDS_FILE=str(ids),
+                    APITEST_TOKEN_CMD=_token_script(tmp_path, "print('tok-abc')\n"))
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", results=tmp_path / "res", env=env)
+    assert proc.returncode == 0, proc.stderr
+    args = (tmp_path / "docker-args.txt").read_text()
+    assert f"{ids}:/inputs/APITEST_IDS_FILE.json:ro" in args and "-e APITEST_TOKEN_URL" in args and "-e APITEST_BEARERAUTH_TOKEN" in args
+    assert "tok-abc" not in args, "the token travels by name, never as a value"
+
+
+@needs_k6
+def test_real_k6_runs_with_a_token_command_and_stays_authorized(rest_doc, tmp_path):
+    out = tmp_path / "k6"
+    gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=3, quick=True)
+    results = tmp_path / "results"
+    cmd = _token_script(tmp_path, "print('tokA')\n")  # tokA is the one token the mock accepts
+    with rest_server() as url:
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, results=results,
+                            env=_k6_env(APITEST_TOKEN_CMD=cmd, APITEST_TOKEN_REFRESH_S="1"))
+    assert proc.returncode == 0, proc.stdout[-1500:] + proc.stderr[-1500:]
+    assert "feeds APITEST_BEARERAUTH_TOKEN" in proc.stdout and "tokA" not in proc.stdout + proc.stderr

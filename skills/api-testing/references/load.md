@@ -46,6 +46,7 @@ the server cannot keep up with the planned rate (a finding for load and soak, ex
 ## Load profile
 Ramp to `--rate`, hold (`--duration`, default 3 min), ramp down. **Pass/fail**: p95 < `--p95-ms` (default 500), p99 < 3x that, error rate < `--error-rate`
 (default 1 %), checks > 99 %, plus the breaker. Pick `--rate` from real traffic (peak requests per second), not a guess; ask the user.
+Long runs and short-lived tokens: set `APITEST_TOKEN_CMD="<command that prints a token>"` (and optionally `APITEST_TOKEN_REFRESH_S=240`). `run_k6.py` runs it before the start and serves refreshes to the script on a loopback-only URL, and the script also refetches after a 401. The output is never printed. The command runs on your machine with your credentials, so use one you trust.
 Valid values: the spec's example, default or enum are used first. For fields the spec gives no example for (the generator lists them), set `APITEST_EXAMPLES_FILE=examples.json` (`{"operationId.field": value, "*.field": value}`) and `APITEST_IDS_FILE=ids.json` (`{"path": {"business_id": "..."}}`), the same files the pytest suite reads.
 Before the load starts every endpoint is sent once; one that already fails with its generated request is left out and listed (`APITEST_K6_BASELINE=off` keeps it). Coverage (tested, skipped with the variable to set, dropped at baseline) is in `results/<profile>-coverage.json` and in the report.
 Report: p95/p99 per endpoint, error rate, which endpoints were skipped and why, and the rerun command. Thresholds are the user's SLO:

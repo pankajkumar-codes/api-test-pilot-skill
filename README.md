@@ -232,6 +232,8 @@ Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,int
 
 k6 needs [k6](https://k6.io/docs/get-started/installation/) installed. Use `--quick` on `gen_k6.py` for a 10x shorter first run that only checks the
 plumbing. k6 scripts are GET-only unless you pass `--include-writes`, and are capped at 100 req/s, 200 virtual users and 4 hours.
+For k6 runs longer than your access token lives, set `APITEST_TOKEN_CMD` (the same variable the pytest suite uses) to a command that prints a fresh token (and `APITEST_TOKEN_REFRESH_S` to refresh on a timer); `run_k6.py` feeds it to the script and the token is never printed.
+
 k6 reads the same `APITEST_EXAMPLES_FILE` and `APITEST_IDS_FILE` as the pytest suite, so load tests send valid values (a first-of-month date, a real id) instead of invented ones; the generator lists the fields that still use an invented value.
 
 Several k6 profiles in one go: `--profiles load,stress`, or `--profiles all`. Pass each k6 summary (`results/<profile>-summary.json`) to the
@@ -259,7 +261,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_<SCHEME>_TOKEN` (for example `APITEST_BEARERAUTH_TOKEN`) | credentials; `intake.py` prints the names your spec needs |
 | `APITEST_SEND_OPTIONAL_HEADERS` | comma list of headers the spec marks optional but the server needs, for example `Idempotency-Key,If-Match`. Sent on every operation that declares them: `Idempotency-Key` gets a fresh unique value per call, others get `*` or the value after `=` (`If-Match=\"v1\"`) |
 | `APITEST_TENANT_WRITES` | `yes` also calls write operations against the other tenant in the tenant isolation matrix (default: reads only) |
-| `APITEST_ROLE_MATRIX`, `APITEST_TOKEN_<ROLE>` | JSON file `{"createFiling": {"allow": ["owner"], "deny": ["billing"]}}` and one token per role, for the role (BFLA) matrix |
+| `APITEST_ROLE_MATRIX`, `APITEST_TOKEN_<ROLE>` | JSON file `{"createFiling": {"allow": ["owner"], "deny": ["billing"]}}` and one token per role, for the role (BFLA) matrix. Do not name a role `cmd` (`APITEST_TOKEN_CMD` is the token command). Role calls send only the role's token, so `APITEST_COOKIES` and the token command are not used: cookie-session APIs cannot be role-tested yet |
 | `APITEST_TOKEN_CMD`, `APITEST_TOKEN_CMD_B` | a command (split into arguments, run without a shell) that prints a fresh token. Run when a call that carries credentials gets 401, at most once per 5 s and 100 times per run, then the call is sent again. For tokens that expire during a long run. Used by the generated pytest suites only (not k6, fuzz runs or GraphQL suites). A test that expects a 401 with the default token can have it hidden by the retry when this is set. The output is never printed |
 | `APITEST_LOGIN_EMAIL`, `APITEST_LOGIN_USERNAME`, `APITEST_LOGIN_PASSWORD`, `APITEST_LOGIN_OTP` | a real account for sign-in style operations (POST to a path with login, sign-in, authenticate, token, session or auth): the values go into body fields of that kind (email, username, password, otp). Kept out of reports like other secrets |
 | `APITEST_COOKIES` | `name=value; name2=value2` cookies sent with every call made with the default credentials (also on operations with no security scheme, never on the no-credentials and bad-credentials probes), for example an HttpOnly refresh token |
@@ -268,7 +270,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
 | `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (`email`, `username`, `slug` ...) with a run id, or pin its 4-character prefix to reproduce a run (a rerun then repeats the same values) |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |
-| `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run |
+| `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run. The request budget is split between endpoints; the rate defaults to 50/s against a loopback target and 5/s elsewhere |
 
 The full list is in `skills/api-testing/references/` (one file per test type).
 

@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (fuzz budget, rate and hostile inputs, issue 49)
+- The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `min(APITEST_FUZZ_CASES, budget / endpoints)` cases (a lower `APITEST_FUZZ_CASES` is honored), so endpoints late in the list are no longer starved. When the budget leaves fewer than 20 cases per endpoint (the full hostile pass is up to 19) the pass is cut at its tail and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it; the hard cap of 5000 covers about 250 endpoints. Write operations are fuzzed before reads.
+- Every endpoint starts with a fixed hostile-input pass (NUL byte in each body field and query parameter, then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, null). This covers the "no 5xx on hostile strings" check without a separate suite.
+- A loopback target defaults to 50 requests per second (cap 100) instead of 5 (cap 20); other targets keep 5 and 20.
+
 ### Added (tenant isolation and role matrix, issues 47, 48)
 - `test_api1_tenant_isolation_matrix`: for tenant-scoped URLs every protected operation is called with user A's token against another tenant's id and must be refused, after a control call with A's own tenant succeeds. The tenant parameter is detected (first two path segments of 60% of protected paths, at least three) or set with `gen_pytest.py --tenant-param`. Reads only unless `APITEST_TENANT_WRITES=yes`. Needs `APITEST_PATH_<TENANT>` and `APITEST_VICTIM_<TENANT>`.
 - `test_api5_role_matrix`: `APITEST_ROLE_MATRIX` names a JSON file of operationId to allowed and denied roles; each role's token is `APITEST_TOKEN_<ROLE>`. Both tests are intrusive (safety gate) and skip when their variables are missing.
@@ -56,6 +61,9 @@ First release candidate, built in phases (see PLAN.md).
 ### Changed (k6 launcher exit codes, issue 70)
 - When the baseline probe leaves nothing to test, k6 aborts with its own code 108; the launcher now says so ("every endpoint failed the baseline probe") and names `APITEST_K6_BASELINE=off`. Real-k6 tests that expect a threshold failure against a dead target now switch the probe off, so the optional k6 CI job passes again.
 - `run_k6.py` exits 91 when an error-rate or checks threshold is crossed (also when latency crossed too, since failures come first), 92 when only latency is crossed, and keeps 99 when the summary cannot say which kind. The last line still names the kinds. Callers that tested for 99 must now accept 91 and 92 (a nonzero code is still a failed run).
+
+### Added (token refresh for long k6 runs, issue 64)
+- `APITEST_TOKEN_CMD` (the same variable the pytest suite uses: a command that prints a fresh token; split like a shell would, run without a shell) keeps long k6 runs authorized. `run_k6.py` runs it once before the start, puts the token in the bearer variable(s) the script reads (`tokenEnv` in `manifest.json`, or `APITEST_TOKEN_ENV`), and serves fresh tokens on a loopback-only URL behind a random path. Each VU fetches a token before its first request, after a 401 (at most one refetch per VU every 5 s) and every `APITEST_TOKEN_REFRESH_S` seconds when set. The command output is never printed or logged; a failing command or one that prints more than a single token stops the run with a message that does not include the output. The fetches count as a few extra local requests in k6's totals.
 
 ### Added (k6 baseline probe and coverage, issues 61, 63)
 - Before the load starts, each selected endpoint is sent once (paced under the rate cap). An endpoint that already fails with its generated request (invented value rejected, another role's endpoint, a server error) is left out of the run and listed as "not load tested: fails at baseline with status N", so the error-rate threshold judges load, not fixtures. `APITEST_K6_BASELINE=off` keeps them all. If every endpoint fails, the run aborts with a clear message.
