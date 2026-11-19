@@ -38,6 +38,7 @@ token lifetime set `APITEST_TOKEN_CMD`; for sign-in operations set `APITEST_LOGI
 - Credentials: names are listed in `conftest.py` and by `intake.py` (`APITEST_<SCHEME>_TOKEN|USER|PASS|KEY`). Never ask for values in chat.
 - Existing ids for path parameters: `APITEST_PATH_<PARAM>` (or the spec `example`). Without one the test **skips and says which variable to set**.
   The integration flows (`references/integration.md`) create their own data and need none.
+- To create the ids instead of looking them up, offer the optional setup stage, only after the user confirms a non-production target they are allowed to write to: `python scripts/seed_ids.py intake.json --out ids.json [--dry-run]`, then `APITEST_IDS_FILE=ids.json`; `--cleanup ids.json` removes what it made. Same gate as the intrusive runs; never set `APITEST_TARGET_ENV` or `APITEST_AUTHORIZED` for the user.
 - `APITEST_ALLOW_DESTRUCTIVE=yes` is required for any DELETE against an existing id; the test consumes that id. The generated `conftest.py` runs
   such tests last (authorization probes first), so they cannot remove the ids other tests use.
 - Skips with a reason, never a verdict: a 429 where another status was expected, and a create refused as a duplicate (409, or 400/422 that says

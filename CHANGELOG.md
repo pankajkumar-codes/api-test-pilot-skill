@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (setup stage, issue 46)
+- `seed_ids.py`, an opt-in setup stage: one create request per resource that has a create and an item endpoint, ids written to an ids file (`APITEST_IDS_FILE` format) with the records listed under `created`; `--dry-run` previews, `--cleanup` deletes what it created. Same gate as the intrusive runs, ids you already set are kept, credentials from the environment, no bodies or tokens in the output. Nothing runs it automatically.
+
 ### Changed (duplicate creates, issue 84)
 - A create refused as a duplicate (409, or 400/422 naming a duplicate) is retried once with a new tag when the body has tagged fields, and only skips if the retry is refused too. Tagged fields now also include any string the spec marks unique (`x-unique`, `unique: true`, or a description such as "must be unique", except for fields named like an id, ref or key) and a few more whole names (`serial_number`, `external_id`, `invoice_number`, `order_number`, `registration_number`, `account_number`). `APITEST_UNIQUE_BODIES=no` still turns tagging and the retry off.
 
