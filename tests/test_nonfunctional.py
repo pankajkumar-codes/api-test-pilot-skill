@@ -1263,7 +1263,8 @@ def test_fuzz_endpoint_list_splits_the_budget_dedupes_and_names_unknown_ids(fuzz
         import fuzz_runtime as fz
         cfg = fz.Config(1, 40, 1024, 100.0, 100, 5000, 4)
         monkeypatch.delenv("APITEST_FUZZ_ENDPOINTS", raising=False)
-        assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 1          # 100 requests over 100 endpoints
+        with pytest.warns(UserWarning, match="hostile-input pass"):   # too small a share for the whole hostile pass
+            assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 1          # 100 requests over 100 endpoints
         monkeypatch.setenv("APITEST_FUZZ_ENDPOINTS", "a, b, a,,b")             # two distinct ids
         assert fz.chosen_total(100) == 2
         assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 40       # min(cases 40, 100 // 2)
