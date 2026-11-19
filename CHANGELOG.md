@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (fuzz budget, rate and hostile inputs, issue 49)
+- The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `min(APITEST_FUZZ_CASES, budget / endpoints)` cases (a lower `APITEST_FUZZ_CASES` is honored), so endpoints late in the list are no longer starved. When the budget leaves fewer than 20 cases per endpoint (the full hostile pass is up to 19) the pass is cut at its tail and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it; the hard cap of 5000 covers about 250 endpoints. Write operations are fuzzed before reads.
+- Every endpoint starts with a fixed hostile-input pass (NUL byte in each body field and query parameter, then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, null). This covers the "no 5xx on hostile strings" check without a separate suite.
+- A loopback target defaults to 50 requests per second (cap 100) instead of 5 (cap 20); other targets keep 5 and 20.
+
 ### Added (tenant isolation and role matrix, issues 47, 48)
 - `test_api1_tenant_isolation_matrix`: for tenant-scoped URLs every protected operation is called with user A's token against another tenant's id and must be refused, after a control call with A's own tenant succeeds. The tenant parameter is detected (first two path segments of 60% of protected paths, at least three) or set with `gen_pytest.py --tenant-param`. Reads only unless `APITEST_TENANT_WRITES=yes`. Needs `APITEST_PATH_<TENANT>` and `APITEST_VICTIM_<TENANT>`.
 - `test_api5_role_matrix`: `APITEST_ROLE_MATRIX` names a JSON file of operationId to allowed and denied roles; each role's token is `APITEST_TOKEN_<ROLE>`. Both tests are intrusive (safety gate) and skip when their variables are missing.
