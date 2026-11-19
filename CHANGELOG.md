@@ -42,6 +42,13 @@ First release candidate, built in phases (see PLAN.md).
 - Load and soak now produce stage rows (steady state, one row per soak window). Per-endpoint latency and failed-rate rows are produced for up to 100 endpoints (was 20, latency only), and endpoints with failures are listed in the report.
 - `summarize_results.py --root DIR`: `--tests-dir` and `--k6-dir` may be relative or absolute and may use `..` as long as they stay inside the root (default: the current folder), so results in a sibling folder work.
 
+### Added (k6 value files, issue 65)
+- k6 scripts read `APITEST_IDS_FILE` (`{"path": {"id_name": "..."}}`) and `APITEST_EXAMPLES_FILE` (`{"operationId.field": value, "*.field": value}`) with the same format and rules as the pytest suite: example values replace required query values and top-level body fields, ids fill path parameters that have no `APITEST_PATH_<NAME>`. An invalid or unreadable file stops the run before any request, without echoing the file.
+- The generator notes how many endpoints still send an invented value for a required field and names the first few, with the key to put in the examples file. With `--docker`, `run_k6.py` mounts both files read-only and points the variables at the mounted copies.
+
+### Changed (report wording)
+- The coverage sentence now says the baseline probe request of a dropped endpoint is still counted in k6's overall failed-request figure.
+
 ### Added (k6 baseline probe and coverage, issues 61, 63)
 - Before the load starts, each selected endpoint is sent once (paced under the rate cap). An endpoint that already fails with its generated request (invented value rejected, another role's endpoint, a server error) is left out of the run and listed as "not load tested: fails at baseline with status N", so the error-rate threshold judges load, not fixtures. `APITEST_K6_BASELINE=off` keeps them all. If every endpoint fails, the run aborts with a clear message.
 - Stages that never ran (the circuit breaker stopped the run) show "not run" instead of 0, are not counted as good steps in the stress result, and the report says the run stopped early.

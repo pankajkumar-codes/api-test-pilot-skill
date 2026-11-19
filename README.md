@@ -232,6 +232,8 @@ Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,int
 
 k6 needs [k6](https://k6.io/docs/get-started/installation/) installed. Use `--quick` on `gen_k6.py` for a 10x shorter first run that only checks the
 plumbing. k6 scripts are GET-only unless you pass `--include-writes`, and are capped at 100 req/s, 200 virtual users and 4 hours.
+k6 reads the same `APITEST_EXAMPLES_FILE` and `APITEST_IDS_FILE` as the pytest suite, so load tests send valid values (a first-of-month date, a real id) instead of invented ones; the generator lists the fields that still use an invented value.
+
 Several k6 profiles in one go: `--profiles load,stress`, or `--profiles all`. Pass each k6 summary (`results/<profile>-summary.json`) to the
 report with `--k6`, and every pytest result file with `--junit`; both can be repeated. Add `--k6-dir k6_tests` (the folder with `manifest.json`) so the report can show the peak rate and virtual users reached beside the caps and, for stress, the last good and first bad step (or "no limit found up to X req/s"). Results in a sibling folder: add `--root ..`.
 

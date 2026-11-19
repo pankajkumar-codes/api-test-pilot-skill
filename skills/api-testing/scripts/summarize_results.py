@@ -881,7 +881,8 @@ def coverage_text(cov: dict) -> str:
     n_fail = len(cov["baseline_failed"])
     line = f"Endpoints load tested: {len(cov['tested'])}; skipped: {len(cov['skipped'])}; dropped because they fail at baseline: {n_fail}."
     if n_fail:
-        line += " The failed-request rate leaves those endpoints out (they were sent once before the load, not during it)."
+        line += (" They were sent once before the load and not during it, so they are not in the load's failed-request rate, "
+                 "except that each probe request is still counted in k6's overall figure.")
     if not cov["baseline_probe"]:
         line += " The baseline probe was off (APITEST_K6_BASELINE=off), so endpoints that always fail are inside the error rate."
     return line
