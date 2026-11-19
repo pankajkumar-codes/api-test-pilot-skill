@@ -94,7 +94,7 @@ def fuzz_operation(gql: Any, op: Any, spec: dict | None = None) -> None:
     spec = spec or {}
     if not fz.selected(op.name):
         pytest.skip("not in APITEST_FUZZ_ENDPOINTS")
-    cfg = fz.config()
+    cfg = fz.share_of_budget(fz.config(), fz.chosen_total(spec.get("total")))
     if spec.get("destructive"):
         gr.require_destructive()
     if op.kind == "mutation":

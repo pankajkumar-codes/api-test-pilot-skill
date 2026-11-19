@@ -124,36 +124,55 @@ def config(local: bool = False) -> Config:
     )
 
 
-_state: dict = {"sent": 0, "last": 0.0, "per": {}, "starved": []}
+_state: dict = {"sent": 0, "last": 0.0, "per": {}, "cut": [], "seen": set()}
+
+
+def _wanted() -> list[str]:
+    """The ids named in APITEST_FUZZ_ENDPOINTS, without blanks and duplicates (empty: no limit)."""
+    raw = os.environ.get("APITEST_FUZZ_ENDPOINTS", "")
+    return list(dict.fromkeys(x.strip() for x in raw.split(",") if x.strip()))
+
+
+def _names(items: list[str]) -> str:
+    return ", ".join(items[:20]) + (f" and {len(items) - 20} more" if len(items) > 20 else "")
 
 
 def summary_lines() -> list[str]:
-    """What the budget did, for the end of the run: requests per endpoint, and the endpoints that got none."""
+    """What the budget did, for the end of the run: requests per endpoint, endpoints that got none, endpoints cut off part-way,
+    and ids in APITEST_FUZZ_ENDPOINTS that matched nothing."""
     per: dict = _state["per"]
-    if not per:
-        return []
-    got = sorted(per.values())
-    lines = [f"{_state['sent']} request(s) to {sum(1 for n in got if n)} of {len(per)} fuzzed endpoint(s); per endpoint: "
-             f"min {got[0]}, median {got[len(got) // 2]}, max {got[-1]}."]
-    starved = list(dict.fromkeys(_state["starved"]))
-    if starved:
-        shown = ", ".join(starved[:20]) + (f" and {len(starved) - 20} more" if len(starved) > 20 else "")
-        lines.append(f"{len(starved)} endpoint(s) got no request because the run budget was used up: {shown}. "
-                     "Raise APITEST_FUZZ_MAX_REQUESTS, lower APITEST_FUZZ_CASES, or pick endpoints with APITEST_FUZZ_ENDPOINTS=id1,id2.")
+    lines: list[str] = []
+    if per:
+        got = sorted(per.values())
+        lines.append(f"{_state['sent']} request(s) to {sum(1 for n in got if n)} of {len(per)} fuzzed endpoint(s); per endpoint: "
+                     f"min {got[0]}, median {got[len(got) // 2]}, max {got[-1]}.")
+        none = [t for t, n in per.items() if n == 0]
+        part = [t for t in dict.fromkeys(_state["cut"]) if per.get(t)]
+        if none:
+            lines.append(f"{len(none)} endpoint(s) got no request because the run budget was used up: {_names(none)}.")
+        if part:
+            lines.append(f"{len(part)} endpoint(s) were cut off part-way when the run budget was used up: {_names(part)}.")
+        if none or part:
+            lines.append("Raise APITEST_FUZZ_MAX_REQUESTS, lower APITEST_FUZZ_CASES, or pick endpoints with APITEST_FUZZ_ENDPOINTS=id1,id2.")
+    unknown = [w for w in _wanted() if w not in _state["seen"]]
+    if unknown:
+        lines.append(f"APITEST_FUZZ_ENDPOINTS names {len(unknown)} id(s) that no fuzz test in this run has: {_names(unknown)}. "
+                     "Check the spelling (REST: operation id, GraphQL: operation name).")
     return lines
 
 
 def selected(ep_id: str) -> bool:
     """APITEST_FUZZ_ENDPOINTS=id1,id2 limits the run to those operation ids (empty: all)."""
-    raw = os.environ.get("APITEST_FUZZ_ENDPOINTS", "")
-    wanted = [x.strip() for x in raw.split(",") if x.strip()]
+    _state["seen"].add(ep_id)
+    wanted = _wanted()
     return not wanted or ep_id in wanted
 
 
 def _pace(cfg: Config, title: str = "") -> None:
     """Enforce the per-run request budget and the requests-per-second cap."""
     if _state["sent"] >= cfg.budget:
-        _state["starved"].append(title)
+        if _state["per"].get(title):
+            _state["cut"].append(title)
         pytest.skip(f"fuzz request budget of {cfg.budget} reached (raise APITEST_FUZZ_MAX_REQUESTS, hard cap {HARD_MAX_REQUESTS})")
     wait = _state["last"] + 1.0 / cfg.rps - time.monotonic()
     if wait > 0:
@@ -353,7 +372,7 @@ def _repro(exc: requests.exceptions.RequestException) -> str | None:
 
 def chosen_total(total: Any) -> Any:
     """With APITEST_FUZZ_ENDPOINTS the budget is split among the chosen endpoints only, not among all of them."""
-    wanted = [x for x in (p.strip() for p in os.environ.get("APITEST_FUZZ_ENDPOINTS", "").split(",")) if x]
+    wanted = _wanted()
     return min(total, len(wanted)) if wanted and isinstance(total, int) else total
 
 
