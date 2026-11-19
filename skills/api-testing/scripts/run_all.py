@@ -81,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
         print("error: the test run produced no results file", file=sys.stderr)
         return 2
     report = out / "report.html"
-    rep = [py, str(HERE / "summarize_results.py"), "--intake", str(intake), "--tests-dir", str(suite), "-o", str(report)]
+    rep = [py, str(HERE / "summarize_results.py"), "--intake", str(intake), "--tests-dir", str(suite), "--k6-dir", str(out / "k6_tests"), "--root", str(out.resolve()), "-o", str(report)]
     for j in junits:
         rep += ["--junit", str(j)]
     if args.base_url:
