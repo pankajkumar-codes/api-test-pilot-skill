@@ -116,6 +116,61 @@ def check_k6(arg: str | None, use_docker: bool, image: str) -> int:
     return 0
 
 
+COVERAGE_MARKER = "APITEST_COVERAGE "
+MAX_COVERAGE_BYTES = 1_000_000
+
+
+def parse_coverage_line(line: str) -> dict | None:
+    """The JSON after the marker in one line of k6 output, or None. k6 wraps console.log in a logfmt line
+    (`time=... level=info msg="APITEST_COVERAGE {\\"tested\\":[...]}" source=console`), so both the bare and the
+    quoted form are accepted. Only the expected keys survive, each cut down to plain names and short text."""
+    at = line.find(COVERAGE_MARKER)
+    if at == -1 or len(line) > MAX_COVERAGE_BYTES:
+        return None
+    rest = line[at + len(COVERAGE_MARKER):].rstrip()
+    start, end = rest.find("{"), rest.rfind("}")
+    if start == -1 or end < start:
+        return None
+    raw = rest[start:end + 1]
+    doc = None
+    for text in (raw, raw.replace('\\"', '"').replace("\\\\", "\\")):
+        try:
+            doc = json.loads(text)
+            break
+        except ValueError:
+            continue
+    if not isinstance(doc, dict):
+        return None
+
+    def short(v: object, n: int = 300) -> str:
+        return str(v)[:n]
+    tested = [short(t, 80) for t in doc.get("tested") or [] if isinstance(t, str)][:500]
+    skipped = [{"endpoint": short(s.get("endpoint"), 80), "reason": short(s.get("reason")),
+                "set": [short(v, 80) for v in (s.get("set") or []) if isinstance(v, str)][:10]}
+               for s in doc.get("skipped") or [] if isinstance(s, dict)][:500]
+    failed = [{"endpoint": short(s.get("endpoint"), 80), "status": s.get("status") if isinstance(s.get("status"), int) else 0}
+              for s in doc.get("baselineFailed") or [] if isinstance(s, dict)][:500]
+    return {"tested": tested, "skipped": skipped, "baseline_failed": failed, "baseline_probe": doc.get("baselineProbe") is not False}
+
+
+def run_and_collect(cmd: list[str], env: dict, coverage_path: Path) -> int:
+    """Run k6, pass its error stream through unchanged, and keep the coverage line it prints from setup()."""
+    coverage = None
+    proc = subprocess.Popen(cmd, env=env, stderr=subprocess.PIPE, text=True, errors="replace", bufsize=1)
+    assert proc.stderr is not None
+    for line in proc.stderr:
+        sys.stderr.write(line)
+        if COVERAGE_MARKER in line:
+            coverage = parse_coverage_line(line) or coverage
+    code = proc.wait()
+    if coverage is not None:
+        try:
+            coverage_path.write_text(json.dumps(coverage, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+    return code
+
+
 def crossed_families(summary: Path) -> list[str]:
     """Which kinds of threshold were crossed, read from the --summary-export file (true = crossed)."""
     try:
@@ -194,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
     env = dict(os.environ)
     env["APITEST_BASE_URL"] = base
     try:
-        code = subprocess.run(cmd, env=env).returncode
+        code = run_and_collect(cmd, env, results / f"{script.stem}-coverage.json")
     except OSError as exc:
         print(f"error: could not start k6 ({type(exc).__name__}). Run `run_k6.py --check` to see why.", file=sys.stderr)
         return 5

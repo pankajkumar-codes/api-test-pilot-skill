@@ -769,3 +769,13 @@ def test_summarizer_accepts_folders_inside_root_only(tmp_path):
     assert run("--k6-dir", "../../../etc", "--root", "..").returncode == 2
     assert run("--k6-dir", str(tmp_path / "k6_tests")).returncode == 2
     assert run("--k6-dir", "k6_tests;rm").returncode == 2 and run("--tests-dir", "-x").returncode == 2
+
+
+def test_stages_that_never_ran_say_so_and_are_not_counted_as_good(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    # the breaker stopped the run in step 3: steps 3 and 4 have no requests
+    path = _stress_summary(tmp_path, [(20, 0, 300), (900, 0.4, 150), (0, 0, 0), (0, 0, 0)])
+    text = report_of(tmp_path, "--k6", path).replace("\\", "")
+    assert "| step3_hold | not run | not run |" in text and "| step4_hold | not run | not run |" in text
+    assert "The run stopped early: step3_hold, step4_hold did not run" in text
+    assert "First bad step: step2_hold" in text and "Last good step: step1_hold" in text

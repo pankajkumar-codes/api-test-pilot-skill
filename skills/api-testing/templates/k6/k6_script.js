@@ -5,7 +5,7 @@
 // or a loopback address). It never contains credentials: tokens come from environment variables.
 // Do NOT run k6 with --http-debug: it prints request headers, including Authorization.
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep } from 'k6';
 import encoding from 'k6/encoding';
 import exec from 'k6/execution';
 
@@ -156,17 +156,24 @@ function resolveVars(value, missing) {
   return value;
 }
 
+// Endpoints that are left out, with the reason and the variable(s) that would include them. Printed once from setup().
+const SKIPPED = [];
+function skip(notes, ep, reason, setVars) {
+  notes.push(ep.tag + ': ' + reason);
+  SKIPPED.push({ endpoint: ep.tag, reason: reason, set: setVars || [] });
+  return null;
+}
+
 function build(ep, notes) {
   if (ep.write && (truthy('APITEST_READ_ONLY') || !(CONFIG.includeWrites && truthy('APITEST_ALLOW_WRITES')))) {
-    notes.push(ep.tag + (truthy('APITEST_READ_ONLY') ? ': write method skipped (APITEST_READ_ONLY=yes)' : ': write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)'));
-    return null;
+    return skip(notes, ep, truthy('APITEST_READ_ONLY') ? 'write method skipped (APITEST_READ_ONLY=yes)' : 'write method skipped (regenerate with --include-writes and set APITEST_ALLOW_WRITES=yes)',
+      truthy('APITEST_READ_ONLY') ? [] : ['APITEST_ALLOW_WRITES']);
   }
   let path = ep.path;
   for (const p of ep.pathParams) {
     const val = envOf(p.env) || (p.default === null || p.default === undefined ? '' : String(p.default));
     if (val === '') {
-      notes.push(ep.tag + ': skipped, set ' + p.env + ' to an existing id');
-      return null;
+      return skip(notes, ep, 'skipped, set ' + p.env + ' to an existing id', [p.env]);
     }
     path = path.split('{' + p.name + '}').join(encodeURIComponent(val));
   }
@@ -179,8 +186,7 @@ function build(ep, notes) {
     const cred = credentialsFor(wanted);
     if (cred.missing) {
       if (required) {
-        notes.push(ep.tag + ': skipped, credentials not configured: set ' + cred.missing.join(', '));
-        return null;
+        return skip(notes, ep, 'skipped, credentials not configured: set ' + cred.missing.join(', '), cred.missing);
       }
       // optional credentials (schema declares no per-operation auth): send them only when configured
     } else {
@@ -195,8 +201,7 @@ function build(ep, notes) {
     const missing = [];
     const variables = resolveVars(bodyValue.variables || {}, missing);
     if (missing.length > 0) {
-      notes.push(ep.tag + ': skipped, set one of ' + missing.join(', ') + ' to an existing id');
-      return null;
+      return skip(notes, ep, 'skipped, set one of ' + missing.join(', ') + ' to an existing id', missing);
     }
     bodyValue = { query: bodyValue.query, variables: variables, operationName: bodyValue.operationName };
   }
@@ -292,14 +297,44 @@ export const options = {
     },
   },
   thresholds: thresholds,
+  setupTimeout: '10m', // the baseline probe sends each endpoint once, at most MAX_RPS per second
   userAgent: 'api-test-pilot-skill-k6',
   insecureSkipTLSVerify: false,
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   tags: { testtype: CONFIG.profile },
 };
 
-export default function () {
-  const ep = ACTIVE[Math.floor(Math.random() * ACTIVE.length)];
+// Before the load starts, every endpoint is sent once. One that already fails with the generated request (a made-up
+// value the server rejects, another role's endpoint, a server bug) says nothing about load, so it is left out of the
+// run and listed. APITEST_K6_BASELINE=off keeps them all. The probe is sequential and paced under the rate cap.
+export function setup() {
+  const probe = envOf('APITEST_K6_BASELINE').trim().toLowerCase() !== 'off';
+  const failed = [];
+  if (probe) {
+    for (const ep of ACTIVE) {
+      const params = Object.assign({}, ep.params, { tags: Object.assign({}, ep.params.tags, { stage: 'baseline_probe' }) });
+      const res = http.request(ep.method, ep.url, ep.body, params);
+      if (!statusOk(ep, res)) failed.push({ endpoint: ep.tag, status: res.status });
+      sleep(1 / MAX_RPS);
+    }
+  }
+  const dropped = failed.map((f) => f.endpoint);
+  const tested = ACTIVE.filter((ep) => dropped.indexOf(ep.tag) === -1).map((ep) => ep.tag);
+  // One line for run_k6.py to collect into results/<profile>-coverage.json; names and statuses only, no values.
+  console.log('APITEST_COVERAGE ' + JSON.stringify({ tested: tested, skipped: SKIPPED, baselineFailed: failed, baselineProbe: probe }));
+  if (tested.length === 0) {
+    exec.test.abort('every endpoint fails with its generated request, so there is nothing to load test (see the coverage line above)');
+  }
+  return { drop: dropped };
+}
+
+let LIVE = null;
+export default function (data) {
+  if (LIVE === null) {
+    const drop = (data && data.drop) || [];
+    LIVE = ACTIVE.filter((e) => drop.indexOf(e.tag) === -1);
+  }
+  const ep = LIVE[Math.floor(Math.random() * LIVE.length)];
   const stage = stageLabel();
   const params = Object.assign({}, ep.params, { tags: Object.assign({}, ep.params.tags, { stage: stage }) });
   const res = http.request(ep.method, ep.url, ep.body, params);
