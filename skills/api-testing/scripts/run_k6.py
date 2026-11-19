@@ -61,14 +61,30 @@ def build_command(k6: str | list[str], script: Path, summary: Path) -> list[str]
     return [*prefix, "run", "--quiet", "--no-usage-report", "--summary-export", str(summary), str(script)]
 
 
-def docker_command(image: str, script: Path, results: Path, env_names: list[str]) -> list[str]:
+INPUT_FILE_VARS = ("APITEST_IDS_FILE", "APITEST_EXAMPLES_FILE")
+
+
+def input_files(env: dict) -> dict[str, Path]:
+    """The ids and examples files named in the environment, when they exist (a container needs them mounted)."""
+    out = {}
+    for var in INPUT_FILE_VARS:
+        raw = (env.get(var) or "").strip()
+        if raw and Path(raw).is_file():
+            out[var] = Path(raw)
+    return out
+
+
+def docker_command(image: str, script: Path, results: Path, env_names: list[str], files: dict[str, Path] | None = None) -> list[str]:
     """k6 in a container. Variables are passed by name only (`-e NAME`), so values never appear on the command line.
     Host networking reaches a target on the host's localhost; it works on Linux (Docker Desktop needs the
     `host.docker.internal` address in --base-url instead)."""
     cmd = ["docker", "run", "--rm", "-i", "--network", "host",
            "-v", f"{script.resolve().parent}:/scripts:ro", "-v", f"{results.resolve()}:/results"]
+    for var, path in (files or {}).items():  # read-only mounts; the variable then holds the path inside the container
+        cmd += ["-v", f"{path.resolve()}:/inputs/{var}.json:ro", "-e", f"{var}=/inputs/{var}.json"]
     for name in env_names:
-        cmd += ["-e", name]
+        if name not in (files or {}):
+            cmd += ["-e", name]
     return [*cmd, image, "run", "--quiet", "--no-usage-report", "--summary-export", f"/results/{script.stem}-summary.json",
             f"/scripts/{script.name}"]
 
@@ -229,7 +245,8 @@ def main(argv: list[str] | None = None) -> int:
     summary = results / f"{script.stem}-summary.json"
     if args.docker:
         k6 = ["docker"] if shutil.which("docker") else None
-        cmd = docker_command(args.docker_image, script, results, passthrough_env({**os.environ, "APITEST_BASE_URL": base}))
+        cmd = docker_command(args.docker_image, script, results, passthrough_env({**os.environ, "APITEST_BASE_URL": base}),
+                             input_files(os.environ))
     else:
         k6 = k6_prefix(args.k6, False)
         cmd = build_command(k6 or ["k6"], script, summary)
