@@ -37,5 +37,7 @@ one per field in rotation. The request budget is per process: parallel runs (pyt
 Writes (POST/PUT/PATCH) run on any gated target; DELETE also needs `APITEST_ALLOW_DESTRUCTIVE=yes`. The fixed seed makes a rerun send the same requests;
 vary the seed for more coverage. Findings are deduplicated per kind, status and case class.
 
+**Budget report and choosing endpoints.** At the end of the run a "Fuzz budget" section prints the requests sent, how many endpoints got any, the min, median and max per endpoint, and the endpoints that got none because the run budget was used up. `APITEST_FUZZ_ENDPOINTS=id1,id2` fuzzes only those operation ids (GraphQL: operation names); the others skip with that reason.
+
 ## Report
 Per endpoint: cases sent, findings with severity and repro, the seed. A clean run means "no finding in N bounded cases", not "secure": say so.

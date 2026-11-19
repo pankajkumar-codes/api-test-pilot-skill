@@ -124,18 +124,43 @@ def config(local: bool = False) -> Config:
     )
 
 
-_state = {"sent": 0, "last": 0.0}
+_state: dict = {"sent": 0, "last": 0.0, "per": {}, "starved": []}
 
 
-def _pace(cfg: Config) -> None:
+def summary_lines() -> list[str]:
+    """What the budget did, for the end of the run: requests per endpoint, and the endpoints that got none."""
+    per: dict = _state["per"]
+    if not per:
+        return []
+    got = sorted(per.values())
+    lines = [f"{_state['sent']} request(s) to {sum(1 for n in got if n)} of {len(per)} fuzzed endpoint(s); per endpoint: "
+             f"min {got[0]}, median {got[len(got) // 2]}, max {got[-1]}."]
+    starved = list(dict.fromkeys(_state["starved"]))
+    if starved:
+        shown = ", ".join(starved[:20]) + (f" and {len(starved) - 20} more" if len(starved) > 20 else "")
+        lines.append(f"{len(starved)} endpoint(s) got no request because the run budget was used up: {shown}. "
+                     "Raise APITEST_FUZZ_MAX_REQUESTS, lower APITEST_FUZZ_CASES, or pick endpoints with APITEST_FUZZ_ENDPOINTS=id1,id2.")
+    return lines
+
+
+def selected(ep_id: str) -> bool:
+    """APITEST_FUZZ_ENDPOINTS=id1,id2 limits the run to those operation ids (empty: all)."""
+    raw = os.environ.get("APITEST_FUZZ_ENDPOINTS", "")
+    wanted = [x.strip() for x in raw.split(",") if x.strip()]
+    return not wanted or ep_id in wanted
+
+
+def _pace(cfg: Config, title: str = "") -> None:
     """Enforce the per-run request budget and the requests-per-second cap."""
     if _state["sent"] >= cfg.budget:
+        _state["starved"].append(title)
         pytest.skip(f"fuzz request budget of {cfg.budget} reached (raise APITEST_FUZZ_MAX_REQUESTS, hard cap {HARD_MAX_REQUESTS})")
     wait = _state["last"] + 1.0 / cfg.rps - time.monotonic()
     if wait > 0:
         time.sleep(wait)
     _state["last"] = time.monotonic()
     _state["sent"] += 1
+    _state["per"][title] = _state["per"].get(title, 0) + 1
 
 
 # --------------------------------------------------------------------------- case generation
@@ -326,6 +351,12 @@ def _repro(exc: requests.exceptions.RequestException) -> str | None:
     return rt.curl_of(stub)
 
 
+def chosen_total(total: Any) -> Any:
+    """With APITEST_FUZZ_ENDPOINTS the budget is split among the chosen endpoints only, not among all of them."""
+    wanted = [x for x in (p.strip() for p in os.environ.get("APITEST_FUZZ_ENDPOINTS", "").split(",")) if x]
+    return min(total, len(wanted)) if wanted and isinstance(total, int) else total
+
+
 def share_of_budget(cfg: Config, endpoints: Any) -> Config:
     """Per-endpoint budget: with N endpoints the run budget is split evenly, so every endpoint gets cases instead of the first
     endpoints using it all. The share never exceeds --cases (a lower APITEST_FUZZ_CASES is honored). When the budget is too small
@@ -347,8 +378,10 @@ def share_of_budget(cfg: Config, endpoints: Any) -> Config:
 def fuzz_endpoint(api: Any, ep: Any, spec: dict | None = None) -> None:
     """Run the fuzz cases for one endpoint; fail with a ranked list of findings (or pass)."""
     spec = spec or {}
+    if not selected(ep.id):
+        pytest.skip("not in APITEST_FUZZ_ENDPOINTS")
     cfg = config(local=rt.is_local_host(getattr(api, "host", None)))
-    cfg = share_of_budget(cfg, spec.get("total"))
+    cfg = share_of_budget(cfg, chosen_total(spec.get("total")))
     if ep.method == "DELETE":
         rt.require_destructive()
     if ep.method in ("POST", "PUT", "PATCH", "DELETE"):
@@ -366,8 +399,9 @@ def run_cases(title: str, cases: list[dict], send: Any, cfg: Config, extra_judge
     findings: list[dict] = []
     seen: set[tuple] = set()
     sent = 0
+    _state["per"].setdefault(title, 0)
     for case in cases:
-        _pace(cfg)
+        _pace(cfg, title)
         sent += 1
         try:
             resp = send(case)
