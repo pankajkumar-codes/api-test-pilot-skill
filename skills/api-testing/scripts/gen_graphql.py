@@ -600,6 +600,8 @@ def fuzz(sc: Schema, mod: Module) -> list[str]:
                            "destructive": op["kind"] == "mutation" and bool(DESTRUCTIVE_RE.match(op["name"]))}
     if not table:
         return ["graphql fuzz: the schema has no query or mutation to fuzz"]
+    for spec in table.values():
+        spec["total"] = len(table)   # lets the runtime split the run budget fairly between operations
     mod.add(f"FUZZ_OPS = {py(table)}\n", is_test=False)
     mod.add("@pytest.mark.intrusive\n@pytest.mark.parametrize(\"op_id\", list(FUZZ_OPS))\n"
             "def test_fuzz_operation(gql, op_id):\n    gfz.fuzz_operation(gql, OPS[op_id], FUZZ_OPS[op_id])\n")

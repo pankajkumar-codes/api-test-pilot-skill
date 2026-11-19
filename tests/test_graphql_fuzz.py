@@ -35,7 +35,7 @@ def test_fuzz_is_opt_in_and_ships_its_runtime(doc, suite, tmp_path):
         assert (suite / name).exists()
     text = (suite / "test_graphql_fuzz.py").read_text()
     assert "@pytest.mark.intrusive" in text and "FUZZ_OPS" in text and "Rerun" in text
-    assert "'mutation.deletePet': {'optional': [], 'destructive': True}" in text
+    assert "'mutation.deletePet': {'optional': [], 'destructive': True, 'total': " in text
 
 
 def test_clean_server_passes(suite):
@@ -93,3 +93,15 @@ def test_an_unconfirmed_remote_target_is_refused_before_any_request(suite):
     results, _ = run_suite(suite, "http://203.0.113.7:9", FUZZ_ENV)
     assert results and {v[0] for v in results.values()} == {"skipped"}
     assert all("non-production" in v[1] or "safety gate" in v[1] for v in results.values())
+
+
+def test_endpoint_list_and_budget_summary_work_for_graphql(suite):
+    env = {**FUZZ_ENV, "APITEST_FUZZ_ENDPOINTS": "pet, nope"}
+    with gql_server() as url:
+        results, proc = run_suite(suite, url, env)
+    ran = sorted(k for k, (s, _) in results.items() if s == "passed")
+    assert ran == ["test_graphql_fuzz::test_fuzz_operation[query.pet]"], ran
+    out = proc.stdout
+    assert "Fuzz budget" in out and "of 1 fuzzed endpoint" in out and "nope" in out
+    # the budget is split between the one chosen operation only, so it gets the full case count
+    assert "min 40, median 40, max 40" in out

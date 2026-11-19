@@ -92,7 +92,9 @@ def _leak(resp: Any) -> list[tuple[str, str, str]]:
 def fuzz_operation(gql: Any, op: Any, spec: dict | None = None) -> None:
     """Run the fuzz cases for one operation; fail with a ranked list of findings (or pass)."""
     spec = spec or {}
-    cfg = fz.config()
+    if not fz.selected(op.name):
+        pytest.skip("not in APITEST_FUZZ_ENDPOINTS")
+    cfg = fz.share_of_budget(fz.config(), fz.chosen_total(spec.get("total")))
     if spec.get("destructive"):
         gr.require_destructive()
     if op.kind == "mutation":

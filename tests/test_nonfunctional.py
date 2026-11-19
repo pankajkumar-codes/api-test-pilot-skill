@@ -1213,3 +1213,73 @@ def test_real_k6_runs_with_a_token_command_and_stays_authorized(rest_doc, tmp_pa
                             env=_k6_env(APITEST_TOKEN_CMD=cmd, APITEST_TOKEN_REFRESH_S="1"))
     assert proc.returncode == 0, proc.stdout[-1500:] + proc.stderr[-1500:]
     assert "feeds APITEST_BEARERAUTH_TOKEN" in proc.stdout and "tokA" not in proc.stdout + proc.stderr
+
+def test_fuzz_summary_lists_budget_per_endpoint_and_the_starved_ones(fuzz_suite):
+    env = {**FUZZ_ENV, "APITEST_FUZZ_MAX_REQUESTS": "5", "APITEST_FUZZ_CASES": "12"}   # fewer requests than endpoints: some get none
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, env, [])
+    out = proc.stdout
+    assert "Fuzz budget" in out and re.search(r"5 request\(s\) to 5 of \d+ fuzzed endpoint\(s\); per endpoint: min 0, median \d+, max 1", out)
+    assert re.search(r"\d+ endpoint\(s\) got no request because the run budget was used up: ", out) and "APITEST_FUZZ_ENDPOINTS" in out
+
+
+def test_fuzz_endpoints_filter_runs_only_the_named_operations(fuzz_suite):
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, {**FUZZ_ENV, "APITEST_FUZZ_ENDPOINTS": "listPets, getPet"}, [])
+    ran = sorted(k for k, (status, _) in results.items() if status == "passed")
+    assert ran == ["test_fuzz::test_fuzz[getPet]", "test_fuzz::test_fuzz[listPets]"], ran
+    skipped = [m for s, m in results.values() if s == "skipped"]
+    assert skipped and all("APITEST_FUZZ_ENDPOINTS" in m for m in skipped)
+    assert "Fuzz budget" in proc.stdout and "of 2 fuzzed endpoint" in proc.stdout
+
+
+def test_fuzz_summary_separates_cut_off_endpoints_from_those_that_got_nothing(fuzz_suite, monkeypatch):
+    sys.path.insert(0, str(fuzz_suite))
+    try:
+        sys.modules.pop("fuzz_runtime", None)
+        import fuzz_runtime as fz
+        monkeypatch.delenv("APITEST_FUZZ_ENDPOINTS", raising=False)
+        cfg = fz.Config(1, 5, 1024, 100.0, 3, 5000, 4)           # a ceiling of 3 requests
+        for title, n in (("A", 2), ("B", 2), ("C", 1)):         # A sends 2, B sends 1 then is cut, C sends none
+            fz._state["per"].setdefault(title, 0)
+            for _ in range(n):
+                try:
+                    fz._pace(cfg, title)
+                except BaseException:
+                    break
+        text = "\n".join(fz.summary_lines())
+        assert "3 request(s) to 2 of 3" in text
+        assert "1 endpoint(s) got no request because the run budget was used up: C." in text
+        assert "1 endpoint(s) were cut off part-way when the run budget was used up: B." in text
+    finally:
+        sys.path.remove(str(fuzz_suite))
+        sys.modules.pop("fuzz_runtime", None)
+
+
+def test_fuzz_endpoint_list_splits_the_budget_dedupes_and_names_unknown_ids(fuzz_suite, monkeypatch):
+    sys.path.insert(0, str(fuzz_suite))
+    try:
+        sys.modules.pop("fuzz_runtime", None)
+        import fuzz_runtime as fz
+        cfg = fz.Config(1, 40, 1024, 100.0, 100, 5000, 4)
+        monkeypatch.delenv("APITEST_FUZZ_ENDPOINTS", raising=False)
+        with pytest.warns(UserWarning, match="hostile-input pass"):   # too small a share for the whole hostile pass
+            assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 1          # 100 requests over 100 endpoints
+        monkeypatch.setenv("APITEST_FUZZ_ENDPOINTS", "a, b, a,,b")             # two distinct ids
+        assert fz.chosen_total(100) == 2
+        assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 40       # min(cases 40, 100 // 2)
+        assert fz.selected("a") and not fz.selected("z")
+        monkeypatch.setenv("APITEST_FUZZ_ENDPOINTS", "a,typo")
+        fz.selected("a")
+        lines = fz.summary_lines()
+        assert len(lines) == 1 and "1 id(s)" in lines[0] and "typo" in lines[0] and "a," not in lines[0]
+    finally:
+        sys.path.remove(str(fuzz_suite))
+        sys.modules.pop("fuzz_runtime", None)
+
+
+def test_a_mistyped_fuzz_endpoint_list_is_reported_at_the_end_of_the_run(fuzz_suite):
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, {**FUZZ_ENV, "APITEST_FUZZ_ENDPOINTS": "listPetz"}, [])
+    assert not any(s == "passed" for s, _ in results.values())
+    assert "Fuzz budget" in proc.stdout and "listPetz" in proc.stdout and "Check the spelling" in proc.stdout
