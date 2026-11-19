@@ -149,3 +149,18 @@ def test_a_refused_gate_stops_k6_and_chaos_and_the_driver_never_sets_the_confirm
     assert "k6: the safety gate refused this target" in p.stderr and "chaos: the safety gate refused this target" in p.stderr, p.stderr[-1200:]
     assert not (tmp_path / "k6-runs.txt").exists(), "k6 never started"
     assert "APITEST_AUTHORIZED=yes yourself" in p.stderr
+
+
+def test_results_left_by_an_earlier_run_never_reach_a_report_when_k6_and_chaos_are_refused(tmp_path):
+    fake = _fake_k6(tmp_path)
+    old = tmp_path / "out" / "results"
+    (old / "chaos").mkdir(parents=True)
+    (old / "load-summary.json").write_text('{"metrics": {"http_reqs": {"count": 5, "rate": 1}, "http_req_failed": {"value": 0.9}}}')
+    (old / "chaos" / "chaos.xml").write_text('<testsuite name="chaos"><testcase classname="chaos" name="old_run"><failure message="old"/></testcase></testsuite>')
+    env = {"K6_BIN": str(fake), "APITEST_UNREACHABLE": "skip", "APITEST_TIMEOUT": "1", "APITEST_TARGET_ENV": "staging", "APITEST_AUTHORIZED": ""}
+    p = _run_all(tmp_path, "--k6=load", "--chaos", "--chaos-experiments", "payload", env=env, base="http://staging.example.invalid")
+    assert "k6: the safety gate refused" in p.stderr, p.stderr[-800:]
+    data = json.loads((tmp_path / "out" / "report.json").read_text())
+    assert data["k6"] == [], "the old load summary must not be reported"
+    assert not any(c["type"] == "chaos" for c in data["cases"]), "the old chaos.xml must not be reported"
+    assert not (old / "load-summary.json").exists() and not (old / "chaos" / "chaos.xml").exists()

@@ -76,8 +76,9 @@ def run_k6_profiles(args: argparse.Namespace, py: str, intake: Path, out: Path, 
     found: list[Path] = []
     for profile in profiles:
         cmd = [py, str(HERE / "run_k6.py"), str(k6_dir / f"{profile}.js"), "--results-dir", str(results)] + base
-        code = run(cmd + (["--docker"] if args.k6_docker else []))
         summary = results / f"{profile}-summary.json"
+        summary.unlink(missing_ok=True)  # a summary left by an earlier run must not pass for this one
+        code = run(cmd + (["--docker"] if args.k6_docker else []))
         if summary.exists():
             found.append(summary)
         if code == GATE_REFUSED:
@@ -97,6 +98,7 @@ def run_chaos(args: argparse.Namespace, py: str, intake: Path, results: Path) ->
     cmd += ["--base-url", args.base_url] if args.base_url else []
     cmd += ["--experiments", args.chaos_experiments] if args.chaos_experiments else []
     cmd += ["--dependency-config", args.dependency_config, "--allow-hooks"] if args.dependency_config else []
+    (chaos_out / "chaos.xml").unlink(missing_ok=True)  # same reason: only a file this run wrote may reach the report
     code = run(cmd)
     if code == GATE_REFUSED:
         print("chaos: the safety gate refused this target, so nothing was run. Set APITEST_TARGET_ENV to a non-production value and "
