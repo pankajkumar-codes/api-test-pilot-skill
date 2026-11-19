@@ -7,6 +7,18 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (plugin icon)
+- `.claude-plugin/icon.png` (1024 x 1024, a white check mark on teal) and `"icon"` in `plugin.json`, so `claude plugin validate` no longer warns about a missing icon. It is plain geometry drawn by `tools/make_icon.py` (standard library only), not a third party's logo; replace the file if you have a design of your own.
+
+### Added (`run_all.py --k6-writes`)
+- `run_all.py` had no way to make k6 send writes, although `gen_k6.py` has `--include-writes`. `--k6-writes` (needs `--k6`) passes it through. The requests still only run when you set `APITEST_ALLOW_WRITES=yes` yourself; the driver never sets it and says so when it is unset.
+
+### Changed (report: how many tests ran)
+- Every report (Markdown, HTML, `report.json` as `result.ran`) now carries one line under the verdict: "Ran 171 of 173 tests (99%): 171 passed, 0 failed; 2 skipped and 0 errored did not run. A skipped test is neither a pass nor a failure." It is shown for every run, not only when over half of the tests skipped, so a run that mostly skipped is not read as a clean one. The over-half warning stays.
+
+### Fixed (README example)
+- The example run in the README and `examples/sample-report.*` were rerun with the shipped zip's scripts: 134 functions, 240 passed, 9 failed, 20 skipped of 269 tests (the tenant isolation matrix added two more BOLA findings on the seeded demo). The demo server itself needs this repository checkout (it reuses `tests/mock_rest.py`); the README now says so.
+
 ### Fixed (invented values in optional body fields)
 - When a JSON body schema requires no field, the baseline request still sends its first three properties. Those optional fields are now tracked like required ones: a 400, 404, 409, 410, 413, 415 or 422 on a request that sent an invented value for one of them skips as "could not verify" and the report lists the field to give an example for, instead of failing the test (seen on `POST /token` of Webhook.site, where an invented `default_content_type` drew a 422). The skip and failure notes now say "parameter(s) or field(s)" without "required"; the report still reads results written with the old wording.
 

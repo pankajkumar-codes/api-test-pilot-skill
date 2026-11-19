@@ -833,6 +833,17 @@ def verdict_info(r: Report) -> tuple[str, str]:
     return status, text
 
 
+def ran_line(r: Report) -> str:
+    """One line that is always shown: how many tests ran out of the total, so a run that skipped most tests is not read as a clean one."""
+    _, tot = tally(r)
+    n = len(r.cases)
+    if not n:
+        return ""
+    ran = tot["passed"] + tot["failed"]
+    return (f"Ran {ran} of {n} tests ({round(ran * 100 / n)}%): {tot['passed']} passed, {tot['failed']} failed; "
+            f"{tot['skipped']} skipped and {tot['error']} errored did not run. A skipped test is neither a pass nor a failure.")
+
+
 def skip_warning(r: Report) -> str:
     _, tot = tally(r)
     if r.cases and tot["skipped"] * 2 > len(r.cases):
@@ -845,6 +856,9 @@ def render_summary(r: Report) -> tuple[str, str]:
     by, tot = tally(r)
     status, text = verdict_info(r)
     verdict = f"**Result: {status}** — {text}"
+    ran = ran_line(r)
+    if ran:
+        verdict += f"\n\n**{ran}**"
     warn = skip_warning(r)
     if warn:
         verdict += f" **{warn.split('.')[0]}.**" + warn[len(warn.split('.')[0]) + 1:]

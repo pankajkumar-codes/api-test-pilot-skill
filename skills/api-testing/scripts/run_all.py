@@ -110,6 +110,8 @@ def option_problem(args: argparse.Namespace) -> str | None:
         if bad or not args.k6.strip(","):
             return (f"--k6 takes a comma list of {', '.join(K6_PROFILES)}, got {args.k6!r}; put the spec file first, or write --k6=load,stress "
                     "(a bare --k6 takes the next word as its profiles)")
+    if args.k6_writes and not args.k6:
+        return "--k6-writes needs --k6"
     if args.k6_docker and not args.k6:
         return "--k6-docker needs --k6"
     if (args.chaos_experiments or args.dependency_config or args.allow_hooks) and not args.chaos:
@@ -128,9 +130,12 @@ def run_k6_profiles(args: argparse.Namespace, py: str, intake: Path, out: Path, 
     profiles = [p.strip() for p in args.k6.split(",") if p.strip()]
     k6_dir = out / "k6_tests"
     base = ["--base-url", args.base_url] if args.base_url else []
-    if run([py, str(HERE / "gen_k6.py"), str(intake), "-o", str(k6_dir), "--profiles", ",".join(profiles)] + base) != 0:
+    if run([py, str(HERE / "gen_k6.py"), str(intake), "-o", str(k6_dir), "--profiles", ",".join(profiles)] + (["--include-writes"] if args.k6_writes else []) + base) != 0:
         print("k6: the scripts could not be generated (see above); k6 was skipped", file=sys.stderr)
         return []
+    if args.k6_writes and os.environ.get("APITEST_ALLOW_WRITES", "").strip().lower() != "yes":
+        print("k6: write requests were generated but APITEST_ALLOW_WRITES is not 'yes', so k6 will skip them. Set it yourself to send them; "
+              "this driver never sets it.", file=sys.stderr)
     found: list[Path] = []
     for profile in profiles:
         cmd = [py, str(HERE / "run_k6.py"), str(k6_dir / f"{profile}.js"), "--results-dir", str(results)] + base
@@ -187,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--k6", nargs="?", const=K6_DEFAULT, metavar="PROFILES",
                     help=f"after the tests, generate and run k6 (comma list of load,stress,spike,soak; default {K6_DEFAULT})")
     ap.add_argument("--k6-docker", action="store_true", help="with --k6: run k6 in a container instead of a local binary")
+    ap.add_argument("--k6-writes", action="store_true",
+                    help="with --k6: also generate POST/PUT/PATCH requests (gen_k6.py --include-writes); they still only run when you set APITEST_ALLOW_WRITES=yes")
     ap.add_argument("--chaos", action="store_true", help="after the tests (and k6), run the chaos experiments")
     ap.add_argument("--chaos-experiments", help="with --chaos: comma list for chaos_run.py (default: its proxy and payload experiments)")
     ap.add_argument("--dependency-config", help="with --chaos: JSON file with your dependency start/stop commands (needs --allow-hooks)")
