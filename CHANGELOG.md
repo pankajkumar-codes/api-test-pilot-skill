@@ -16,6 +16,9 @@ First release candidate, built in phases (see PLAN.md).
 ### Changed (skips grouped by cause, issue 90)
 - The report lists skipped tests under four headings with a count each: the skill could have done it itself (duplicate creates, a tenant control call it got wrong), you need to supply something, a safety default is off on purpose, and the target cannot provide it (also where no cause is recognised). Only the first is a defect of the skill. `report.json` keeps the flat `skips` and adds `skip_groups`. No test changes.
 
+### Changed (tenant control call, issue 85)
+- The tenant matrix control call (your own tenant, writes enabled) retries once with the record's current ETag, read first, when the server answers 412 or 428, even if the spec does not declare If-Match. When it is still refused, the skip names the likely cause: an invented value to give an example for, or a record in a state the call refuses. The victim-tenant call is never preceded by a read of the victim's record.
+
 ### Changed (could not verify, issue 89)
 - A 4xx for a request value the skill invented (the spec had no example, default or enum) no longer fails the test: it skips as "could not verify", counts in the "could not run" figure, and the report lists the values that need an example. A 412 for a stale If-Match skips the same way, and an operation with a required If-Match header now reads the record first and sends its current ETag. Values from the spec, 5xx and a wrong 2xx stay failures.
 
