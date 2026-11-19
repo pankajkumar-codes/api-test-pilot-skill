@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (duplicate creates, issue 84)
+- A create refused as a duplicate (409, or 400/422 naming a duplicate) is retried once with a new tag when the body has tagged fields, and only skips if the retry is refused too. Tagged fields now also include any string the spec marks unique (`x-unique`, `unique: true`, or a description such as "must be unique") and a few more whole names (`serial_number`, `external_id`, `invoice_number`, `order_number`, `registration_number`, `account_number`). `APITEST_UNIQUE_BODIES=no` still turns tagging and the retry off.
+
 ### Changed (chaos payload endpoints, issue 88)
 - `chaos_run.py --payload-endpoints` takes a number N or `all` as well as operation ids (default stays the first 3 write endpoints). The size, burst and run-time ceilings are unchanged, at most 500 endpoints are tried, and a skipped `test_chaos_payload_not_tried` result (shown in the report) and a stderr line say how many were not.
 
