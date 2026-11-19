@@ -10,7 +10,7 @@ Steps: intake, generate the suites, run them in two passes, build the report, pr
 Pass one runs everything except tests marked `session_end` (sign-out, revoke, password change); pass two runs those last, so they
 cannot end the session the other tests use. When you pace the run (APITEST_RPS or APITEST_DELAY_MS) the rate-limit tests cannot send
 their burst, so on a local target they are left out of those passes and run in a burst pass of their own, without the pacing, after
-the others; one report covers all passes. A target that is not local keeps your pacing: the tests skip and the command for the burst
+pass one and before the session-ending tests; one report covers all passes. Pacing given as pytest options after `--` counts too. A target that is not local keeps your pacing: the tests skip and the command for the burst
 pass is printed. `--expect-rate-limit` says the API is meant to throttle (sets APITEST_EXPECT_RATE_LIMIT=yes for the run). Credentials come from the environment (see the intake summary); the safety gate is the
 generated suite's own: intrusive types (security, fuzz, resilience) skip unless the target is local or APITEST_TARGET_ENV and
 APITEST_AUTHORIZED=yes are set by you. This driver never sets them.
@@ -34,6 +34,7 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -48,11 +49,41 @@ def run(cmd: list[str], env: dict | None = None) -> int:
 
 
 PACING_VARS = ("APITEST_RPS", "APITEST_DELAY_MS")
+PACING_OPTS = ("--apitest-rps", "--apitest-delay-ms")   # the same two settings as pytest options; they win over the variables
+BURST_SETTLE_S = 2   # pause after the burst pass, so the sign-out pass does not start inside a throttled window
 
 
-def is_paced(env: dict) -> bool:
-    """True when the user throttles the run. A value of 0 or an empty one means no pacing, as in the generated suite."""
-    return any((env.get(k) or "").strip() not in ("", "0", "0.0") for k in PACING_VARS)
+def _positive(value: str | None) -> bool:
+    """A pacing value that paces: any number above 0. Text that is not a number counts too; the suite then stops with its own error."""
+    v = (value or "").strip()
+    if not v:
+        return False
+    try:
+        return float(v) > 0
+    except ValueError:
+        return True
+
+
+def split_pacing(extra: list[str]) -> tuple[list[str], list[str]]:
+    """(extra without the pacing options, the values those options carried). Both spellings: `--apitest-rps 20`, `--apitest-rps=20`."""
+    kept, values, i = [], [], 0
+    while i < len(extra):
+        arg = extra[i]
+        if arg in PACING_OPTS:
+            values.append(extra[i + 1] if i + 1 < len(extra) else "")
+            i += 2
+            continue
+        if arg.startswith(tuple(o + "=" for o in PACING_OPTS)):
+            values.append(arg.split("=", 1)[1])
+        else:
+            kept.append(arg)
+        i += 1
+    return kept, values
+
+
+def is_paced(env: dict, extra: list[str] | None = None) -> bool:
+    """True when the user throttles the run, through the variables or the pytest options. 0 or empty means no pacing, as in the suite."""
+    return any(_positive(env.get(k)) for k in PACING_VARS) or any(_positive(v) for v in split_pacing(extra or [])[1])
 
 
 def target_is_local(env: dict, intake: Path) -> bool:
@@ -199,24 +230,28 @@ def main(argv: list[str] | None = None) -> int:
     pytest = [py, "-m", "pytest", str(suite), "-p", "no:cacheprovider", "-q"]
     # A paced run cannot send the burst the rate-limit tests need. On this machine they get a pass of their own without the
     # pacing; anywhere else the pacing is the user's limit on the target, so it is kept and the tests skip with the reason.
-    paced = is_paced(env)
+    paced = is_paced(env, extra)
     burst = paced and target_is_local(env, intake)
     first = "not session_end and not rate_limit" if burst else "not session_end"
     burst_xml = results / "pass_burst.xml"
     burst_xml.unlink(missing_ok=True)  # only a file this run wrote may reach the report
     run(pytest + ["-m", first, f"--junitxml={results / 'pass1.xml'}"] + extra, env)
-    rc2 = run(pytest + ["-m", "session_end", f"--junitxml={results / 'pass2.xml'}"] + extra, env)
-    junits = [results / "pass1.xml"] + ([results / "pass2.xml"] if rc2 != 5 and (results / "pass2.xml").exists() else [])
+    junits = [results / "pass1.xml"]
     if not junits[0].exists():
         print("error: the test run produced no results file", file=sys.stderr)
         return 2
-    burst_cmd = pytest + ["-m", "rate_limit and not session_end", f"--junitxml={burst_xml}"] + extra
+    burst_cmd = pytest + ["-m", "rate_limit and not session_end", f"--junitxml={burst_xml}"] + split_pacing(extra)[0]
     if burst:
-        print("Burst pass: the rate-limit tests run now without " + " / ".join(k for k in PACING_VARS if env.get(k)) +
-              " (local target), because a paced run cannot send a burst.", flush=True)
+        # Before the sign-out pass: the burst needs the session those tests end.
+        print("Burst pass: the rate-limit tests run now without the pacing (local target), because a paced run cannot send a burst.",
+              flush=True)
         rc3 = run(burst_cmd, {k: v for k, v in env.items() if k not in PACING_VARS})
         if rc3 != 5 and burst_xml.exists():
             junits.append(burst_xml)
+        time.sleep(BURST_SETTLE_S)
+    rc2 = run(pytest + ["-m", "session_end", f"--junitxml={results / 'pass2.xml'}"] + extra, env)
+    if rc2 != 5 and (results / "pass2.xml").exists():
+        junits.append(results / "pass2.xml")
     k6_summaries = run_k6_profiles(args, py, intake, out, results) if args.k6 else []
     chaos_xml = run_chaos(args, py, intake, results) if args.chaos else None
     if chaos_xml:
@@ -240,7 +275,7 @@ def main(argv: list[str] | None = None) -> int:
     todo = []
     if paced and not burst:
         todo.append("rate-limit tests skipped because the run is paced and the target is not this machine; when a short burst is "
-                    "acceptable there, run them without " + " and ".join(PACING_VARS) + ": "
+                    "acceptable there, run them without " + " and ".join(PACING_VARS) + " (or the matching pytest options): "
                     + " ".join(shlex.quote(c) for c in burst_cmd))
     if not args.k6:
         todo.append("k6 load profiles: add --k6 (or run gen_k6.py then run_k6.py)")

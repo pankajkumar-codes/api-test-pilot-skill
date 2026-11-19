@@ -235,7 +235,7 @@ Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,int
 | **Chaos** | `python $SK/chaos_run.py intake.json --dry-run` first, then `--experiments proxy-latency,payload`; plan only: `gen_chaos_plan.py intake.json -o chaos-plan.md --env staging` | **yes** |
 | **Fuzz** | `--types fuzz` into its own folder, e.g. `-o fuzz_tests`, then pytest | **yes** |
 
-With `APITEST_RPS` or `APITEST_DELAY_MS` set, the rate-limit tests cannot send their burst and skip. `run_all.py` handles this for a target on this machine: it runs them in a separate burst pass without the pacing and reports every test once. For any other target it keeps your pacing and prints the command to run them (`pytest -m rate_limit`) when a short burst is acceptable. `--expect-rate-limit` tells it the API is meant to throttle.
+With `APITEST_RPS` or `APITEST_DELAY_MS` set, the rate-limit tests cannot send their burst and skip. `run_all.py` handles this for a target on this machine: it runs them in a separate burst pass without the pacing (after the main pass, before any sign-out tests) and reports every test once. For any other target it keeps your pacing and prints the command to run them (`pytest -m rate_limit`) when a short burst is acceptable. `--expect-rate-limit` tells it the API is meant to throttle.
 
 k6 needs [k6](https://k6.io/docs/get-started/installation/) installed. Use `--quick` on `gen_k6.py` for a 10x shorter first run that only checks the
 plumbing. k6 scripts are GET-only unless you pass `--include-writes`, and are capped at 100 req/s, 200 virtual users and 4 hours.
