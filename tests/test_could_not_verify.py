@@ -106,3 +106,63 @@ def test_a_guessed_value_refusal_skips_but_a_5xx_and_other_codes_fail(rt, server
     r.status_code = 401
     with pytest.raises(pytest.fail.Exception):
         rt.expect_status(r, (200,), "request with valid input should succeed")
+
+
+class Tenant(BaseHTTPRequestHandler):
+    puts: list = []
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("ETag", '"t9"')
+        self.end_headers()
+        self.wfile.write(b"{}")
+
+    def do_PUT(self):
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        Tenant.puts.append(self.headers.get("If-Match"))
+        has = self.headers.get("If-Match") == '"t9"'
+        self.send_response(200 if has else 428)   # a server that requires a current version
+        self.end_headers()
+        self.wfile.write(b"{}")
+
+    def log_message(self, *_a):
+        pass
+
+
+def test_tenant_control_call_retries_with_a_read_first_etag_on_428(rt, monkeypatch):
+    monkeypatch.setenv("APITEST_TARGET_ENV", "local")
+    monkeypatch.setenv("APITEST_TENANT_WRITES", "yes")
+    monkeypatch.setenv("APITEST_PATH_ID", "mine")
+    monkeypatch.setenv("APITEST_VICTIM_ID", "theirs")
+    srv = HTTPServer(("127.0.0.1", 0), Tenant)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    Tenant.puts.clear()
+    try:
+        api = rt.Api(f"http://127.0.0.1:{srv.server_address[1]}", {})
+        ep = rt.Endpoint(id="putThing", method="PUT", path="/t/{id}", ok=("2xx",), body={"a": "x"}, path_params={"id": {}})
+        try:
+            rt.tenant_isolation(api, ep, "id")
+        except BaseException:   # the victim call answers 200 here, which is a finding; only the control call matters
+            pass
+        assert Tenant.puts[0] is None and Tenant.puts[1] == '"t9"'   # first try without, the control call retried with the ETag
+    finally:
+        srv.shutdown()
+
+
+def test_a_refused_control_call_names_the_cause(rt, monkeypatch):
+    class R:
+        status_code = 422
+        _guessed = ("start",)
+
+    class FakeApi:
+        def pid(self, name, default=None, victim=False):
+            return "b" if victim else "a"
+
+        def send(self, ep, **kw):
+            return R()
+
+    monkeypatch.setenv("APITEST_TENANT_WRITES", "yes")
+    monkeypatch.setenv("APITEST_TARGET_ENV", "local")
+    ep = rt.Endpoint(id="x", method="PUT", path="/t/{id}", ok=("2xx",), path_params={"id": {}})
+    with pytest.raises(pytest.skip.Exception, match="invented value"):
+        rt.tenant_isolation(FakeApi(), ep, "id")

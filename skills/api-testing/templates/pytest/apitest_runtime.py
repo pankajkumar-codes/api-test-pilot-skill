@@ -1337,7 +1337,8 @@ class Api:
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
              query: Any = UNSET, headers: dict | None = None, body: Any = UNSET, raw: Any = None,
              content_type: Any = UNSET, timeout: float | None = None, victim: bool = False,
-             transient: str = "skip", _refresh: bool = True, _retry_dup: bool = True) -> requests.Response:
+             transient: str = "skip", _refresh: bool = True, _retry_dup: bool = True,
+             _force_if_match: bool = False) -> requests.Response:
         """transient: "skip" (default) skips the test when the target is unreachable; "raise" lets the error propagate."""
         if ep.method not in ("GET", "HEAD", "OPTIONS"):
             skip_writes_on_production()
@@ -1369,7 +1370,7 @@ class Api:
             ah, aq, ac = self.credentials(ep.sec, who, invalid=(auth == "invalid"))
             h.update(ah), q.update(aq), cookies.update(ac)
         if auth == "default" and ep.method in ("PUT", "PATCH", "DELETE") and not (headers and any(k.lower() == "if-match" for k in headers)):
-            self.refresh_if_match(ep, url, h, cookies)
+            self.refresh_if_match(ep, url, h, cookies, force=_force_if_match)
         kwargs: dict[str, Any] = {}
         ctype = ep.content_type if content_type is UNSET else content_type
         if raw is not None:
@@ -1412,10 +1413,10 @@ class Api:
                                            or (n in q and q[n] == ep.query.get(n))))
         return resp
 
-    def refresh_if_match(self, ep: Endpoint, url: str, h: dict, cookies: dict) -> None:
+    def refresh_if_match(self, ep: Endpoint, url: str, h: dict, cookies: dict, force: bool = False) -> None:
         """An operation the spec gives a required If-Match header gets the record's current ETag: the record is read first with the
         same credentials, because an earlier test may have changed it. Nothing changes when the read has no ETag."""
-        name = next((k for k in ep.headers if k.lower() == "if-match"), None)
+        name = next((k for k in ep.headers if k.lower() == "if-match"), "If-Match" if force else None)
         if name is None:
             return
         read_h = {k: v for k, v in h.items() if k.lower() not in ("if-match", "content-type", "idempotency-key")}
@@ -1452,9 +1453,18 @@ def tenant_isolation(api: "Api", ep: Endpoint, param: str) -> None:
         pytest.skip(f"APITEST_PATH_ and APITEST_VICTIM_ values for '{param}' are the same, so there is no other tenant to try")
     others = {n: api.pid(n) for n in ep.path_params if n != param}
     mine = api.send(ep, path={**others, param: own})
+    if mine.status_code in (412, 428) and ep.method in ("PUT", "PATCH", "DELETE"):
+        # the server wants a current version: read the record first and send its ETag, even if the spec does not declare If-Match
+        mine = api.send(ep, path={**others, param: own}, _force_if_match=True)
     if not 200 <= mine.status_code < 300:
-        pytest.skip(f"control call with your own tenant answered {mine.status_code}, so the isolation check would prove nothing "
-                    "(seed the other ids with APITEST_PATH_*, or this operation needs a body or query the baseline cannot build)")
+        guessed = getattr(mine, "_guessed", ())
+        why = ("seed the other ids with APITEST_PATH_*, or this operation needs a body or query the baseline cannot build")
+        if mine.status_code in INPUT_REJECTED and guessed:
+            why = (f"the spec gives no example or default for required parameter(s) or field(s) {', '.join(guessed)}, so the request "
+                   "used an invented value; add an `example` (or APITEST_EXAMPLES_FILE) so the control call can succeed")
+        elif mine.status_code in (404, 409, 410):
+            why = "the record may be in a state this call refuses (deleted, finalized or already changed by an earlier test); " + why
+        pytest.skip(f"control call with your own tenant answered {mine.status_code}, so the isolation check would prove nothing ({why})")
     theirs = api.send(ep, path={**others, param: victim})
     expect_denied(theirs, "API1:2023 BOLA", f"tenant isolation: user A reached tenant {param}={victim} that belongs to someone else")
 
