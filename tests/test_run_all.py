@@ -64,6 +64,61 @@ def test_driver_runs_everything_and_runs_the_sign_out_last(tmp_path, server):
     assert "Report:" in p.stdout
 
 
+def _cases(path):
+    import xml.etree.ElementTree as ET
+    return {c.get("name"): ("skipped" if c.find("skipped") is not None else "ran") for c in ET.parse(path).iter("testcase")}
+
+
+def test_a_paced_run_on_a_local_target_runs_the_rate_limit_tests_in_a_burst_pass_of_their_own(tmp_path, server):
+    spec = tmp_path / "s.json"
+    spec.write_text(json.dumps(SPEC))
+    out = tmp_path / "out"
+    import os
+    env = {**os.environ, "APITEST_BEARERAUTH_TOKEN": "tokA", "APITEST_RPS": "200"}
+    env.pop("APITEST_EXPECT_RATE_LIMIT", None)
+    p = subprocess.run([sys.executable, str(SCRIPTS / "run_all.py"), str(spec), "--out", str(out), "--base-url", server],
+                       capture_output=True, text=True, env=env, timeout=240)
+    assert p.returncode in (0, 1), p.stdout[-800:] + p.stderr[-800:]
+    assert "Burst pass: the rate-limit tests run now without APITEST_RPS" in p.stdout
+    first, burst = _cases(out / "results/pass1.xml"), _cases(out / "results/pass_burst.xml")
+    assert not [n for n in first if "rate_limit" in n], "left out of the paced pass, so they are not counted twice"
+    assert burst["test_rate_limit_behaviour"] == "ran", "no pacing in the burst pass, so the probe is not skipped"
+    assert all("rate_limit" in n for n in burst)
+    data = json.loads((out / "report.json").read_text())
+    names = [c["name"] for c in data["cases"]]
+    assert names.count("test_rate_limit_behaviour") == 1
+    assert not [s for s in data.get("skips", []) if "spaces the requests" in json.dumps(s)]
+
+
+def test_an_unpaced_run_has_no_burst_pass(tmp_path, server):
+    spec = tmp_path / "s.json"
+    spec.write_text(json.dumps(SPEC))
+    out = tmp_path / "out"
+    import os
+    env = {k: v for k, v in os.environ.items() if k not in ("APITEST_RPS", "APITEST_DELAY_MS")}
+    env["APITEST_BEARERAUTH_TOKEN"] = "tokA"
+    p = subprocess.run([sys.executable, str(SCRIPTS / "run_all.py"), str(spec), "--out", str(out), "--base-url", server],
+                       capture_output=True, text=True, env=env, timeout=240)
+    assert p.returncode in (0, 1) and "Burst pass" not in p.stdout
+    assert not (out / "results/pass_burst.xml").exists()
+    assert "test_rate_limit_behaviour" in _cases(out / "results/pass1.xml")
+
+
+def test_pacing_and_local_target_are_read_the_way_the_suite_and_the_gate_read_them(tmp_path):
+    sys.path.insert(0, str(SCRIPTS))
+    import run_all
+    assert run_all.is_paced({"APITEST_RPS": "5"}) and run_all.is_paced({"APITEST_DELAY_MS": "100"})
+    assert not run_all.is_paced({}) and not run_all.is_paced({"APITEST_RPS": "0", "APITEST_DELAY_MS": ""})
+    intake = tmp_path / "intake.json"
+    intake.write_text(json.dumps({"servers": ["https://staging.example.com"]}))
+    assert not run_all.target_is_local({}, intake), "a remote target keeps the user's pacing: no burst pass"
+    assert run_all.target_is_local({"APITEST_BASE_URL": "http://localhost:8080"}, intake)
+    assert not run_all.target_is_local({"APITEST_BASE_URL": "http://127.0.0.1.nip.io"}, intake)
+    intake.write_text(json.dumps({"servers": ["http://127.0.0.1:9"]}))
+    assert run_all.target_is_local({}, intake)
+    assert not run_all.target_is_local({}, tmp_path / "missing.json")
+
+
 def test_check_env_reports_missing_pieces_and_the_target(tmp_path):
     p = subprocess.run([sys.executable, str(SCRIPTS / "check_env.py"), "--needs", "k6", "--base-url", "https://api.example.com"],
                        capture_output=True, text=True, env={"PATH": str(tmp_path), "HOME": str(tmp_path)})

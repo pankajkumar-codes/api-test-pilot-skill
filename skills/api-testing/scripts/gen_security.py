@@ -200,7 +200,7 @@ def _api4(doc: dict, eps: list[dict], mod: Module) -> None:
                 break
     probe = rate_probe(doc)
     if probe:
-        mod.add("@pytest.mark.intrusive\n"
+        mod.add("@pytest.mark.intrusive\n@pytest.mark.rate_limit\n"
                 f"def {mod.unique('test_api4_rate_limiting_present')}(api):\n"
                 '    rt.require_flag("APITEST_EXPECT_RATE_LIMIT", "this API is expected to rate-limit")\n'
                 "    rt.skip_if_paced(api)\n"

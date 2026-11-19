@@ -3,12 +3,15 @@
 
 Usage:
   python run_all.py <spec> [--out DIR] [--base-url URL] [--types all,fuzz] [--assume-bearer [--public-paths GLOBS]]
-                    [--tenant-param NAME] [--check-env] [--k6 [PROFILES] [--k6-docker]]
+                    [--tenant-param NAME] [--expect-rate-limit] [--check-env] [--k6 [PROFILES] [--k6-docker]]
                     [--chaos [--chaos-experiments LIST] [--dependency-config FILE --allow-hooks]] [-- <extra pytest arguments>]
 
 Steps: intake, generate the suites, run them in two passes, build the report, print what to set to run the skipped tests.
 Pass one runs everything except tests marked `session_end` (sign-out, revoke, password change); pass two runs those last, so they
-cannot end the session the other tests use. Credentials come from the environment (see the intake summary); the safety gate is the
+cannot end the session the other tests use. When you pace the run (APITEST_RPS or APITEST_DELAY_MS) the rate-limit tests cannot send
+their burst, so on a local target they are left out of those passes and run in a burst pass of their own, without the pacing, after
+the others; one report covers all passes. A target that is not local keeps your pacing: the tests skip and the command for the burst
+pass is printed. `--expect-rate-limit` says the API is meant to throttle (sets APITEST_EXPECT_RATE_LIMIT=yes for the run). Credentials come from the environment (see the intake summary); the safety gate is the
 generated suite's own: intrusive types (security, fuzz, resilience) skip unless the target is local or APITEST_TARGET_ENV and
 APITEST_AUTHORIZED=yes are set by you. This driver never sets them.
 
@@ -34,11 +37,35 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+from safety_gate import is_local_host, target_host  # noqa: E402
 
 
 def run(cmd: list[str], env: dict | None = None) -> int:
     print("$ " + " ".join(shlex.quote(c) for c in cmd), flush=True)
     return subprocess.run(cmd, env=env).returncode
+
+
+PACING_VARS = ("APITEST_RPS", "APITEST_DELAY_MS")
+
+
+def is_paced(env: dict) -> bool:
+    """True when the user throttles the run. A value of 0 or an empty one means no pacing, as in the generated suite."""
+    return any((env.get(k) or "").strip() not in ("", "0", "0.0") for k in PACING_VARS)
+
+
+def target_is_local(env: dict, intake: Path) -> bool:
+    """Loopback target, judged the way the safety gate does. The URL is the one the suite will use: APITEST_BASE_URL (which
+    --base-url sets), else the first server in the intake."""
+    url = (env.get("APITEST_BASE_URL") or "").strip()
+    if not url:
+        try:
+            servers = json.loads(intake.read_text(encoding="utf-8")).get("servers") or []
+        except (OSError, ValueError):
+            return False
+        url = servers[0] if servers and isinstance(servers[0], str) else ""
+    return is_local_host(target_host(url))   # a URL the gate cannot read is not local
 
 
 K6_DEFAULT = "load,stress,spike"
@@ -123,6 +150,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--assume-bearer", action="store_true", help="spec declares no security scheme: treat operations as needing a bearer token")
     ap.add_argument("--public-paths", help="with --assume-bearer: comma-separated path globs that stay public")
     ap.add_argument("--tenant-param", help="path parameter that names the tenant (default: detected)")
+    ap.add_argument("--expect-rate-limit", action="store_true",
+                    help="the API is meant to rate-limit: a burst that is never throttled is a finding (sets APITEST_EXPECT_RATE_LIMIT=yes)")
     ap.add_argument("--check-env", action="store_true", help="only report what is missing (python, pytest, requests, k6, grpcurl) and stop")
     ap.add_argument("--k6", nargs="?", const=K6_DEFAULT, metavar="PROFILES",
                     help=f"after the tests, generate and run k6 (comma list of load,stress,spike,soak; default {K6_DEFAULT})")
@@ -165,13 +194,29 @@ def main(argv: list[str] | None = None) -> int:
     env = dict(os.environ)
     if args.base_url:
         env["APITEST_BASE_URL"] = args.base_url
+    if args.expect_rate_limit:
+        env["APITEST_EXPECT_RATE_LIMIT"] = "yes"
     pytest = [py, "-m", "pytest", str(suite), "-p", "no:cacheprovider", "-q"]
-    run(pytest + ["-m", "not session_end", f"--junitxml={results / 'pass1.xml'}"] + extra, env)
+    # A paced run cannot send the burst the rate-limit tests need. On this machine they get a pass of their own without the
+    # pacing; anywhere else the pacing is the user's limit on the target, so it is kept and the tests skip with the reason.
+    paced = is_paced(env)
+    burst = paced and target_is_local(env, intake)
+    first = "not session_end and not rate_limit" if burst else "not session_end"
+    burst_xml = results / "pass_burst.xml"
+    burst_xml.unlink(missing_ok=True)  # only a file this run wrote may reach the report
+    run(pytest + ["-m", first, f"--junitxml={results / 'pass1.xml'}"] + extra, env)
     rc2 = run(pytest + ["-m", "session_end", f"--junitxml={results / 'pass2.xml'}"] + extra, env)
     junits = [results / "pass1.xml"] + ([results / "pass2.xml"] if rc2 != 5 and (results / "pass2.xml").exists() else [])
     if not junits[0].exists():
         print("error: the test run produced no results file", file=sys.stderr)
         return 2
+    burst_cmd = pytest + ["-m", "rate_limit and not session_end", f"--junitxml={burst_xml}"] + extra
+    if burst:
+        print("Burst pass: the rate-limit tests run now without " + " / ".join(k for k in PACING_VARS if env.get(k)) +
+              " (local target), because a paced run cannot send a burst.", flush=True)
+        rc3 = run(burst_cmd, {k: v for k, v in env.items() if k not in PACING_VARS})
+        if rc3 != 5 and burst_xml.exists():
+            junits.append(burst_xml)
     k6_summaries = run_k6_profiles(args, py, intake, out, results) if args.k6 else []
     chaos_xml = run_chaos(args, py, intake, results) if args.chaos else None
     if chaos_xml:
@@ -193,6 +238,10 @@ def main(argv: list[str] | None = None) -> int:
     print("\n" + data["result"]["status"] + ": " + data["result"]["summary"])
     print(f"Report: {report} (and {report.with_suffix('.json')})")
     todo = []
+    if paced and not burst:
+        todo.append("rate-limit tests skipped because the run is paced and the target is not this machine; when a short burst is "
+                    "acceptable there, run them without " + " and ".join(PACING_VARS) + ": "
+                    + " ".join(shlex.quote(c) for c in burst_cmd))
     if not args.k6:
         todo.append("k6 load profiles: add --k6 (or run gen_k6.py then run_k6.py)")
     if not args.chaos:
