@@ -180,15 +180,19 @@ def validate_plan(profile: str, stages: list[dict], *, max_vus: int, rate: int, 
 
 
 # --------------------------------------------------------------------------- thresholds
+LOAD_FAILED = "http_req_failed{phase:load}"   # requests sent during the load; the script tags them phase:load
 def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: float) -> tuple[dict, list]:
     """(global thresholds, per-endpoint thresholds). Stage-tagged submetrics are added so that the summary shows
     the shape of the run (breaking point, spike recovery, soak degradation) instead of one averaged number."""
     breaker = {"threshold": f"rate<{BREAKER_RATE}", "abortOnFail": True, "delayAbortEval": "20s"}
     never_fails = "p(95)<86400000"  # no assertion; it only makes k6 put the submetric in the summary
-    t: dict = {"http_req_failed": [breaker]}
+    # The error-rate verdict reads only requests sent during the load (tagged phase:load in the script): the one-off baseline probe
+    # and the token fetches are not load, so a probe that fails once cannot push a healthy run over the limit.
+    failed = LOAD_FAILED
+    t: dict = {failed: [breaker]}
     per_endpoint: list = []
     if profile == "load":
-        t["http_req_failed"].insert(0, f"rate<{error_rate}")
+        t[failed].insert(0, f"rate<{error_rate}")
         t["http_req_duration"] = [f"p(95)<{p95_ms}", f"p(99)<{p95_ms * 3}"]
         t["checks"] = [f"rate>{1 - error_rate:g}"]
         per_endpoint = [f"p(95)<{p95_ms}"]
@@ -213,7 +217,7 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         t["http_req_duration{stage:recovery}"] = [f"p(95)<{p95_ms * 2}"]
         t["http_req_failed{stage:recovery}"] = [f"rate<{max(error_rate, 0.05):g}"]
     elif profile == "soak":
-        t["http_req_failed"].insert(0, f"rate<{error_rate}")
+        t[failed].insert(0, f"rate<{error_rate}")
         t["http_req_duration"] = [f"p(95)<{p95_ms}"]
         per_endpoint = [never_fails]
         for s in stages:

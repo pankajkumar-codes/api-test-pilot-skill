@@ -420,7 +420,7 @@ export default function (data) {
   }
   const ep = LIVE[Math.floor(Math.random() * LIVE.length)];
   const stage = stageLabel();
-  const params = Object.assign({}, ep.params, { tags: Object.assign({}, ep.params.tags, { stage: stage }) });
+  const params = Object.assign({}, ep.params, { tags: Object.assign({}, ep.params.tags, { stage: stage, phase: 'load' }) });
   if (TOKEN_URL && ep.refresh) {
     if (TOKEN === null || (REFRESH_MS > 0 && Date.now() - TOKEN_AT > REFRESH_MS)) fetchToken();
     if (TOKEN !== null) params.headers = Object.assign({}, params.headers, { Authorization: ep.refresh + ' ' + TOKEN });

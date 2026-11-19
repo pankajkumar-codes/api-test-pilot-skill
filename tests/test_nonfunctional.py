@@ -268,7 +268,7 @@ def test_stage_labels_drive_per_stage_thresholds(rest_doc, tmp_path):
     assert any(k.startswith("http_req_duration{stage:w") for k in soak["thresholds"]), "soak degradation shows per window"
     for name in ("load", "stress", "spike", "soak"):
         cfg = read_config(out / f"{name}.js")
-        breaker = [t for t in cfg["thresholds"]["http_req_failed"] if isinstance(t, dict)]
+        breaker = [t for t in cfg["thresholds"]["http_req_failed{phase:load}"] if isinstance(t, dict)]
         assert breaker and breaker[0]["abortOnFail"] is True and breaker[0]["threshold"] == "rate<0.5", name
         labels = [b["label"] for b in cfg["stageBounds"]]
         assert len(labels) == len(set(labels)) == len(cfg["stages"])
@@ -353,7 +353,7 @@ def test_hostile_spec_strings_never_become_javascript(tmp_path):
             assert re.fullmatch(r"[A-Za-z0-9_]+", e["tag"]), e["tag"]
             assert set(e["query"]) <= {"ok"} and e["headers"] == {}, "unusual parameter names are dropped"
         for key in cfg["thresholds"]:
-            assert re.fullmatch(r"[a-z_]+(\{stage:[a-z0-9_]+\})?", key), key
+            assert re.fullmatch(r"[a-z_]+(\{(stage|phase):[a-z0-9_]+\})?", key), key
         assert list(cfg["schemes"]) == [] , "scheme names must be plain"
     comment_lines = [ln for ln in (out / "load.js").read_text().splitlines() if ln.startswith("//")]
     assert all(marker not in ln for ln in comment_lines)
@@ -945,7 +945,7 @@ const SENT = [];
 const TOKENS = %(tokens)s; let TOKEN_FETCHES = 0; const TOKEN_URLS = [];
 { const step = %(step)s; let t = Date.now(); if (step > 0) { Date.now = () => (t += step); } }
 const http = {get: (u, p) => { TOKEN_FETCHES++; TOKEN_URLS.push(u); return {status: 200, body: TOKENS[Math.min(TOKEN_FETCHES - 1, TOKENS.length - 1)], headers: {'X-Token-Gen': String(TOKEN_FETCHES)}}; },
-              request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b, auth: (p.headers || {}).Authorization}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
+              request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b, auth: (p.headers || {}).Authorization, tags: p.tags}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
                                           return {status: STATUS[path] || 200, body: ''}; }};
 const FILES = %(files)s; const open = (p) => { if (!(p in FILES)) throw new Error('no such file'); return FILES[p]; };
 const FULL = [];
@@ -1286,6 +1286,76 @@ def test_a_mistyped_fuzz_endpoint_list_is_reported_at_the_end_of_the_run(fuzz_su
     assert not any(s == "passed" for s, _ in results.values())
     assert "Fuzz budget" in proc.stdout and "listPetz" in proc.stdout and "Check the spelling" in proc.stdout
 
+
+def test_error_rate_threshold_reads_only_requests_sent_during_the_load(rest_doc, tmp_path):
+    out = tmp_path / "k6"
+    gen_k6.generate(rest_doc, out, ["all"], base_url="http://localhost:8080")
+    for name in ("load", "stress", "spike", "soak"):
+        th = read_config(out / f"{name}.js")["thresholds"]
+        assert "http_req_failed" not in th, f"{name}: the overall figure includes the probe, so no threshold sits on it"
+        assert any(isinstance(t, dict) for t in th["http_req_failed{phase:load}"]), name
+    load = read_config(out / "load.js")["thresholds"]
+    assert any(isinstance(t, str) and t.startswith("rate<0.01") for t in load["http_req_failed{phase:load}"])
+    soak = read_config(out / "soak.js")["thresholds"]
+    assert any(isinstance(t, str) and t.startswith("rate<0.01") for t in soak["http_req_failed{phase:load}"])
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is needed to run the script logic")
+def test_only_load_requests_carry_the_load_tag(rest_doc, tmp_path):
+    gen_k6.generate(rest_doc, tmp_path / "k6", ["load"], base_url="http://localhost:9", rate=3, quick=True)
+    env = {"APITEST_BASE_URL": "http://localhost:9", "APITEST_BEARERAUTH_TOKEN": "x"}
+    run = _node_run(tmp_path / "k6" / "load.js", env, {})
+    probes = [r for r in run["full"] if r["tags"].get("stage") == "baseline_probe"]
+    load = [r for r in run["full"] if r["tags"].get("stage") != "baseline_probe"]
+    assert probes and load
+    assert all("phase" not in r["tags"] for r in probes), "the probe is not load"
+    assert all(r["tags"].get("phase") == "load" for r in load)
+
+
+def test_report_reads_the_failed_rate_of_the_load_and_says_so(rest_doc, tmp_path):
+    sys.path.insert(0, str(SCRIPTS))
+    import summarize_results
+    text = summarize_results.coverage_text({"tested": ["a"], "skipped": [], "baseline_failed": [{"endpoint": "b", "status": 500}], "baseline_probe": True})
+    assert "error-rate verdict covers only the load" in text and "overall http_req_failed figure still includes each probe request" in text
+
+
+@needs_k6
+def test_real_k6_a_probe_that_fails_once_does_not_fail_a_healthy_load(rest_doc, tmp_path):
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    seen = {"n": 0}
+    lock = threading.Lock()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            with lock:
+                seen["n"] += 1
+                bad = seen["n"] <= 3    # the first requests are the baseline probe: three endpoints fail there
+            body = b"{}"
+            self.send_response(500 if bad else 200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_POST = do_PUT = do_PATCH = do_DELETE = do_GET
+
+        def log_message(self, *a):
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        out = tmp_path / "k6"
+        gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=3, quick=True)
+        proc = run_launcher(out / "load.js", "--base-url", f"http://127.0.0.1:{server.server_address[1]}", "--k6", K6, env=_k6_env(),
+                            results=tmp_path / "r")
+    finally:
+        server.shutdown()
+    assert proc.returncode == 0, proc.stdout[-1500:] + proc.stderr[-800:]
+    summ = _summary(tmp_path / "r", "load")["metrics"]
+    assert summ["http_req_failed"]["value"] > 0, "k6's overall figure still includes the probe failures"
+    assert summ["http_req_failed{phase:load}"]["value"] == 0
 
 def test_stress_steps_double_up_to_the_cap_on_a_local_target_by_default(rest_doc, tmp_path):
     local = gen_k6.generate(rest_doc, tmp_path / "a", ["stress"], base_url="http://localhost:8080")["plans"]["stress"]
