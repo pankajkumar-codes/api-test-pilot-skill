@@ -125,3 +125,19 @@ def test_report_warns_when_over_half_of_the_tests_were_skipped(tmp_path):
     subprocess.run([sys.executable, "-I", str(sr.__file__), "--junit", str(p), "-o", str(out), "--date", "2026-11-12"], check=True,
                    capture_output=True, text=True)
     assert "were skipped (over half)" not in out.read_text()
+
+
+def test_report_always_states_how_many_tests_ran(tmp_path):
+    def case(i, status):
+        inner = "" if status == "passed" else f'<{status} message="why"/>'
+        return f'<testcase classname="api_tests.test_functional" name="test_{i}" time="0.1">{inner}</testcase>'
+    xml = ('<testsuites><testsuite name="x" tests="5">' + "".join(case(i, "passed") for i in (1, 2, 3, 4)) + case(5, "skipped") +
+           "</testsuite></testsuites>")
+    p = tmp_path / "r.xml"
+    p.write_text(xml)
+    for ext in ("md", "html"):
+        out = tmp_path / f"report.{ext}"
+        subprocess.run([sys.executable, "-I", str(sr.__file__), "--junit", str(p), "-o", str(out), "--date", "2026-11-12"], check=True,
+                       capture_output=True, text=True)
+        assert "Ran 4 of 5 tests (80%)" in out.read_text(), ext
+        assert "neither a pass nor a failure" in out.read_text(), ext

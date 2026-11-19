@@ -10,5 +10,6 @@
   "homepage": "https://github.com/pankajkumar-codes/api-test-pilot-skill",
   "repository": "https://github.com/pankajkumar-codes/api-test-pilot-skill",
   "license": "MIT",
+  "icon": "./.claude-plugin/icon.png",
   "keywords": ["api", "testing", "openapi", "graphql", "pytest", "k6", "security", "owasp", "fuzzing"]
 }

@@ -30,7 +30,7 @@ The skill has been run end to end on a real service and on public sandboxes, and
 did and did not cover is stated next to it. Detection numbers against *seeded* flaws are in [docs/evals.md](docs/evals.md).
 
 **Open the report:** [spring-boot-demo, real run (HTML)](examples/spring-boot-demo/report.html) ·
-[deliberately flawed demo API, 7 findings (HTML)](examples/sample-report.html) ·
+[deliberately flawed demo API, 9 findings (HTML)](examples/sample-report.html) ·
 [four public sandbox APIs](examples/public-sandbox/README.md). GitHub shows HTML files as source, so download the file and open it in a browser.
 Each report is one self-contained file (no external scripts, styles or fonts) and was checked to open with no network connection.
 
@@ -82,8 +82,8 @@ positives; those were fixed in the skill, and the failures that remain are the A
 the strict `page` rules). Whether the CORS and header findings matter for a public demo API is your call. Three of the four specs were written by hand.
 
 ### Seeded flaws and tests of the skill itself
-- On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 3 findings, and data exposure, 1 finding). The other 3 failures come from
-  using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 7.
+- On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 5 findings, and data exposure, 1 finding). The other 3 failures come from
+  using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 9.
 - 28 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
   10 in a GraphQL mock). The matching generated test failed on 27 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
   The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
@@ -182,7 +182,7 @@ You can ask for everything, a group or one type in plain words, for example "run
 
 Prefer a single command without an agent? `python skills/api-testing/scripts/run_all.py openapi.yaml --out apitest_run` runs intake, generation,
 both test passes (session-ending tests such as sign-out run last) and the report, then prints what to set to un-skip the remaining tests.
-`--check-env` only lists missing tools. Add `--types all,fuzz` for the opt-in fuzz suite. Add `--k6` (or `--k6=load,soak`; default load, stress, spike) and `--chaos` to run those after the tests and put them in the same report; `--k6-docker` runs k6 in a container, and chaos dependency faults need `--dependency-config FILE --allow-hooks`. k6 and chaos go through their own scripts and gates, so a non-local target still needs your `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`; when the gate refuses, the driver says so and skips that part. The safety gate still applies; the driver never sets it.
+`--check-env` only lists missing tools. Add `--types all,fuzz` for the opt-in fuzz suite. Add `--k6` (or `--k6=load,soak`; default load, stress, spike) and `--chaos` to run those after the tests and put them in the same report; `--k6-writes` also generates POST/PUT/PATCH requests (they still need `APITEST_ALLOW_WRITES=yes`, which you set), `--k6-docker` runs k6 in a container, and chaos dependency faults need `--dependency-config FILE --allow-hooks`. k6 and chaos go through their own scripts and gates, so a non-local target still needs your `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`; when the gate refuses, the driver says so and skips that part. The safety gate still applies; the driver never sets it.
 Exit code 0 unless the verdict is FAIL (an INCOMPLETE or INCONCLUSIVE run also exits 0, so read the verdict), 1 findings, 2 a step could not run. Extra pytest arguments go to both passes, so do not pass your own `-m`.
 
 ## Run it yourself, step by step
@@ -329,12 +329,13 @@ Notes on running generated suites:
   `APITEST_RETRIES`, default 2) and then skipped as "target unreachable" (set `APITEST_UNREACHABLE=fail` to fail instead; smoke tests always
   fail). A server that drops or hangs after connecting is a failure, never a skip. Rate-limit probes skip while a throttle is set.
 - The safety gate's skips are listed once (`-rs`) with a one-line summary instead of once per test.
-- If more than half of the tests skip (missing credentials, ids or gate variables), pytest prints a warning and the report adds
+- Every report states "Ran X of Y tests" under the verdict, so skipped tests are never hidden in a total. If more than half of the tests skip (missing credentials, ids or gate variables), pytest prints a warning and the report adds
   one, because a green result then covers only the tests that ran. Use `-rs` to see the reasons.
 
 ## Example (real output)
 
-Everything below was produced from a clean directory with the shipped zip, a fresh virtual environment and the demo API in
+The skill scripts below ran from the shipped zip unpacked in a clean directory with a fresh virtual environment (the demo API itself
+needs this repository checkout, because it reuses `tests/mock_rest.py`). It is the demo API in
 [`examples/`](examples) with two seeded flaws (`bola`, `leak`). The full report is in [examples/sample-report.html](examples/sample-report.html).
 The demo API is a local mock written for the project's own tests, not a third-party service.
 
@@ -351,7 +352,7 @@ Endpoints: 12
 Wrote intake.json (12 endpoints)
 
 $ python api-testing/scripts/gen_pytest.py intake.json -o api_tests --types all
-Generated 132 test functions in 12 files under api_tests
+Generated 134 test functions in 12 files under api_tests
   smoke: 7
   positive: 13
   negative: 20
@@ -367,17 +368,17 @@ FAILED api_tests/test_security.py::test_api1_bola_listToys - Failed: [HIGH][API.
 FAILED api_tests/test_security.py::test_api1_bola_getToy - Failed: [HIGH][API...
 FAILED api_tests/test_security.py::test_api3_no_sensitive_fields_listPets - F...
 ...
-7 failed, 239 passed, 15 skipped in 0.88s
+9 failed, 240 passed, 20 skipped in 0.88s
 
 $ python api-testing/scripts/summarize_results.py --junit results/pytest.xml --intake intake.json \
     --base-url http://127.0.0.1:8080 -o reports/report.html
 Wrote reports/report.json
-Wrote reports/report.html (7 findings, 261 tests, 0 k6 summaries)
+Wrote reports/report.html (9 findings, 269 tests, 0 k6 summaries)
 ```
 
 The demo API is **deliberately flawed** (that is what `--bugs bola,leak` switches on), so this report is supposed to fail. It opens with
-`FAIL: 7 finding(s): HIGH 5, MEDIUM 2.` (verified by rerunning the commands above: 239 passed, 7 failed, 15 skipped). Four of the seven are the seeded flaws:
-three BOLA findings (HIGH) and one data exposure (HIGH). The other three are all `GET /admin/stats` returning 403 (one HIGH smoke test, two MEDIUM),
+`FAIL: 9 finding(s): HIGH 7, MEDIUM 2.` (rerun on commit 4c8b12f with the commands above: 240 passed, 9 failed, 20 skipped). Six of the nine are the seeded flaws:
+five BOLA findings (HIGH, two of them from the tenant isolation matrix) and one data exposure (HIGH). The other three are all `GET /admin/stats` returning 403 (one HIGH smoke test, two MEDIUM),
 because the run uses a non-admin token on an admin endpoint; the mock server is behaving correctly there, so they are not seeded flaws.
 
 The safety stop, on a remote target without `APITEST_TARGET_ENV`:
