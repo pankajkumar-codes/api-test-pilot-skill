@@ -456,7 +456,7 @@ def fail(resp: requests.Response | None, msg: str, severity: str | None = None, 
         suffix += ("\n  note: set APITEST_SEND_OPTIONAL_HEADERS=" + ",".join(drift) +
                    " to send it on every operation that declares it, and mark it required in the spec.")
     if resp is not None and 400 <= resp.status_code < 500 and guessed:
-        suffix += ("\n  note: the spec gives no example or default for required parameter(s) or field(s) "
+        suffix += ("\n  note: the spec gives no example or default for parameter(s) or field(s) "
                    + ", ".join(guessed) + ", so the request used an invented value; a "
                    f"{resp.status_code} may be that value being rejected, not an API defect. Add an `example` to the spec to settle it.")
     pytest.fail(_scrub_text(f"{tag} {msg}{suffix}".strip()), pytrace=False)   # configured values (account names, cookies) never reach a report
@@ -566,7 +566,7 @@ class Endpoint:
     err: tuple = ()                                  # documented 4xx statuses
     path_params: dict = field(default_factory=dict)  # name -> {"default": value|None, "type": ...}
     query: dict = field(default_factory=dict)        # baseline valid query (required params)
-    guessed: tuple = ()                              # required query params / body fields ("body.name") whose baseline value is invented
+    guessed: tuple = ()                              # query params / body fields ("body.name") the baseline sends with an invented value
     headers: dict = field(default_factory=dict)      # baseline valid headers (required params)
     optional_headers: tuple = ()                     # headers the spec declares as optional (APITEST_SEND_OPTIONAL_HEADERS can send them)
     body: Any = UNSET                                # baseline valid JSON body
@@ -684,7 +684,7 @@ def skip_if_own_guess(resp: requests.Response, codes: Any, what: str) -> None:
         return
     if resp.status_code in INPUT_REJECTED and guessed:
         pytest.skip(f"could not verify: {what or 'request'}: expected {list(codes)}, got {resp.status_code}; the spec gives "
-                    f"no example or default for required parameter(s) or field(s) {', '.join(guessed)}, so the request used an "
+                    f"no example or default for parameter(s) or field(s) {', '.join(guessed)}, so the request used an "
                     "invented value and the refusal may be that value being rejected. Add an `example` to the spec, or set it "
                     "in APITEST_EXAMPLES_FILE, to get a verdict")
     if resp.status_code == 412 and any(k.lower() == "if-match" for k in resp.request.headers):
@@ -1460,7 +1460,7 @@ def tenant_isolation(api: "Api", ep: Endpoint, param: str) -> None:
         guessed = getattr(mine, "_guessed", ())
         why = ("seed the other ids with APITEST_PATH_*, or this operation needs a body or query the baseline cannot build")
         if mine.status_code in INPUT_REJECTED and guessed:
-            why = (f"the spec gives no example or default for required parameter(s) or field(s) {', '.join(guessed)}, so the request "
+            why = (f"the spec gives no example or default for parameter(s) or field(s) {', '.join(guessed)}, so the request "
                    "used an invented value; add an `example` (or APITEST_EXAMPLES_FILE) so the control call can succeed")
         elif mine.status_code in (404, 409, 410):
             why = "the record may be in a state this call refuses (deleted, finalized or already changed by an earlier test); " + why

@@ -32,7 +32,10 @@ def generate(doc: dict, mod: Module) -> list[str]:
     table = "FUZZ_SPECS = {\n" + ",\n".join(f"    {py(i)}: {py(spec)}" for i, spec in rows) + ",\n}\n"
     mod.add(table, is_test=False)
     mod.add('''@pytest.mark.intrusive
-@pytest.mark.parametrize("ep_id", sorted(FUZZ_SPECS, key=lambda i: (FUZZ_SPECS[i]["method"] == "GET", i)))   # writes first
+@pytest.mark.parametrize("ep_id", [
+    # A DELETE is fuzzed with the id the other tests read, so it is marked destructive and conftest runs it after them.
+    pytest.param(i, marks=pytest.mark.destructive) if FUZZ_SPECS[i]["method"] == "DELETE" else i
+    for i in sorted(FUZZ_SPECS, key=lambda i: (FUZZ_SPECS[i]["method"] == "GET", i))])   # writes first
 def test_fuzz(api, ep_id):
     """Seeded, bounded fuzzing of one endpoint: no 5xx, hangs, crashes, leaks or header injection."""
     fz.fuzz_endpoint(api, EP[ep_id], FUZZ_SPECS[ep_id])

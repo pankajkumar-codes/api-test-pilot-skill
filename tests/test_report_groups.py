@@ -1,6 +1,8 @@
 """Report: root-cause groups, "could not run" figure, the variables that would unskip tests, and the NOTES verdict."""
 import json
 
+import pytest
+
 from test_reporting import junit, summarize
 
 MSG = "request without credentials must be rejected: expected [401, 403], got 404\nGET /b/does-not-exist-1/x -> 404"
@@ -96,9 +98,10 @@ def test_skips_are_grouped_by_who_can_fix_them(tmp_path):
     assert "Skipped tests, by who can fix it:" in text and "- A safety default is off on purpose: 2" in text
 
 
-def test_could_not_verify_skip_counts_as_could_not_run_and_names_the_values_to_exemplify(tmp_path):
+@pytest.mark.parametrize("wording", ["required parameter(s) or field(s)", "parameter(s) or field(s)"])   # results written before and after the rewording
+def test_could_not_verify_skip_counts_as_could_not_run_and_names_the_values_to_exemplify(tmp_path, wording):
     msg = ("could not verify: request with valid input should succeed: expected [200], got 422; the spec gives no example or default for "
-           "required parameter(s) or field(s) start, so the request used an invented value and the refusal may be that value being rejected")
+           f"{wording} start, so the request used an invented value and the refusal may be that value being rejected")
     cases = [("api_t.test_smoke", "test_getPeriod", "skip", msg, ""), ("api_t.test_smoke", "test_ok", "pass", "", "")]
     _, data = build(tmp_path, cases)
     assert "1 could not run" in data["result"]["summary"] and data["result"]["status"] == "PASS"

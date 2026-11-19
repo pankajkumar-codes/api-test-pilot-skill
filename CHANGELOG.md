@@ -7,6 +7,13 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Fixed (invented values in optional body fields)
+- When a JSON body schema requires no field, the baseline request still sends its first three properties. Those optional fields are now tracked like required ones: a 400, 404, 409, 410, 413, 415 or 422 on a request that sent an invented value for one of them skips as "could not verify" and the report lists the field to give an example for, instead of failing the test (seen on `POST /token` of Webhook.site, where an invented `default_content_type` drew a 422). The skip and failure notes now say "parameter(s) or field(s)" without "required"; the report still reads results written with the old wording.
+
+### Fixed (fuzzed DELETE order, `--quick` with doubling stress steps)
+- In a suite generated with `--types all,fuzz` (what `run_all.py --types all,fuzz` builds), the fuzzed DELETE ran before the read tests and removed the record named by `APITEST_PATH_<NAME>` or the ids file, so smoke and positive tests on that id failed with 404. That fuzz case is now marked `destructive` and runs after every other test, session-ending ones aside.
+- `gen_k6.py --quick` against a local target stopped with "stage step4_ramp ramps 6.7 req/s per second; the limit is 5" since stress steps double by default there. A shortened stage now keeps the length its change of rate needs, so every profile generates; holds stay at the short `--quick` length.
+
 ### Added (setup stage, issue 46)
 - `seed_ids.py`, an opt-in setup stage: one create request per resource that has a create and an item endpoint, ids written to an ids file (`APITEST_IDS_FILE` format) with the records listed under `created`; `--dry-run` previews, `--cleanup` deletes what it created. Same gate as the intrusive runs, ids you already set are kept, credentials from the environment, no bodies or tokens in the output. Nothing runs it automatically.
 

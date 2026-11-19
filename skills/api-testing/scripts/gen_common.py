@@ -378,13 +378,17 @@ def guessed_query(ep: dict) -> list[str]:
 
 
 def guessed_body(ep: dict) -> list[str]:
-    """`body.<field>` for each required top-level JSON body field whose baseline value is invented (see is_guessed)."""
+    """`body.<field>` for each top-level JSON body field the baseline sends with an invented value (see is_guessed).
+    That is the required fields, or, when the schema requires none, the first few optional ones sample() fills in."""
     sch = body_schema(ep)
     if not sch or not isinstance(sch.get("properties"), dict) or not has_json_body(ep):
         return []
-    return [f"body.{k}" for k in sch.get("required") or []
-            if isinstance(sch["properties"].get(k), dict) and not is_secret_name(k)
-            and is_guessed({"name": k, "schema": sch["properties"][k]})]
+    props, req = sch["properties"], list(sch.get("required") or [])
+    sent = [k for k in props if k in req] or [k for k in list(props)[:3]
+                                              if not (isinstance(props[k], dict) and props[k].get("readOnly"))]
+    return [f"body.{k}" for k in sent
+            if isinstance(props.get(k), dict) and not is_secret_name(k)
+            and is_guessed({"name": k, "schema": props[k]})]
 
 
 # Whole field names only (after camelCase becomes snake_case). A suffix match would catch country_code, hostname or

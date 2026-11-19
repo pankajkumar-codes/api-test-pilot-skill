@@ -1357,6 +1357,35 @@ def test_real_k6_a_probe_that_fails_once_does_not_fail_a_healthy_load(rest_doc, 
     assert summ["http_req_failed"]["value"] > 0, "k6's overall figure still includes the probe failures"
     assert summ["http_req_failed{phase:load}"]["value"] == 0
 
+def test_quick_keeps_every_ramp_within_the_limit_when_the_stress_steps_double(rest_doc, tmp_path):
+    # --quick on a local target used to stop with "stage step4_ramp ramps 6.7 req/s per second; the limit is 5"
+    plan = gen_k6.generate(rest_doc, tmp_path / "q", ["load", "stress", "spike", "soak"], base_url="http://localhost:8080", quick=True)["plans"]
+    stages = plan["stress"]["stage_plan"]
+    assert plan["stress"]["peak_rps"] == 100 and plan["stress"]["ramp"] == "double"
+    prev = 0
+    for s in stages:
+        assert abs(s["target"] - prev) / s["duration"] <= safety_gate.MAX_RAMP_RPS_PER_S, s
+        prev = s["target"]
+    assert all(s["duration"] <= 10 for s in stages if s["label"].endswith("_hold")), "holds are still the short plumbing check"
+    full = gen_k6.generate(rest_doc, tmp_path / "f", ["stress"], base_url="http://localhost:8080")["plans"]["stress"]
+    assert plan["stress"]["total_s"] < full["total_s"] / 3
+
+
+def test_fuzzed_delete_is_marked_destructive_and_collected_after_every_other_test(rest_doc, tmp_path):
+    # the fuzzed DELETE uses the id the read tests rely on; in an `all,fuzz` suite it ran first and removed the record
+    out = tmp_path / "s"
+    gen_pytest.generate(rest_doc, out, ["all", "fuzz"])
+    proc = subprocess.run([sys.executable, "-m", "pytest", str(out), "-p", "no:cacheprovider", "-q", "--co"],
+                          env={**os.environ, "APITEST_BASE_URL": "http://127.0.0.1:1"}, capture_output=True, text=True)
+    names = [ln.split("::")[-1] for ln in proc.stdout.splitlines() if "::" in ln]
+    deletes = [m["method"] == "DELETE" for m in (e for e in rest_doc["endpoints"])]
+    assert any(deletes), "the fixture spec has a DELETE"
+    fuzz_delete = [n for n in names if n.startswith("test_fuzz[") and "elete" in n]
+    assert fuzz_delete and names[-len(fuzz_delete):] == fuzz_delete, names[-6:]
+    others = [n for n in names if n.startswith("test_fuzz[") and n not in fuzz_delete]
+    assert others and names.index(others[0]) < names.index(fuzz_delete[0])
+
+
 def test_stress_steps_double_up_to_the_cap_on_a_local_target_by_default(rest_doc, tmp_path):
     local = gen_k6.generate(rest_doc, tmp_path / "a", ["stress"], base_url="http://localhost:8080")["plans"]["stress"]
     targets = [s["target"] for s in local["stage_plan"] if s["label"].endswith("_hold")]

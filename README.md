@@ -320,7 +320,7 @@ Exit codes, for scripts and CI: pytest exits 0 when every test passed, 1 when an
 `summarize_results.py` exits 0 whenever it wrote the report, **even when the verdict is FAIL**; fail your pipeline on the test runs' exit codes, not on the report script.
 
 Notes on running generated suites:
-- Tests that delete or overwrite data are marked `destructive`, need `APITEST_ALLOW_DESTRUCTIVE=yes`, and run last.
+- Tests that delete or overwrite data are marked `destructive`, need `APITEST_ALLOW_DESTRUCTIVE=yes`, and run last. That includes the fuzzed DELETE in an `all,fuzz` suite, which goes after every other test because it uses the same id.
   With `pytest-xdist` each worker orders its own share, so use `-p no:xdist` (or `-n 0`) when that order matters to you.
 - Be polite to shared targets: `APITEST_DELAY_MS=300` (or `--apitest-delay-ms 300`) pauses between requests, `APITEST_RPS=5`
   (or `--apitest-rps 5`) caps the rate; with both, the slower limit applies. A failed connect is retried (GET/HEAD/OPTIONS only,
