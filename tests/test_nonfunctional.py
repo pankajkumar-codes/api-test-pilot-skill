@@ -495,8 +495,18 @@ def test_k6_can_be_a_command_and_the_last_line_names_the_crossed_thresholds(rest
                                    "http_req_duration": {"p(95)": 9, "thresholds": {"p(95)<500": False}},
                                    "http_req_duration{endpoint:x}": {"p(95)": 900, "thresholds": {"p(95)<500": True}}})
     proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res")
-    assert proc.returncode == 99
-    assert proc.stdout.strip().splitlines()[-1] == "thresholds crossed: error rate, latency (exit 99)"
+    assert proc.returncode == 91
+    assert proc.stdout.strip().splitlines()[-1] == "thresholds crossed: error rate, latency (exit 91)"
+    lat = _fake_k6(tmp_path, 99, {"http_req_duration": {"p(95)": 900, "thresholds": {"p(95)<500": True}},
+                                  "http_req_failed": {"value": 0, "thresholds": {"rate<0.01": False}}})
+    only = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{lat}'", results=tmp_path / "res2")
+    assert only.returncode == 92 and only.stdout.strip().splitlines()[-1] == "thresholds crossed: latency (exit 92)"
+    chk = _fake_k6(tmp_path, 99, {"checks": {"value": 0.5, "thresholds": {"rate>0.99": True}}})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{chk}'", results=tmp_path / "res3").returncode == 91
+    unknown = _fake_k6(tmp_path, 99, {"vus": {"thresholds": {"value<1": True}}})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{unknown}'", results=tmp_path / "res4").returncode == 99
+    nothing = _fake_k6(tmp_path, 99, {})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{nothing}'", results=tmp_path / "res5").returncode == 99
     ok = _fake_k6(tmp_path, 0)
     assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{ok}'", results=tmp_path / "res").returncode == 0
 
@@ -565,8 +575,8 @@ def test_circuit_breaker_aborts_when_the_target_is_failing(rest_doc, tmp_path):
     with rest_server({"down"}) as url:
         proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=tmp_path / "r")
         sent = len(LAST_LOG)
-    # exit 99 = threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
-    assert proc.returncode == 99, proc.stdout[-1500:] + proc.stderr[-800:]
+    # exit 91 = error-rate threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
+    assert proc.returncode == 91, proc.stdout[-1500:] + proc.stderr[-800:]
     assert "rate<0.5" in proc.stdout
     assert sent < 400, f"run should have aborted early, but {sent} requests were sent"
 
@@ -677,7 +687,7 @@ def test_graphql_load_run_treats_http_200_with_errors_as_failure(gql_doc, tmp_pa
     assert ok.returncode == 0, ok.stdout[-1500:] + ok.stderr[-500:]
     with _Canned({"errors": [{"message": "boom"}], "data": None}) as url:
         bad = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=env, results=tmp_path / "bad")
-    assert bad.returncode == 99, "every response carried errors, so the checks threshold must fail"
+    assert bad.returncode == 91, "every response carried errors, so the checks threshold must fail"
     assert _summary(tmp_path / "bad", "load")["metrics"]["checks"]["fails"] > 0
 
 

@@ -212,7 +212,7 @@ def test_real_k6_healthy_run_has_numbers_and_no_findings(rest_doc, tmp_path, int
 @needs_k6
 def test_real_k6_failing_server_crosses_thresholds_and_is_reported_high(rest_doc, tmp_path, intake_file):
     proc, summary = _run_k6(rest_doc, tmp_path, {"down"})
-    assert proc.returncode == 99, proc.stdout[-1500:]       # k6 itself says a threshold was crossed
+    assert proc.returncode == 91, proc.stdout[-1500:]       # an error-rate threshold was crossed
     text = report_of(tmp_path, "--k6", summary, "--intake", intake_file, "--base-url", "http://staging.example.test:8080")
     assert "**Result: FAIL**" in text and "**CROSSED**" in text
     blocks = finding_blocks(text)

@@ -16,7 +16,7 @@ APITEST_TARGET_ENV=staging APITEST_AUTHORIZED=yes APITEST_BEARERAUTH_TOKEN=... \
 ```
 - `run_k6.py` checks the gate **before** k6 starts, prints the exact rerun command (never a secret) and writes
   `results/<profile>-summary.json` (k6 `--summary-export`; input for the report step). Exit codes: 3 gate refused,
-  4 k6 missing (it prints the install hint and the command; say plainly that nothing was run), 5 k6 cannot start (`--check`), 99 a threshold failed (the last line names which: error rate, latency, checks).
+  4 k6 missing (it prints the install hint and the command; say plainly that nothing was run), 5 k6 cannot start (`--check`), 91 error rate or checks threshold failed, 92 only a latency threshold failed, 99 a threshold failed and the kind is unknown (the last line names which: error rate, latency, checks).
 - Each generated script enforces the same gate again at start-up, so `k6 run k6_tests/load.js` directly is gated too.
 - `--quick` shrinks every stage 10x: use it to check the plumbing (ids, credentials, thresholds) before a real run. It says nothing about capacity.
 - Never pass `--http-debug` to k6: it prints the Authorization header.
