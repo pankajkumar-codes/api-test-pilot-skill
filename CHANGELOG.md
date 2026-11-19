@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (k6 launcher in sandboxed environments, issues 67, 70)
+- `run_k6.py --check` prints whether k6 can start (its version) and exits 5 when it cannot, so a blocked binary is found before generation.
+- `--k6` accepts a command with arguments (split safely, run without a shell). `--docker` and `--docker-image` run the `grafana/k6` image with the results folder mounted and environment variables passed by name only.
+- When k6 exits 99 the launcher prints a last line naming which thresholds were crossed (error rate, latency, checks). The exit code stays 99.
+
 ### Added (optional headers the server enforces, issue 42)
 - A write that answers 400, 412, 422 or 428 with a body naming a header the spec declares optional (`idempotency_key_required`, `if_match_required`) is reported as spec drift (LOW): "the server seems to require header X; the spec says optional", with the setting that fixes it.
 - `APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends those headers on every operation that declares them. A bare `Idempotency-Key` gets a fresh unique value per call, any other name gets `*`, and `Name=value` sets the value.

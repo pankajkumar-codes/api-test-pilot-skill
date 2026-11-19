@@ -466,6 +466,52 @@ def test_launcher_reports_missing_k6_and_bad_input(rest_doc, tmp_path):
         "arbitrary k6 flags must not be forwarded"
 
 
+def _fake_k6(tmp_path, exit_code=0, thresholds=None):
+    """A stand-in k6 (shell script): answers `version`, writes a summary export and exits with `exit_code`."""
+    summary = json.dumps({"metrics": thresholds or {}})
+    path = tmp_path / "fake k6.sh"  # a space in the path: --k6 must be split like a shell would
+    path.write_text('#!/bin/sh\nif [ "$1" = version ]; then echo "k6 v0.0.0 (fake)"; exit 0; fi\n'
+                    'while [ $# -gt 0 ]; do [ "$1" = "--summary-export" ] && out="$2"; shift; done\n'
+                    f"echo '{summary}' > \"$out\"\nexit {exit_code}\n")
+    path.chmod(0o755)
+    return path
+
+
+def test_check_says_whether_k6_can_start(tmp_path):
+    fake = _fake_k6(tmp_path)
+    ok = subprocess.run([sys.executable, str(SCRIPTS / "run_k6.py"), "--check", "--k6", f"'{fake}'"], capture_output=True, text=True, env=clean_env())
+    assert ok.returncode == 0 and "k6 can start: k6 v0.0.0" in ok.stdout
+    bad = subprocess.run([sys.executable, str(SCRIPTS / "run_k6.py"), "--check", "--k6", str(tmp_path / "missing")], capture_output=True, text=True, env=clean_env())
+    assert bad.returncode == 5 and "cannot start" in bad.stdout
+    env = clean_env(PATH="/nonexistent")
+    env.pop("K6_BIN", None)
+    gone = subprocess.run([sys.executable, str(SCRIPTS / "run_k6.py"), "--check"], capture_output=True, text=True, env=env)
+    assert gone.returncode == 4 and "--docker" in gone.stdout
+
+
+def test_k6_can_be_a_command_and_the_last_line_names_the_crossed_thresholds(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    fake = _fake_k6(tmp_path, 99, {"http_req_failed": {"value": 0.4, "thresholds": {"rate<0.01": True}},
+                                   "http_req_duration": {"p(95)": 9, "thresholds": {"p(95)<500": False}},
+                                   "http_req_duration{endpoint:x}": {"p(95)": 900, "thresholds": {"p(95)<500": True}}})
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res")
+    assert proc.returncode == 99
+    assert proc.stdout.strip().splitlines()[-1] == "thresholds crossed: error rate, latency (exit 99)"
+    ok = _fake_k6(tmp_path, 0)
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{ok}'", results=tmp_path / "res").returncode == 0
+
+
+def test_docker_command_passes_variable_names_never_values(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--dry-run", results=tmp_path / "res",
+                        env=clean_env(APITEST_BEARERAUTH_TOKEN="s3cret-value"))
+    assert proc.returncode == 0 and "docker run --rm -i --network host" in proc.stdout
+    assert "-e APITEST_BEARERAUTH_TOKEN" in proc.stdout and "s3cret-value" not in proc.stdout + proc.stderr
+    assert "--docker" in proc.stdout.split("Rerun with:")[1]
+    bad = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "x; rm -rf /", "--dry-run")
+    assert bad.returncode == 2
+
+
 # ====================================================================== real k6 runs
 def _summary(results: Path, name: str) -> dict:
     return json.loads((results / f"{name}-summary.json").read_text())
