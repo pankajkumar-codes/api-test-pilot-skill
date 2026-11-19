@@ -645,3 +645,29 @@ def test_results_are_written_when_a_signal_lands_during_the_final_cleanup(tmp_pa
     assert code == chaos_run.EXIT_INTERRUPTED
     assert marker.exists(), "the fault was not undone"
     assert (out / "chaos.json").exists() and (out / "chaos.xml").exists()
+
+
+def many_writes_intake(tmp_path, n=5):
+    paths = {f"/r{i}": {"post": {"operationId": f"add{i}", "requestBody": {"content": {"application/json": {"schema": {
+        "type": "object", "properties": {"name": {"type": "string"}}}}}}, "responses": {"201": {"description": "ok"}}}} for i in range(n)}
+    paths["/health"] = {"get": {"operationId": "health", "responses": {"200": {"description": "ok"}}}}
+    spec = {"openapi": "3.0.0", "info": {"title": "t", "version": "1"}, "servers": [{"url": "http://localhost:1"}], "paths": paths}
+    p = tmp_path / "many.json"
+    p.write_text(json.dumps(parse_openapi.parse(spec, "t.json")))
+    return str(p)
+
+
+@pytest.mark.parametrize("flag,tried", [([], 3), (["--payload-endpoints", "4"], 4), (["--payload-endpoints", "all"], 5)])
+def test_payload_endpoints_count_and_the_not_tried_line(tmp_path, upstream, flag, tried):
+    out = tmp_path / "res"
+    r = run_cli([many_writes_intake(tmp_path), "--base-url", upstream, "--experiments", "payload", "--baseline-s", "2", "--burst", "1",
+                 "--payload-bytes", "2048", "--out", str(out), *flag])
+    assert r.returncode == 0, r.stdout + r.stderr
+    names = {e["name"]: e for e in json.loads((out / "chaos.json").read_text())["experiments"]}
+    sent = {n.split("_")[3] for n in names if n.startswith("test_chaos_payload_add")}
+    assert len(sent) == tried
+    if tried < 5:
+        assert f"{5 - tried} not tried" in names["test_chaos_payload_not_tried"]["title"]
+        assert f"{5 - tried} will not" in r.stderr
+    else:
+        assert "test_chaos_payload_not_tried" not in names
