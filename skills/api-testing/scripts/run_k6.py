@@ -189,6 +189,15 @@ def run_and_collect(cmd: list[str], env: dict, coverage_path: Path) -> int:
     return code
 
 
+def coverage_path_says_all_failed(path: Path) -> bool:
+    """True when the coverage record shows a baseline probe that left no endpoint to test."""
+    try:
+        cov = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(cov, dict) and not cov.get("tested") and bool(cov.get("baseline_failed"))
+
+
 EXIT_ERRORS = 91     # error rate or checks threshold crossed (also when latency was crossed too: failures come first)
 EXIT_LATENCY = 92    # only a latency threshold was crossed
 EXIT_THRESHOLD = 99  # k6's own code, kept when the summary cannot say which kind
@@ -289,6 +298,9 @@ def main(argv: list[str] | None = None) -> int:
         families = crossed_families(summary)
         code = threshold_exit_code(families)
         print("thresholds crossed: " + (", ".join(families) if families else "see the k6 output above") + f" (exit {code})")
+    if code == 108 and coverage_path_says_all_failed(results / f"{script.stem}-coverage.json"):
+        print("every endpoint failed the baseline probe (exit 108): nothing was load tested. Fix the target or its data, or set "
+              "APITEST_K6_BASELINE=off to load test them anyway.")
     return code
 
 

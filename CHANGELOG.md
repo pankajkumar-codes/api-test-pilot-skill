@@ -54,6 +54,7 @@ First release candidate, built in phases (see PLAN.md).
 - The coverage sentence now says the baseline probe request of a dropped endpoint is still counted in k6's overall failed-request figure.
 
 ### Changed (k6 launcher exit codes, issue 70)
+- When the baseline probe leaves nothing to test, k6 aborts with its own code 108; the launcher now says so ("every endpoint failed the baseline probe") and names `APITEST_K6_BASELINE=off`. Real-k6 tests that expect a threshold failure against a dead target now switch the probe off, so the optional k6 CI job passes again.
 - `run_k6.py` exits 91 when an error-rate or checks threshold is crossed (also when latency crossed too, since failures come first), 92 when only latency is crossed, and keeps 99 when the summary cannot say which kind. The last line still names the kinds. Callers that tested for 99 must now accept 91 and 92 (a nonzero code is still a failed run).
 
 ### Added (k6 baseline probe and coverage, issues 61, 63)

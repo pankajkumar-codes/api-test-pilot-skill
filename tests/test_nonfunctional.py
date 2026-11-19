@@ -573,7 +573,7 @@ def test_circuit_breaker_aborts_when_the_target_is_failing(rest_doc, tmp_path):
     out = tmp_path / "k6"
     gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=5, hold=120)
     with rest_server({"down"}) as url:
-        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=tmp_path / "r")
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(APITEST_K6_BASELINE="off"), results=tmp_path / "r")
         sent = len(LAST_LOG)
     # exit 91 = error-rate threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
     assert proc.returncode == 91, proc.stdout[-1500:] + proc.stderr[-800:]
@@ -686,7 +686,7 @@ def test_graphql_load_run_treats_http_200_with_errors_as_failure(gql_doc, tmp_pa
         ok = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=env, results=tmp_path / "ok")
     assert ok.returncode == 0, ok.stdout[-1500:] + ok.stderr[-500:]
     with _Canned({"errors": [{"message": "boom"}], "data": None}) as url:
-        bad = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=env, results=tmp_path / "bad")
+        bad = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env={**env, "APITEST_K6_BASELINE": "off"}, results=tmp_path / "bad")
     assert bad.returncode == 91, "every response carried errors, so the checks threshold must fail"
     assert _summary(tmp_path / "bad", "load")["metrics"]["checks"]["fails"] > 0
 
@@ -1066,3 +1066,30 @@ def test_docker_mounts_the_ids_and_examples_files_read_only(rest_doc, tmp_path):
                         env=clean_env(APITEST_IDS_FILE=str(ids), APITEST_BEARERAUTH_TOKEN="tok-secret"))
     assert f"-v {ids}:/inputs/APITEST_IDS_FILE.json:ro -e APITEST_IDS_FILE=/inputs/APITEST_IDS_FILE.json" in proc.stdout
     assert "-e APITEST_BEARERAUTH_TOKEN " in proc.stdout and "tok-secret" not in proc.stdout
+
+
+@needs_k6
+def test_real_k6_aborts_with_108_when_every_endpoint_fails_the_baseline(rest_doc, tmp_path):
+    out = tmp_path / "k6"
+    gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=3, quick=True)
+    with rest_server({"down"}) as url:
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=tmp_path / "r")
+    assert proc.returncode == 108, proc.stdout[-1500:] + proc.stderr[-800:]
+    assert "every endpoint failed the baseline probe (exit 108)" in proc.stdout and "APITEST_K6_BASELINE=off" in proc.stdout
+
+
+def test_launcher_explains_exit_108_from_the_coverage_line(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    line = ('time="x" level=info msg="APITEST_COVERAGE {\\"tested\\":[],\\"skipped\\":[],'
+            '\\"baselineFailed\\":[{\\"endpoint\\":\\"a\\",\\"status\\":500}],\\"baselineProbe\\":true}" source=console')
+    fake = tmp_path / "fake k6.sh"
+    fake.write_text('#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = "--summary-export" ] && out="$2"; shift; done\n'
+                    f"echo '{{}}' > \"$out\"\necho '{line}' >&2\nexit 108\n")
+    fake.chmod(0o755)
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res")
+    assert proc.returncode == 108 and "every endpoint failed the baseline probe (exit 108)" in proc.stdout
+    other = tmp_path / "other k6.sh"
+    other.write_text('#!/bin/sh\nexit 108\n')
+    other.chmod(0o755)
+    quiet = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{other}'", results=tmp_path / "res2")
+    assert quiet.returncode == 108 and "baseline probe" not in quiet.stdout
