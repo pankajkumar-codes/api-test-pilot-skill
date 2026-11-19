@@ -18,7 +18,7 @@ Collect: spec or examples (OpenAPI/Swagger, Postman collection, curl commands, G
 base URL, auth method, environment (local/staging/prod).
 - Normalize the input: `python scripts/intake.py <file> -o intake.json --summary`
   (auto-detects the type; for GraphQL add `--url <endpoint>`; shape and edge cases in `references/intake.md`).
-- Shortcut for local runs: `python scripts/run_all.py <spec> --out apitest_run` does intake, generate, run and report; `scripts/check_env.py` lists missing tools.
+- Shortcut for local runs: `python scripts/run_all.py <spec> --out apitest_run` does intake, generate, run and report; `scripts/check_env.py` lists missing tools; add `--k6` and `--chaos` to run those too (same gates).
 - Surface the parser `warnings` to the user (missing base URL, no response schemas, etc.) and ask for what is missing.
 - Credentials come from environment variables only (the parser lists the names, e.g. `APITEST_BEARERAUTH_TOKEN`).
   Never ask for, print or log secret values.
