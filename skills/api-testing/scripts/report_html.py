@@ -66,7 +66,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         # report.json carries every finding (up to JSON_MAX_FINDINGS); the page and the Markdown list the first --max-findings
         "findings_shown": min(limit, len(findings)), "findings_truncated": len(findings) < len(r.findings),
         "coverage": coverage, "endpoints_without_results": none_run, "has_intake": bool(r.index.eps),
-        "k6": r.k6,
+        "k6": [{**k, "peak_text": mod.peak_line(k), "knee_text": mod.knee_text(k) if k.get("knee") else ""} for k in r.k6],
         "run_problems": dict(sorted(r.problems.items())[:50]),
         "unskip": [{"variable": v, "tests": n} for v, n in r.unskip_list(200)],
         "needs_example": {k: sorted(v) for k, v in sorted(r.needs_example.items())[:200]},
@@ -240,7 +240,16 @@ def section_k6(d: dict) -> str:
                 f'<td class="n">{e(fmt(v.get("p95"), " ms"))}</td><td class="n">{e(fmt(v.get("failed")))}</td></tr>'
                 for name, v in sorted(k["stages"].items()))
             st = f'<div class="scroll"><table><thead><tr><th>Stage</th><th>p95 latency</th><th></th><th>Failed rate</th></tr></thead><tbody>{rows}</tbody></table></div>'
-        blocks.append(f'<h3>Profile {e(k["profile"])}</h3><div class="cards">{stats}</div>{th}{st}')
+        peak = f'<p>{e(k["peak_text"])}</p>' if k.get("peak_text") else ""
+        knee = f'<p><b>{e(k["knee_text"])}</b></p>' if k.get("knee_text") else ""
+        failing = sorted(((n, v) for n, v in k["endpoints"].items() if (_num(v.get("failed")) or 0) > 0), key=lambda nv: -(_num(nv[1].get("failed")) or 0))
+        ep = ""
+        if failing:
+            rows = "".join(f'<tr><td>{e(n)}</td><td class="n">{e(fmt(v.get("failed")))}</td><td class="n">{e(fmt(v.get("p95"), " ms"))}</td></tr>'
+                           for n, v in failing[:30])
+            ep = ('<p class="muted">Endpoints with failed requests (k6 tag):</p><div class="scroll"><table><thead><tr><th>Endpoint</th>'
+                  f'<th>Failed rate</th><th>p95</th></tr></thead><tbody>{rows}</tbody></table></div>')
+        blocks.append(f'<h3>Profile {e(k["profile"])}</h3><div class="cards">{stats}</div>{peak}{th}{st}{knee}{ep}')
     return ('<section><h2>Load and performance (k6)</h2>' + "".join(blocks)
             + '<p class="muted">A short or default-rate run shows shape, not capacity.</p></section>')
 

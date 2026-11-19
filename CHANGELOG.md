@@ -31,6 +31,12 @@ First release candidate, built in phases (see PLAN.md).
 - A write that answers 400, 412, 422 or 428 with a body naming a header the spec declares optional (`idempotency_key_required`, `if_match_required`) is reported as spec drift (LOW): "the server seems to require header X; the spec says optional", with the setting that fixes it.
 - `APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match` sends those headers on every operation that declares them. A bare `Idempotency-Key` gets a fresh unique value per call, any other name gets `*`, and `Name=value` sets the value.
 
+### Added (k6 report: stress limit, peak reached, stage and endpoint rows, report folders; issues 62, 68, 69)
+- The stress section names the last good step and the first bad step (p95 over `--p95-ms`, or a failed rate over `--error-rate` and clearly above the first step). When no step breaks it says "no limit found up to X req/s (hard cap 100 req/s)" and that this is not proof of capacity.
+- Every k6 section prints the peak request rate and virtual users actually reached next to the planned peak and the hard caps. The generator writes the stage plan, p95 limit and error limit into `manifest.json` and asks k6 for request counts per holding stage; the report reads the manifest from `--k6-dir`.
+- Load and soak now produce stage rows (steady state, one row per soak window). Per-endpoint latency and failed-rate rows are produced for up to 100 endpoints (was 20, latency only), and endpoints with failures are listed in the report.
+- `summarize_results.py --root DIR`: `--tests-dir` and `--k6-dir` may be relative or absolute and may use `..` as long as they stay inside the root (default: the current folder), so results in a sibling folder work.
+
 ### Fixed (report evidence and report.json, issues 41, 43)
 - A failure that is a 400, 404, 409, 410, 413, 415 or 422 on a request that used an invented value (no `example` or default in the spec) is now tagged INFO and titled "needs an example", not HIGH or MEDIUM. 401, 403, 429 and 5xx keep their normal rating.
 - `report.json` now lists every finding (up to 5000) instead of the first 100. New fields: `findings_shown` (how many the page and Markdown list) and `findings_truncated`.
