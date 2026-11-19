@@ -927,6 +927,103 @@ def test_generated_k6_asks_for_stage_rows_request_counts_and_per_endpoint_failur
     assert result["plans"]["load"]["stage_plan"]
 
 
+# ---------------------------------------------------------------- baseline probe and coverage (script logic run under node, k6 stubbed)
+HARNESS = """
+const __ENV = %(env)s;
+const STATUS = %(status)s;
+const SENT = [];
+const http = {request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
+                                          return {status: STATUS[path] || 200, body: ''}; }};
+const FILES = %(files)s; const open = (p) => { if (!(p in FILES)) throw new Error('no such file'); return FILES[p]; };
+const FULL = [];
+const check = () => true; const sleep = () => {};
+const encoding = {b64encode: (s) => Buffer.from(s).toString('base64')};
+const exec = {scenario: {startTime: Date.now()}, test: {abort: (m) => { throw new Error('ABORT: ' + m); }}};
+const console_log = console.log; const LINES = []; console.log = (s) => LINES.push(s); console.warn = () => {};
+%(script)s
+let out = {};
+try {
+  const data = setup();
+  const before = SENT.length;
+  for (let i = 0; i < 300; i++) { __default(data); }
+  out = {data: data, full: FULL, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
+} catch (e) { out = {error: String(e.message), lines: LINES}; }
+console_log(JSON.stringify(out));
+"""
+
+
+def _node_run(script_path: Path, env: dict, status: dict, files: dict | None = None) -> dict:
+    text = script_path.read_text(encoding="utf-8")
+    text = re.sub(r"^import .*$", "", text, flags=re.M)
+    text = text.replace("export default function (data)", "function __default(data)").replace("export function", "function").replace("export const", "const")
+    harness = HARNESS % {"env": json.dumps(env), "status": json.dumps(status), "files": json.dumps(files or {}), "script": text}
+    proc = subprocess.run([shutil.which("node"), "--input-type=commonjs", "-e", harness], capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr[-1500:]
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is needed to run the script logic")
+def test_baseline_probe_drops_endpoints_that_fail_and_reports_coverage(rest_doc, tmp_path):
+    gen_k6.generate(rest_doc, tmp_path / "k6", ["load"], base_url="http://localhost:9", rate=3, quick=True)
+    script = tmp_path / "k6" / "load.js"
+    cfg = read_config(script)
+    paths = sorted({e["path"] for e in cfg["endpoints"] if not e["pathParams"]})
+    assert len(paths) >= 2, paths
+    bad_path = paths[0]
+    env = {"APITEST_BASE_URL": "http://localhost:9", "APITEST_BEARERAUTH_TOKEN": "x"}
+    run = _node_run(script, env, {bad_path: 422})
+    cov = json.loads(next(line for line in run["lines"] if line.startswith("APITEST_COVERAGE ")).split(" ", 1)[1])
+    assert [f["status"] for f in cov["baselineFailed"]] == [422] and cov["baselineProbe"] is True
+    dropped = cov["baselineFailed"][0]["endpoint"]
+    assert dropped not in cov["tested"] and cov["tested"], "a failing endpoint is left out, the others stay"
+    assert bad_path not in run["loadPaths"] and run["loadPaths"], "no load goes to the dropped endpoint"
+    assert any(p.startswith(bad_path) and p.endswith("#baseline_probe") for p in run["probePaths"]), "but it was probed once"
+    off = _node_run(script, {**env, "APITEST_K6_BASELINE": "off"}, {bad_path: 422})
+    assert bad_path in off["loadPaths"] and off["probePaths"] == []
+    every = _node_run(script, env, {p: 500 for p in paths})
+    assert "every endpoint fails" in every["error"]
+
+
+def test_run_k6_keeps_the_coverage_line_and_the_report_shows_it(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    line = ('time="2026-11-19T00:00:00Z" level=info msg="APITEST_COVERAGE {\\"tested\\":[\\"listPets\\"],\\"skipped\\":[{\\"endpoint\\":\\"getPet\\",'
+            '\\"reason\\":\\"skipped, set APITEST_PATH_PETID to an existing id\\",\\"set\\":[\\"APITEST_PATH_PETID\\"]}],'
+            '\\"baselineFailed\\":[{\\"endpoint\\":\\"createPet\\",\\"status\\":422}],\\"baselineProbe\\":true}" source=console')
+    fake = tmp_path / "fake k6.sh"
+    fake.write_text('#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = "--summary-export" ] && out="$2"; shift; done\n'
+                    'echo \'{"metrics":{"http_reqs":{"count":10,"rate":1}}}\' > "$out"\n'
+                    f"echo '{line}' >&2\necho 'other noise' >&2\nexit 0\n")
+    fake.chmod(0o755)
+    res = tmp_path / "res"
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=res)
+    assert proc.returncode == 0 and "other noise" in proc.stderr, "k6's messages still reach the person"
+    cov = json.loads((res / "load-coverage.json").read_text())
+    assert cov["tested"] == ["listPets"] and cov["baseline_failed"] == [{"endpoint": "createPet", "status": 422}]
+    report = subprocess.run([sys.executable, str(SCRIPTS / "summarize_results.py"), "--k6", str(res / "load-summary.json"), "-o", "-"],
+                            capture_output=True, text=True, cwd=tmp_path).stdout.replace("\\", "")
+    assert "Endpoints load tested: 1; skipped: 1; dropped because they fail at baseline: 1" in report
+    assert "APITEST_PATH_PETID" in report and "fails at baseline with status 422" in report
+    (res / "load-coverage.json").unlink()
+    nocov = subprocess.run([sys.executable, str(SCRIPTS / "summarize_results.py"), "--k6", str(res / "load-summary.json"), "-o", "-"],
+                           capture_output=True, text=True, cwd=tmp_path).stdout
+    assert "not recorded" in nocov
+
+
+def test_coverage_line_parser_ignores_garbage_and_keeps_only_known_keys():
+    sys.path.insert(0, str(SCRIPTS))
+    import run_k6
+    parse = run_k6.parse_coverage_line
+    assert parse("nothing here") is None and parse("APITEST_COVERAGE not json") is None and parse("APITEST_COVERAGE {broken") is None
+    assert parse("APITEST_COVERAGE [1,2]") is None
+    assert parse("APITEST_COVERAGE {" + '"tested":["a"],' * 1 + '"x":' + "1" * 5 + "}")["tested"] == ["a"]
+    got = parse('APITEST_COVERAGE {"tested":["ok", 5, {"a":1}],"skipped":[{"endpoint":"e","reason":"' + "r" * 1000
+                + '","set":["V", 3],"evil":"x"}, "str"],"baselineFailed":[{"endpoint":"b","status":"418"}],"__proto__":{"a":1}}')
+    assert got["tested"] == ["ok"] and len(got["skipped"]) == 1 and len(got["skipped"][0]["reason"]) == 300
+    assert got["skipped"][0]["set"] == ["V"] and "evil" not in got["skipped"][0]
+    assert got["baseline_failed"] == [{"endpoint": "b", "status": 0}] and set(got) == {"tested", "skipped", "baseline_failed", "baseline_probe"}
+    assert parse("APITEST_COVERAGE {" + "x" * 2_000_000 + "}") is None
+
+
 @pytest.mark.skipif(not shutil.which("node"), reason="node is needed to run the script logic")
 def test_k6_takes_ids_and_example_values_from_files(rest_doc, tmp_path):
     result = gen_k6.generate(rest_doc, tmp_path / "k6", ["load"], base_url="http://localhost:9", rate=3, quick=True,
