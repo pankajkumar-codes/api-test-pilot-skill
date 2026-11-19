@@ -1020,7 +1020,7 @@ def skip_group(reason: str) -> str:
 
 
 def skip_groups(r: "Report") -> list[dict]:
-    """The skip reasons gathered under SKIP_GROUPS, each with its total and its three most common reasons first."""
+    """The skip reasons gathered under SKIP_GROUPS, each with its total and up to eight reasons, most common first."""
     by: dict[str, dict[str, int]] = {k: {} for k, _ in SKIP_GROUPS}
     for reason, n in r.skips.items():
         by[skip_group(reason)][reason] = n
