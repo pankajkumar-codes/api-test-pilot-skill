@@ -271,9 +271,11 @@ const thresholds = {};
 for (const key of Object.keys(CONFIG.thresholds)) {
   thresholds[key] = CONFIG.thresholds[key];
 }
-if (ACTIVE.length <= 20) {
+// One submetric pair per endpoint puts latency and failures per endpoint in the summary (up to 100 endpoints).
+if (ACTIVE.length <= 100) {
   for (const ep of ACTIVE) {
     thresholds['http_req_duration{endpoint:' + ep.tag + '}'] = CONFIG.endpointThresholds;
+    thresholds['http_req_failed{endpoint:' + ep.tag + '}'] = ['rate<=1'];
   }
 }
 

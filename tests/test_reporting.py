@@ -722,3 +722,50 @@ def test_no_curl_line_means_no_curl_notes(tmp_path):
     p = junit(tmp_path, [("api_tests.test_security", "test_f", "fail", "m", "[HIGH] bad")])
     text = report_of(tmp_path, "--junit", p, "--base-url", "http://h:8080")
     assert sr.WRITE_NOTE not in text and sr.REDACTED_NOTE not in text
+
+
+# ---------------------------------------------------------------- k6 report: stress knee, peaks, paths
+def _stress_summary(tmp_path, steps):
+    """A hand-made summary export: `steps` is a list of (p95 ms, failed rate, request count) per step."""
+    metrics = {"http_reqs": {"count": sum(s[2] for s in steps), "rate": 10}, "http_req_failed": {"value": 0.0},
+               "http_req_duration": {"avg": 5, "p(95)": 9, "p(99)": 9, "max": 20}, "vus_max": {"value": 12, "min": 12, "max": 12}}
+    for i, (p95, failed, count) in enumerate(steps, 1):
+        metrics[f"http_req_duration{{stage:step{i}_hold}}"] = {"p(95)": p95}
+        metrics[f"http_req_failed{{stage:step{i}_hold}}"] = {"value": failed}
+        metrics[f"http_reqs{{stage:step{i}_hold}}"] = {"count": count, "rate": 1}
+    k6dir = tmp_path / "k6_tests"
+    k6dir.mkdir(exist_ok=True)
+    plan = {"stress": {"peak_rps": 5 * len(steps), "max_vus": 50, "p95_ms": 500, "error_rate": 0.01,
+                       "stage_plan": [{"label": f"step{i}_hold", "duration": 60, "target": 5 * i} for i in range(1, len(steps) + 1)]}}
+    (k6dir / "manifest.json").write_text(json.dumps({"plans": plan}))
+    path = tmp_path / "results" / "stress-summary.json"
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"metrics": metrics}))
+    return path
+
+
+def test_stress_report_names_the_knee_or_says_no_limit_was_found(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    broke = _stress_summary(tmp_path, [(20, 0, 300), (30, 0, 600), (900, 0.2, 900), (2000, 0.6, 1200)])
+    text = report_of(tmp_path, "--k6", broke).replace("\\", "")
+    assert "breaking point found" in text and "Last good step: step2_hold (10 req/s" in text and "First bad step: step3_hold (15 req/s" in text
+    assert "Peak reached: 20 req/s, 12 virtual users (planned 20 req/s, limit 50 VUs)" in text
+    quiet = _stress_summary(tmp_path, [(20, 0, 300), (21, 0, 600), (22, 0, 900), (23, 0, 1200)])
+    text = report_of(tmp_path, "--k6", quiet, name="quiet.md").replace("\\", "")
+    assert "no limit found up to 20 req/s" in text and "hard cap 100 req/s" in text and "not proof of capacity" in text
+    js = json.loads(report_of(tmp_path, "--k6", quiet, "--format", "html", name="r.html") and (tmp_path / "r.json").read_text())
+    assert js["k6"][0]["knee"]["first_bad"] is None and js["k6"][0]["peak"]["rps"] == 20.0
+
+
+def test_summarizer_accepts_folders_inside_root_only(tmp_path):
+    sib = tmp_path / "work" / "k6_tests"
+    sib.mkdir(parents=True)
+    work = tmp_path / "work"
+    summary = _stress_summary(tmp_path, [(20, 0, 300)])
+    base = [sys.executable, str(SCRIPTS / "summarize_results.py"), "--k6", str(summary), "-o", str(tmp_path / "o.md")]
+    run = lambda *a: subprocess.run([*base, *a], capture_output=True, text=True, cwd=work)  # noqa: E731
+    assert run("--k6-dir", "../k6_tests").returncode == 2, "outside the working folder without --root"
+    assert run("--k6-dir", "../k6_tests", "--root", "..").returncode == 0
+    assert run("--k6-dir", "../../../etc", "--root", "..").returncode == 2
+    assert run("--k6-dir", str(tmp_path / "k6_tests")).returncode == 2
+    assert run("--k6-dir", "k6_tests;rm").returncode == 2 and run("--tests-dir", "-x").returncode == 2

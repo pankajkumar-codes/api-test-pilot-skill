@@ -12,7 +12,7 @@ python scripts/summarize_results.py --junit results/pytest.xml --k6 results/load
     --intake intake.json --base-url "$APITEST_BASE_URL" -o reports/report.html
 ```
 `--junit` and `--k6` repeat. `--intake` names endpoints and lists endpoints that have no result. `--tests-dir` and `--k6-dir`
-(defaults `api_tests`, `k6_tests`) are used to build the rerun commands. `-o -` prints Markdown to stdout. The format follows the extension (`.html` or `.md`); `--format` overrides it and `--no-json` skips the JSON file. The script never runs a test,
+(defaults `api_tests`, `k6_tests`) are used to build the rerun commands, and `--k6-dir` is where the report reads `manifest.json` (planned stages and limits) for the peak rate and the stress result. Both may be relative or absolute but must stay inside `--root` (default: the current folder); pass `--root ..` when results sit in a sibling folder. `-o -` prints Markdown to stdout. The format follows the extension (`.html` or `.md`); `--format` overrides it and `--no-json` skips the JSON file. The script never runs a test,
 never contacts the target and prints the command that regenerates the report.
 
 ## What the report contains

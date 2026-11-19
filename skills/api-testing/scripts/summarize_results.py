@@ -42,6 +42,7 @@ from xml.parsers import expat
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _common  # noqa: E402  (shared redaction helper)
 import report_html  # noqa: E402
+from safety_gate import HARD_MAX_RPS, HARD_MAX_VUS  # noqa: E402
 
 TEMPLATE = Path(__file__).resolve().parent.parent / "templates" / "report.md"
 MAX_XML_BYTES = 25 * 1024 * 1024
@@ -69,14 +70,17 @@ METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE")
 REQUEST_LINE_RE = re.compile(r"^\s*(" + "|".join(METHODS) + r")\s+(\S+)\s+->", re.M)
 REPRO_RE = re.compile(r"^\s*repro:\s*(curl\s.*)$", re.M)
 OWASP_RE = re.compile(r"^API\d{1,2}(:\d{4})?$", re.I)
-SAFE_DIR_RE = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]{1,100}$")
 CHAOS_EXPERIMENTS = {"proxy-latency", "proxy-5xx", "proxy-drop", "proxy-truncate", "proxy-blackhole", "payload", "dep-outage", "dep-slow",
                      "dep-latency", "dep-blackhole", "dep-reset"}
 CHAOS_RERUN_LINE_RE = re.compile(r"^rerun: .*?\bchaos_run\.py ([A-Za-z0-9_./-]{1,100}) --experiments ([a-z0-9,-]{1,200})(?: |$)", re.M)
 SAFE_STEM_RE = re.compile(r"^test_[A-Za-z0-9_]{1,80}$")
 K6_FILE_RE = re.compile(r"^([A-Za-z0-9_-]{1,40})-summary\.json$")
 THRESHOLD_RE = re.compile(r"^\s*(?P<agg>[A-Za-z_]+(?:\([0-9.]+\))?)\s*(?P<op><=|>=|==|!=|<|>|=)\s*(?P<lim>-?[0-9.]+(?:e[+-]?\d+)?)\s*$", re.I)
-K6_SUB_RE = re.compile(r"^(http_req_duration|http_req_failed)\{(endpoint|stage):([A-Za-z0-9_.-]{1,64})\}$")
+K6_SUB_RE = re.compile(r"^(http_req_duration|http_req_failed|http_reqs)\{(endpoint|stage):([A-Za-z0-9_.-]{1,64})\}$")
+SAFE_DIR_RE = re.compile(r"^(?!-)[A-Za-z0-9_./-]{1,200}$")  # characters only; where it points is checked against --root
+PLAIN_DIR_RE = re.compile(r"^(?!-)(?!.*\.\.)[A-Za-z0-9_./-]{1,100}$")  # for names that come from result files (untrusted)
+DEFAULT_P95_MS = 500.0
+DEFAULT_ERROR_RATE = 0.01
 
 
 class ReportError(Exception):
@@ -541,7 +545,7 @@ class Report:
             # copying it, because the result file is untrusted (env prefixes, script paths and flags like --allow-hooks are dropped)
             m = CHAOS_RERUN_LINE_RE.search(raw)
             names = m.group(2).split(",") if m else []
-            if m and SAFE_DIR_RE.match(m.group(1)) and names and all(n in CHAOS_EXPERIMENTS for n in names):
+            if m and PLAIN_DIR_RE.match(m.group(1)) and names and all(n in CHAOS_EXPERIMENTS for n in names):
                 cmd = f"{prefix} python scripts/chaos_run.py {shlex.quote(m.group(1))} --experiments {','.join(names)}"
                 if any(n in ("dep-outage", "dep-slow", "dep-latency", "dep-blackhole", "dep-reset") for n in names):
                     chaos_note = ("dep-* experiments also need your own --dependency-config and --allow-hooks, or --dep-proxy; "
@@ -602,15 +606,66 @@ class Report:
             if sub:
                 metric, dim, tag = sub.groups()
                 row = (info["stages"] if dim == "stage" else info["endpoints"]).setdefault(tag, {})
-                row["p95" if metric == "http_req_duration" else "failed"] = num(v.get("p(95)" if metric == "http_req_duration" else "value"))
+                if metric == "http_reqs":
+                    row["requests"] = num(v.get("count"))
+                else:
+                    row["p95" if metric == "http_req_duration" else "failed"] = num(v.get("p(95)" if metric == "http_req_duration" else "value"))
             th = v.get("thresholds")
             if isinstance(th, dict):
                 for expr, crossed in list(th.items())[:50]:
                     if isinstance(expr, str) and isinstance(crossed, bool):   # in --summary-export, true = crossed
                         info["thresholds"].append({"metric": name, "expr": expr, "crossed": crossed, "observed": self._observed(v, expr)})
         info["checks"] = self._k6_checks(doc.get("root_group"))
+        plan = self._k6_plan(profile)
+        info["peak"] = self._k6_peak(info, plan, stat("vus_max", "max") or stat("vus_max", "value"))
+        info["knee"] = self._k6_knee(info, plan) if profile == "stress" else None
         self.k6.append(info)
         self._k6_findings(info)
+
+    def _k6_plan(self, profile: str) -> dict:
+        """The planned shape of this profile from manifest.json (written by gen_k6.py), or {} when it is not there."""
+        try:
+            path = Path(self.args.k6_dir) / "manifest.json"
+            if path.stat().st_size > 1_000_000:
+                return {}
+            plan = (json.loads(path.read_text(encoding="utf-8")).get("plans") or {}).get(profile)
+        except (OSError, ValueError, AttributeError):
+            return {}
+        return plan if isinstance(plan, dict) else {}
+
+    @staticmethod
+    def _k6_peak(info: dict, plan: dict, vus: float | None) -> dict:
+        """Peak request rate and virtual users actually reached, beside the planned peak and the caps."""
+        secs = {s.get("label"): s.get("duration") for s in plan.get("stage_plan") or [] if isinstance(s, dict)}
+        rates = [row["requests"] / secs[name] for name, row in info["stages"].items()
+                 if row.get("requests") is not None and isinstance(secs.get(name), (int, float)) and secs[name] > 0]
+        return {"rps": round(max(rates), 1) if rates else None, "vus": vus,
+                "planned_rps": num(plan.get("peak_rps")), "hard_cap_rps": HARD_MAX_RPS, "cap_vus": num(plan.get("max_vus")), "hard_cap_vus": HARD_MAX_VUS}
+
+    @staticmethod
+    def _k6_knee(info: dict, plan: dict) -> dict:
+        """Stress steps in order, each marked good or bad (p95 over the limit, or failed rate over the limit and
+        clearly above the first step), so the report can name the last good and the first bad step."""
+        limit_ms = num(plan.get("p95_ms")) or DEFAULT_P95_MS
+        limit_err = num(plan.get("error_rate")) or DEFAULT_ERROR_RATE
+        targets = {s.get("label"): s.get("target") for s in plan.get("stage_plan") or [] if isinstance(s, dict)}
+        names = sorted((n for n in info["stages"] if re.fullmatch(r"step\d+_hold", n)), key=lambda n: int(n[4:-5]))
+        steps = []
+        base_err = None
+        for n in names:
+            row = info["stages"][n]
+            p95, err = row.get("p95"), row.get("failed")
+            if base_err is None:
+                base_err = err or 0.0
+            bad = bool((p95 is not None and p95 > limit_ms) or (err is not None and err > limit_err and err > base_err * 1.5))
+            steps.append({"step": n, "rps": num(targets.get(n)), "p95": p95, "failed": err, "bad": bad})
+        first_bad = next((s for s in steps if s["bad"]), None)
+        last_good = None
+        for s in steps:
+            if s["bad"]:
+                break
+            last_good = s
+        return {"steps": steps, "limit_p95_ms": limit_ms, "limit_error_rate": limit_err, "first_bad": first_bad, "last_good": last_good}
 
     @staticmethod
     def _observed(metric: dict, expr: str) -> float | None:
@@ -763,6 +818,33 @@ def render_coverage(r: Report) -> str:
     return table(["Endpoint", "Types run", "Pass", "Fail", "Skipped/error", "k6"], body) + note
 
 
+def peak_line(k: dict) -> str:
+    """One sentence: the peak rate and virtual users reached next to what was planned and the hard caps."""
+    p = k.get("peak") or {}
+    rps = f"{fmt(p.get('rps'))} req/s" if p.get("rps") is not None else "not measured (no manifest.json from gen_k6.py found in --k6-dir)"
+    vus = fmt(p.get("vus")) if p.get("vus") is not None else "not measured"
+    plan = f" (planned {fmt(p.get('planned_rps'))} req/s, limit {fmt(p.get('cap_vus'))} VUs)" if p.get("planned_rps") is not None else ""
+    return f"Peak reached: {rps}, {vus} virtual users{plan}. Hard caps: {fmt(p.get('hard_cap_rps'))} req/s, {fmt(p.get('hard_cap_vus'))} VUs."
+
+
+def knee_text(k: dict) -> str:
+    """Stress result in words: the last good step and the first bad one, or that no limit was found."""
+    kn = k["knee"]
+    if not kn or not kn["steps"]:
+        return "Stress result: no step results in this summary, so no breaking point can be named."
+    p = k.get("peak") or {}
+
+    def step(s: dict) -> str:
+        return f"{s['step']} ({fmt(s['rps'])} req/s, p95 {fmt(s['p95'], ' ms')}, failed {fmt(s['failed'])})"
+    if kn["first_bad"]:
+        good = step(kn["last_good"]) if kn["last_good"] else "none (the first step was already over the limit)"
+        return (f"Stress result: breaking point found. Last good step: {good}. First bad step: {step(kn['first_bad'])}. "
+                f"Limits used: p95 {fmt(kn['limit_p95_ms'], ' ms')}, failed rate {fmt(kn['limit_error_rate'])}.")
+    return (f"Stress result: no limit found up to {fmt(p.get('rps') if p.get('rps') is not None else kn['steps'][-1]['rps'])} req/s "
+            f"(hard cap {fmt(p.get('hard_cap_rps'))} req/s). This is not proof of capacity: nothing broke at the tested load. "
+            f"Raise --rate or --steps to look further.")
+
+
 def render_k6(r: Report) -> str:
     if not r.k6:
         return "No k6 summary supplied."
@@ -778,9 +860,17 @@ def render_k6(r: Report) -> str:
             out.append(table(["Metric", "Threshold", "Observed", "Result"], [
                 [esc(plain(t["metric"], 90)), esc(plain(t["expr"], 40)), fmt(t["observed"]), "**CROSSED**" if t["crossed"] else "ok"]
                 for t in k["thresholds"][:100]]))
+        out.append(peak_line(k))
         if k["stages"]:
             out.append(table(["Stage", "p95 latency", "Failed-request rate"], [
                 [esc(plain(s, 40)), fmt(v.get("p95"), " ms"), fmt(v.get("failed"))] for s, v in sorted(k["stages"].items())]))
+        if k.get("knee"):
+            out.append(esc(knee_text(k)))
+        if k["endpoints"]:
+            bad = sorted(((n, v) for n, v in k["endpoints"].items() if (v.get("failed") or 0) > 0), key=lambda nv: -(nv[1].get("failed") or 0))
+            if bad:
+                out.append(table(["Endpoint (k6 tag)", "Failed-request rate", "p95 latency"], [
+                    [esc(plain(n, 60)), fmt(v.get("failed")), fmt(v.get("p95"), " ms")] for n, v in bad[:30]]))
         out.append("A quick or short run shows shape, not capacity. Stage rows come from the stage tags in the generated script.")
     return "\n\n".join(out)
 
@@ -848,6 +938,8 @@ def build_command(args) -> str:
         if v:
             parts += [flag, v]
     parts += ["--tests-dir", args.tests_dir, "--k6-dir", args.k6_dir]
+    if args.root:
+        parts += ["--root", args.root]
     return plain(" ".join(shlex.quote(p) for p in parts), 4000)   # scrubbed, since --title or a path could hold a secret
 
 
@@ -858,6 +950,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--intake", help="intake.json from intake.py: names endpoints and shows endpoints with no results")
     ap.add_argument("--title", help="API name for the heading (default: info.title of the intake, else 'API')")
     ap.add_argument("--base-url", help="target used in the rerun commands (default: $APITEST_BASE_URL at rerun time)")
+    ap.add_argument("--root", help="folder that --tests-dir and --k6-dir must stay inside (default: the current folder); "
+                                   "use it when the results live in a sibling folder, e.g. --root ..")
     ap.add_argument("--tests-dir", default="api_tests", help="folder holding the generated pytest files (default: api_tests)")
     ap.add_argument("--k6-dir", default="k6_tests", help="folder holding the generated k6 scripts (default: k6_tests)")
     ap.add_argument("-o", "--output", default="reports/report.html",
@@ -870,9 +964,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if not args.junit and not args.k6:
             raise ReportError("nothing to summarize: pass --junit and/or --k6")
+        root = Path(args.root or ".").resolve()
         for label, v in (("--tests-dir", args.tests_dir), ("--k6-dir", args.k6_dir)):
             if not SAFE_DIR_RE.match(v):
-                raise ReportError(f"{label} must be a plain relative folder name (letters, digits, _ . / -)")
+                raise ReportError(f"{label} may only use letters, digits, _ . / - and must not start with a dash")
+            where = (Path(v) if Path(v).is_absolute() else Path.cwd() / v).resolve()
+            if where != root and root not in where.parents:
+                raise ReportError(f"{label} points outside the root folder {plain(str(root), 100)}; pass --root with a folder that contains it")
         if args.base_url:
             args.base_url = clean_base_url(args.base_url)
         if args.date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.date):
