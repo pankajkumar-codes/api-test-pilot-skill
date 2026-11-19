@@ -24,6 +24,12 @@ First release candidate, built in phases (see PLAN.md).
 ### Added (empty optional body, issue 50)
 - When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
 
+### Changed (report polish, issue 53)
+- The result line counts findings in cause groups ("239 finding(s) in 6 cause group(s)") and gives a "could not run" figure (skipped plus errored) beside passed and failed. The variables that would unskip the most tests are named on the first screen ("To run more tests set: APITEST_VICTIM_X (31), ...").
+- A **Root causes** table (Markdown and HTML, and `cause_groups` in report.json) comes before the individual findings when something repeats. The cause is the test name with the operation id removed.
+- A run whose only findings are INFO now has the verdict NOTES instead of FAIL.
+- A throttled (429) skip names the setting to change: `APITEST_DELAY_MS=250` or `APITEST_RPS=4`.
+
 ### Fixed (review follow-ups on the tenant PR)
 - The documented-401 contract test (`*_error_contract_401`) uses the same probe as the no-credentials test: a real id for reads, an invented one for writes, and it skips (naming `APITEST_PATH_<NAME>`) when an invented id draws a 404 before the credentials are checked, instead of failing.
 - The structured-field name matcher also recognises prefix and compound names such as `emailAddress`, `phoneNumber`, `dob` and `api_key`, but not plain words like `address`, `codename` or `company`.
@@ -57,6 +63,10 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Changed (report wording)
 - The coverage sentence now says the baseline probe request of a dropped endpoint is still counted in k6's overall failed-request figure.
+
+### Changed (k6 launcher exit codes, issue 70)
+- When the baseline probe leaves nothing to test, k6 aborts with its own code 108; the launcher now says so ("every endpoint failed the baseline probe") and names `APITEST_K6_BASELINE=off`. Real-k6 tests that expect a threshold failure against a dead target now switch the probe off, so the optional k6 CI job passes again.
+- `run_k6.py` exits 91 when an error-rate or checks threshold is crossed (also when latency crossed too, since failures come first), 92 when only latency is crossed, and keeps 99 when the summary cannot say which kind. The last line still names the kinds. Callers that tested for 99 must now accept 91 and 92 (a nonzero code is still a failed run).
 
 ### Added (token refresh for long k6 runs, issue 64)
 - `APITEST_TOKEN_CMD` (the same variable the pytest suite uses: a command that prints a fresh token; split like a shell would, run without a shell) keeps long k6 runs authorized. `run_k6.py` runs it once before the start, puts the token in the bearer variable(s) the script reads (`tokenEnv` in `manifest.json`, or `APITEST_TOKEN_ENV`), and serves fresh tokens on a loopback-only URL behind a random path. Each VU fetches a token before its first request, after a 401 (at most one refetch per VU every 5 s) and every `APITEST_TOKEN_REFRESH_S` seconds when set. The command output is never printed or logged; a failing command or one that prints more than a single token stops the run with a message that does not include the output. The fetches count as a few extra local requests in k6's totals.

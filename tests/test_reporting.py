@@ -190,12 +190,12 @@ def test_report_is_deterministic(rest_suite, tmp_path, intake_file):
 
 
 # ---------------------------------------------------------------- real k6 output
-def _run_k6(rest_doc, tmp_path, bugs, profile="load", **kw):
+def _run_k6(rest_doc, tmp_path, bugs, profile="load", baseline="on", **kw):
     out = tmp_path / "k6_tests"
     gen_k6.generate(rest_doc, out, [profile], base_url="http://localhost:1", rate=3, quick=True, **kw)
     results = tmp_path / "results"
     with rest_server(bugs) as url:
-        proc = run_launcher(out / f"{profile}.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=results)
+        proc = run_launcher(out / f"{profile}.js", "--base-url", url, "--k6", K6, env=_k6_env(APITEST_K6_BASELINE=baseline), results=results)
     return proc, results / f"{profile}-summary.json"
 
 
@@ -211,8 +211,8 @@ def test_real_k6_healthy_run_has_numbers_and_no_findings(rest_doc, tmp_path, int
 
 @needs_k6
 def test_real_k6_failing_server_crosses_thresholds_and_is_reported_high(rest_doc, tmp_path, intake_file):
-    proc, summary = _run_k6(rest_doc, tmp_path, {"down"})
-    assert proc.returncode == 99, proc.stdout[-1500:]       # k6 itself says a threshold was crossed
+    proc, summary = _run_k6(rest_doc, tmp_path, {"down"}, baseline="off")   # with the probe on, a dead target aborts the run (exit 108)
+    assert proc.returncode == 91, proc.stdout[-1500:]       # an error-rate threshold was crossed
     text = report_of(tmp_path, "--k6", summary, "--intake", intake_file, "--base-url", "http://staging.example.test:8080")
     assert "**Result: FAIL**" in text and "**CROSSED**" in text
     blocks = finding_blocks(text)

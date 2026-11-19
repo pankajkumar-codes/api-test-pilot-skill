@@ -14,12 +14,14 @@ What it does, in order:
      a shell). --docker runs the grafana/k6 image instead, for machines where the binary cannot be installed or started.
      If k6 is missing, print the install hint and the exact command; exit 4.
   4. Print the exact rerun command (no secrets), run k6 with --summary-export, and exit with k6's status. When k6 exits
-     99 the last line names which thresholds were crossed (error rate, latency, checks).
+     99 the exit code says which kind: 91 error rate or checks, 92 latency only (99 when the summary cannot say), and the
+     last line names them.
 
 Credentials are inherited from the environment, never passed on the command line, never printed.
 Arbitrary k6 flags are not forwarded: caps and ramp limits live in the script and must not be bypassed.
 Exit codes: 0 ok, 2 bad input, 3 gate refused, 4 k6 not installed, 5 k6 is installed but cannot start (--check),
-otherwise k6's own code (99 = a threshold failed, 107 = script/init error such as a gate refusal inside the script).
+otherwise k6's own code (107 = script/init error such as a gate refusal inside the script). A crossed threshold is reported
+as 91 (error rate or checks, including when latency also crossed), 92 (latency only) or 99 (kind unknown).
 """
 from __future__ import annotations
 
@@ -288,6 +290,28 @@ def run_and_collect(cmd: list[str], env: dict, coverage_path: Path) -> int:
     return code
 
 
+def coverage_path_says_all_failed(path: Path) -> bool:
+    """True when the coverage record shows a baseline probe that left no endpoint to test."""
+    try:
+        cov = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(cov, dict) and not cov.get("tested") and bool(cov.get("baseline_failed"))
+
+
+EXIT_ERRORS = 91     # error rate or checks threshold crossed (also when latency was crossed too: failures come first)
+EXIT_LATENCY = 92    # only a latency threshold was crossed
+EXIT_THRESHOLD = 99  # k6's own code, kept when the summary cannot say which kind
+
+
+def threshold_exit_code(families: list[str]) -> int:
+    if "error rate" in families or "checks" in families:
+        return EXIT_ERRORS
+    if families == ["latency"]:
+        return EXIT_LATENCY
+    return EXIT_THRESHOLD
+
+
 def crossed_families(summary: Path) -> list[str]:
     """Which kinds of threshold were crossed, read from the --summary-export file (true = crossed)."""
     try:
@@ -383,7 +407,11 @@ def main(argv: list[str] | None = None) -> int:
             server.shutdown()
     if code == 99:
         families = crossed_families(summary)
-        print("thresholds crossed: " + (", ".join(families) if families else "see the k6 output above") + " (exit 99)")
+        code = threshold_exit_code(families)
+        print("thresholds crossed: " + (", ".join(families) if families else "see the k6 output above") + f" (exit {code})")
+    if code == 108 and coverage_path_says_all_failed(results / f"{script.stem}-coverage.json"):
+        print("every endpoint failed the baseline probe (exit 108): nothing was load tested. Fix the target or its data, or set "
+              "APITEST_K6_BASELINE=off to load test them anyway.")
     return code
 
 
