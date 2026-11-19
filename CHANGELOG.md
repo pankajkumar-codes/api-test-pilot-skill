@@ -37,6 +37,11 @@ First release candidate, built in phases (see PLAN.md).
 - Load and soak now produce stage rows (steady state, one row per soak window). Per-endpoint latency and failed-rate rows are produced for up to 100 endpoints (was 20, latency only), and endpoints with failures are listed in the report.
 - `summarize_results.py --root DIR`: `--tests-dir` and `--k6-dir` may be relative or absolute and may use `..` as long as they stay inside the root (default: the current folder), so results in a sibling folder work.
 
+### Added (k6 baseline probe and coverage, issues 61, 63)
+- Before the load starts, each selected endpoint is sent once (paced under the rate cap). An endpoint that already fails with its generated request (invented value rejected, another role's endpoint, a server error) is left out of the run and listed as "not load tested: fails at baseline with status N", so the error-rate threshold judges load, not fixtures. `APITEST_K6_BASELINE=off` keeps them all. If every endpoint fails, the run aborts with a clear message.
+- Stages that never ran (the circuit breaker stopped the run) show "not run" instead of 0, are not counted as good steps in the stress result, and the report says the run stopped early.
+- `run_k6.py` keeps the coverage line the script prints and writes `results/<profile>-coverage.json` (tested endpoints, skipped endpoints with the variable to set, baseline failures). The HTML, Markdown and JSON report show them in the k6 section and say how to read the error rate; without the file the report says coverage was not recorded.
+
 ### Fixed (report evidence and report.json, issues 41, 43)
 - A failure that is a 400, 404, 409, 410, 413, 415 or 422 on a request that used an invented value (no `example` or default in the spec) is now tagged INFO and titled "needs an example", not HIGH or MEDIUM. 401, 403, 429 and 5xx keep their normal rating.
 - `report.json` now lists every finding (up to 5000) instead of the first 100. New fields: `findings_shown` (how many the page and Markdown list) and `findings_truncated`.
