@@ -12,7 +12,8 @@ generated suite's own: intrusive types (security, fuzz, resilience) skip unless 
 APITEST_AUTHORIZED=yes are set by you. This driver never sets them. Chaos and k6 runs need their own configuration and are not started here;
 the exact commands are printed at the end.
 
-Exit codes: 0 no findings, 1 findings in the report, 2 a step could not run (bad input, missing tool).
+Exit codes: 0 unless the verdict is FAIL (INCOMPLETE and INCONCLUSIVE also exit 0, so read the verdict), 1 findings in the report,
+2 a step could not run (bad input, missing tool). Extra pytest arguments go to both passes, so do not pass your own -m.
 """
 from __future__ import annotations
 
