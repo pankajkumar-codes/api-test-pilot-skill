@@ -1000,14 +1000,45 @@ def render_problems(r: Report) -> str:
     return "\n".join(f"- {esc(k)}" + (f" (x{v})" if v > 1 else "") for k, v in sorted(r.problems.items())[:50])
 
 
+# Who can fix a skipped test: the order is the order of the headings in the report. Only the first group is a defect of the skill.
+SKIP_GROUPS = [("skill", "The skill could have done this itself"), ("you", "You need to supply something"),
+               ("safety", "A safety default is off on purpose"), ("target", "The target cannot provide it (or no cause recognised)")]
+_SKIP_RULES = [
+    ("skill", r"create refused as a duplicate|control call with your own tenant answered"),
+    ("safety", r"never sent|read-only mode|destructive call|APITEST_ASSUME_NON_ADMIN|intentionally enabled|set APITEST_TENANT_WRITES|"
+              r"budget of \d+ reached|not in APITEST_FUZZ_ENDPOINTS|spaces the requests|: set APITEST_[A-Z_]+=yes"),
+    ("you", r"\bset APITEST_|\bset [A-Z][A-Z0-9_]{3,}|credentials not configured|no existing id|no role matrix|no token for role|"
+            r"is not installed|are the same, so there is no other tenant|invented path id"),
+]
+
+
+def skip_group(reason: str) -> str:
+    for key, pattern in _SKIP_RULES:
+        if re.search(pattern, reason):
+            return key
+    return "target"
+
+
+def skip_groups(r: "Report") -> list[dict]:
+    """The skip reasons gathered under SKIP_GROUPS, each with its total and up to eight reasons, most common first."""
+    by: dict[str, dict[str, int]] = {k: {} for k, _ in SKIP_GROUPS}
+    for reason, n in r.skips.items():
+        by[skip_group(reason)][reason] = n
+    return [{"key": k, "title": t, "count": sum(by[k].values()),
+             "reasons": [{"reason": reason, "tests": n} for reason, n in sorted(by[k].items(), key=lambda kv: -kv[1])[:8]]}
+            for k, t in SKIP_GROUPS if by[k]]
+
+
 ROLE_MATRIX_NOTE = "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>."
 
 
 def render_limitations(r: Report) -> str:
     out = []
     if r.skips:
-        out.append("Skipped tests, by reason:")
-        out += [f"- {n} x {esc(reason)}" for reason, n in sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]]
+        out.append("Skipped tests, by who can fix it:")
+        for g in skip_groups(r):
+            out.append(f"- {g['title']}: {g['count']}")
+            out += [f"  - {x['tests']} x {esc(x['reason'])}" for x in g["reasons"]]
     if r.unskip:
         out.append("Set these to run the skipped tests (variable: tests it would unskip): "
                    + ", ".join(f"`{v}`: {n}" for v, n in r.unskip_list()) + ".")

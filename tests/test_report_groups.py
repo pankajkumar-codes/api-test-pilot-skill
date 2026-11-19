@@ -71,3 +71,26 @@ def test_unrecognised_extension_and_k6_dir_hints(tmp_path):
                     "--date", "2026-11-18").stderr
     assert "written as Markdown" in err and "--format html" in err
     assert "no manifest.json in --k6-dir" in err
+
+
+def test_skips_are_grouped_by_who_can_fix_them(tmp_path):
+    skip = lambda name, msg: ("api_t.test_x", name, "skip", msg, "")
+    cases = [skip("a1", "create refused as a duplicate (409): the baseline body already exists on the target; use a fresh target"),
+             skip("a2", "create refused as a duplicate (409): the baseline body already exists on the target; use a fresh target"),
+             skip("b1", "no existing id for 'x': set APITEST_VICTIM_X (or run the flows)"),
+             skip("b2", "credentials not configured: set APITEST_BEARERAUTH_TOKEN"),
+             skip("c1", "destructive call: set APITEST_ALLOW_DESTRUCTIVE=yes to run it against data you can lose"),
+             skip("c2", "tenant matrix covers reads only: set APITEST_TENANT_WRITES=yes to also call write operations in the other tenant"),
+             skip("d1", "throttled (429): the call was rate limited, so this check has no verdict; slow the run down"),
+             ("api_t.test_smoke", "ok", "pass", "", "")]
+    out, data = build(tmp_path, cases)
+    groups = {g["key"]: g for g in data["skip_groups"]}
+    assert [g["key"] for g in data["skip_groups"]] == ["skill", "you", "safety", "target"]
+    assert groups["skill"]["count"] == 2 and groups["you"]["count"] == 2 and groups["safety"]["count"] == 2 and groups["target"]["count"] == 1
+    assert data["skips"]   # the flat list stays in report.json
+    html = out.read_text(encoding="utf-8")
+    assert "The skill could have done this itself: 2" in html and "You need to supply something: 2" in html
+    md = tmp_path / "r.md"
+    summarize("--junit", junit(tmp_path, cases), "--base-url", "http://127.0.0.1:9", "-o", md, "--format", "md", "--date", "2026-11-18")
+    text = md.read_text(encoding="utf-8")
+    assert "Skipped tests, by who can fix it:" in text and "- A safety default is off on purpose: 2" in text

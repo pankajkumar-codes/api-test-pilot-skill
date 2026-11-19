@@ -130,7 +130,7 @@ def test_real_pytest_clean_server_gives_a_pass_report(rest_suite, tmp_path, inta
     assert "**Result: PASS**" in text and "## Findings (most severe first)\nNone." in text
     assert not finding_blocks(text)
     assert "# Test report — Mock Pets API — 2026-11-12" in text
-    assert "Skipped tests, by reason:" in text, "skips are reported with their reasons, not hidden"
+    assert "Skipped tests, by who can fix it:" in text, "skips are reported with their reasons, not hidden"
     assert f"of {len(results)} tests" in text
 
 
