@@ -616,11 +616,33 @@ class Report:
                     if isinstance(expr, str) and isinstance(crossed, bool):   # in --summary-export, true = crossed
                         info["thresholds"].append({"metric": name, "expr": expr, "crossed": crossed, "observed": self._observed(v, expr)})
         info["checks"] = self._k6_checks(doc.get("root_group"))
+        info["coverage"] = self._k6_coverage(Path(path).with_name(f"{profile}-coverage.json"))
         plan = self._k6_plan(profile)
         info["peak"] = self._k6_peak(info, plan, stat("vus_max", "max") or stat("vus_max", "value"))
         info["knee"] = self._k6_knee(info, plan) if profile == "stress" else None
         self.k6.append(info)
         self._k6_findings(info)
+
+    @staticmethod
+    def _k6_coverage(path: Path) -> dict | None:
+        """Tested and skipped endpoints, written by run_k6.py next to the summary. None when the file is not there."""
+        try:
+            if path.stat().st_size > 2_000_000:
+                return None
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(doc, dict):
+            return None
+        return {
+            "tested": [plain(t, 80) for t in doc.get("tested") or [] if isinstance(t, str)][:500],
+            "skipped": [{"endpoint": plain(s.get("endpoint"), 80), "reason": plain(s.get("reason"), 200),
+                         "set": [plain(v, 80) for v in s.get("set") or [] if isinstance(v, str)][:10]}
+                        for s in doc.get("skipped") or [] if isinstance(s, dict)][:500],
+            "baseline_failed": [{"endpoint": plain(s.get("endpoint"), 80), "status": s.get("status") if isinstance(s.get("status"), int) else 0}
+                                for s in doc.get("baseline_failed") or [] if isinstance(s, dict)][:500],
+            "baseline_probe": doc.get("baseline_probe") is not False,
+        }
 
     def _k6_plan(self, profile: str) -> dict:
         """The planned shape of this profile from manifest.json (written by gen_k6.py), or {} when it is not there."""
@@ -827,6 +849,17 @@ def peak_line(k: dict) -> str:
     return f"Peak reached: {rps}, {vus} virtual users{plan}. Hard caps: {fmt(p.get('hard_cap_rps'))} req/s, {fmt(p.get('hard_cap_vus'))} VUs."
 
 
+def coverage_text(cov: dict) -> str:
+    """Which endpoints the run exercised, and how the error rate should be read."""
+    n_fail = len(cov["baseline_failed"])
+    line = f"Endpoints load tested: {len(cov['tested'])}; skipped: {len(cov['skipped'])}; dropped because they fail at baseline: {n_fail}."
+    if n_fail:
+        line += " The failed-request rate leaves those endpoints out (they were sent once before the load, not during it)."
+    if not cov["baseline_probe"]:
+        line += " The baseline probe was off (APITEST_K6_BASELINE=off), so endpoints that always fail are inside the error rate."
+    return line
+
+
 def knee_text(k: dict) -> str:
     """Stress result in words: the last good step and the first bad one, or that no limit was found."""
     kn = k["knee"]
@@ -861,6 +894,15 @@ def render_k6(r: Report) -> str:
                 [esc(plain(t["metric"], 90)), esc(plain(t["expr"], 40)), fmt(t["observed"]), "**CROSSED**" if t["crossed"] else "ok"]
                 for t in k["thresholds"][:100]]))
         out.append(peak_line(k))
+        cov = k.get("coverage")
+        if cov:
+            out.append(esc(coverage_text(cov)))
+            if cov["skipped"] or cov["baseline_failed"]:
+                out.append(table(["Endpoint (k6 tag)", "Not load tested because", "Set"], (
+                    [[esc(s["endpoint"]), esc(s["reason"]), esc(", ".join(s["set"]))] for s in cov["skipped"][:60]]
+                    + [[esc(s["endpoint"]), f"fails at baseline with status {s['status']}", ""] for s in cov["baseline_failed"][:60]])))
+        else:
+            out.append("Tested and skipped endpoints: not recorded (run the script through `run_k6.py`, which writes `<profile>-coverage.json` next to the summary).")
         if k["stages"]:
             out.append(table(["Stage", "p95 latency", "Failed-request rate"], [
                 [esc(plain(s, 40)), fmt(v.get("p95"), " ms"), fmt(v.get("failed"))] for s, v in sorted(k["stages"].items())]))

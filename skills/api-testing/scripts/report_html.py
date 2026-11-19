@@ -66,7 +66,8 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         # report.json carries every finding (up to JSON_MAX_FINDINGS); the page and the Markdown list the first --max-findings
         "findings_shown": min(limit, len(findings)), "findings_truncated": len(findings) < len(r.findings),
         "coverage": coverage, "endpoints_without_results": none_run, "has_intake": bool(r.index.eps),
-        "k6": [{**k, "peak_text": mod.peak_line(k), "knee_text": mod.knee_text(k) if k.get("knee") else ""} for k in r.k6],
+        "k6": [{**k, "peak_text": mod.peak_line(k), "knee_text": mod.knee_text(k) if k.get("knee") else "",
+                 "coverage_text": mod.coverage_text(k["coverage"]) if k.get("coverage") else ""} for k in r.k6],
         "run_problems": dict(sorted(r.problems.items())[:50]),
         "skips": dict(sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]),
         "inputs": [{"kind": k, "file": n, "sha256_prefix": d} for k, n, d in r.inputs],
@@ -247,7 +248,16 @@ def section_k6(d: dict) -> str:
                            for n, v in failing[:30])
             ep = ('<p class="muted">Endpoints with failed requests (k6 tag):</p><div class="scroll"><table><thead><tr><th>Endpoint</th>'
                   f'<th>Failed rate</th><th>p95</th></tr></thead><tbody>{rows}</tbody></table></div>')
-        blocks.append(f'<h3>Profile {e(k["profile"])}</h3><div class="cards">{stats}</div>{peak}{th}{st}{knee}{ep}')
+        cov = k.get("coverage")
+        if cov:
+            rows = "".join(f'<tr><td>{e(s["endpoint"])}</td><td>{e(s["reason"])}</td><td>{e(", ".join(s["set"]))}</td></tr>' for s in cov["skipped"][:60])
+            rows += "".join(f'<tr><td>{e(s["endpoint"])}</td><td>fails at baseline with status {e(s["status"])}</td><td></td></tr>' for s in cov["baseline_failed"][:60])
+            covh = f'<p>{e(k["coverage_text"])}</p>' + (
+                '<details><summary>Endpoints not load tested</summary><div class="scroll"><table><thead><tr><th>Endpoint (k6 tag)</th>'
+                f'<th>Not load tested because</th><th>Set</th></tr></thead><tbody>{rows}</tbody></table></div></details>' if rows else "")
+        else:
+            covh = '<p class="muted">Tested and skipped endpoints: not recorded (run the script through run_k6.py).</p>'
+        blocks.append(f'<h3>Profile {e(k["profile"])}</h3><div class="cards">{stats}</div>{peak}{covh}{th}{st}{knee}{ep}')
     return ('<section><h2>Load and performance (k6)</h2>' + "".join(blocks)
             + '<p class="muted">A short or default-rate run shows shape, not capacity.</p></section>')
 

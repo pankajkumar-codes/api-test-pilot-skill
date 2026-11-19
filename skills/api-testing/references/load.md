@@ -46,6 +46,7 @@ the server cannot keep up with the planned rate (a finding for load and soak, ex
 ## Load profile
 Ramp to `--rate`, hold (`--duration`, default 3 min), ramp down. **Pass/fail**: p95 < `--p95-ms` (default 500), p99 < 3x that, error rate < `--error-rate`
 (default 1 %), checks > 99 %, plus the breaker. Pick `--rate` from real traffic (peak requests per second), not a guess; ask the user.
+Before the load starts every endpoint is sent once; one that already fails with its generated request is left out and listed (`APITEST_K6_BASELINE=off` keeps it). Coverage (tested, skipped with the variable to set, dropped at baseline) is in `results/<profile>-coverage.json` and in the report.
 Report: p95/p99 per endpoint, error rate, which endpoints were skipped and why, and the rerun command. Thresholds are the user's SLO:
 say what you assumed.
 
