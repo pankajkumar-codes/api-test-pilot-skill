@@ -589,7 +589,7 @@ class Report:
                 dropped += 1
         commands = curls + [cmd]
         lines = detail[:12]
-        cause = rec["name"].replace(rec["op_id"], "<op>") if rec["op_id"] and rec["op_id"] in rec["name"] else ""
+        cause = rec["name"].replace(rec["op_id"], "<op>", 1) if rec["op_id"] and rec["op_id"] in rec["name"] else ""
         return Finding(sev, verdict or rec["name"], rec["endpoint"], rec["type"], rating,
                        [plain(ln, 220) for ln in lines], commands, owasp,
                        " ".join(x for x in (
@@ -801,13 +801,12 @@ def cause_groups(r: Report) -> list[dict]:
 
 
 def verdict_info(r: Report) -> tuple[str, str]:
-    """(status, sentence). Status is FAIL, INCOMPLETE, INCONCLUSIVE or PASS; the sentence has no markup."""
+    """(status, sentence). Status is FAIL, INCOMPLETE, INCONCLUSIVE, NOTES or PASS; the sentence has no markup."""
     _, tot = tally(r)
     sev_counts = {s: sum(1 for f in r.findings if f.severity == s) for s in SEVERITIES}
     sev_txt = ", ".join(f"{s} {n}" for s, n in sev_counts.items() if n)
     if r.findings and all(f.severity == "INFO" for f in r.findings):
-        status, text = "NOTES", (f"no failing finding above INFO; {len(r.findings)} INFO note(s), mostly values the skill had to invent "
-                                 "(see the examples hint in the limitations).")
+        status, text = "NOTES", (f"no failing finding above INFO; {len(r.findings)} INFO note(s), see the limitations for what to set or review.")
     elif r.findings:
         groups = len(cause_groups(r))
         status, text = "FAIL", f"{len(r.findings)} finding(s) in {groups} cause group(s): {sev_txt}."
