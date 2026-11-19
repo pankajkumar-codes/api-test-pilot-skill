@@ -162,7 +162,9 @@ def pytest_collection_modifyitems(config, items):
         if not item.get_closest_marker("destructive"):
             return 0
         # authorization probes first: they must run while the configured account still exists
-        return 1 if item.name.startswith(("test_api1_bola", "test_api5_bfla")) else 2
+        if item.name.startswith(("test_api1_bola", "test_api5_bfla")):
+            return 1
+        return 2.5 if item.name.startswith("test_fuzz") else 2   # the fuzzed DELETE goes after the tests that expect the record to exist
 
     items.sort(key=rank)  # stable: everything else keeps its order. Under pytest-xdist each worker orders its own share, so
     # run destructive suites with `-p no:xdist` (or `-n 0`) if the order matters to you.

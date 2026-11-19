@@ -110,6 +110,10 @@ def build_stages(profile: str, rate: int, *, hold: int | None = None, steps: int
         dur = max(floor, round(dur * scale))
         if label in ("spike_up", "spike_down"):
             dur = max(dur, SPIKE_MIN_RAMP_S)
+        else:
+            # --quick shortens a stage, but never below what the ramp limit needs for this change of rate
+            prev = st[-1]["target"] if st else 0
+            dur = max(dur, math.ceil(abs(target - prev) / MAX_RAMP_RPS_PER_S))
         st.append({"duration": int(dur), "target": int(target), "label": label})
 
     if profile == "load":
@@ -307,7 +311,7 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
             "graphql": False,
         })
     if invented:
-        notes.append(f"{len(invented)} endpoint(s) send an invented value for a required query or body field the spec gives no example for "
+        notes.append(f"{len(invented)} endpoint(s) send an invented value for a query or body field the spec gives no example for "
                      f"(first: {', '.join(invented[:5])}). Put valid values in a JSON file as {{\"operationId.field\": value}} and set "
                      "APITEST_EXAMPLES_FILE when you run the script; ids for path parameters go in APITEST_IDS_FILE.")
     return out

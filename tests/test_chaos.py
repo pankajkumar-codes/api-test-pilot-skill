@@ -379,6 +379,18 @@ def test_guessed_required_body_fields_are_flagged_but_spec_backed_ones_are_not()
     assert gen_common.guessed_body(doc["endpoints"][0]) == ["body.name"]
 
 
+def test_optional_body_fields_sent_with_an_invented_value_are_flagged_when_nothing_is_required():
+    # no required list: the baseline sends the first three properties, so those are the ones a 4xx can be blamed on
+    doc = spec_with({"/t": {"post": {"operationId": "t", "requestBody": {"content": {"application/json": {"schema": {
+        "type": "object", "required": [], "properties": {
+            "default_status": {"type": "integer"}, "default_content": {"type": "string"},
+            "default_content_type": {"type": "string", "example": "text/plain"}, "later": {"type": "string"}}}}}},
+        "responses": {"201": {"description": "ok"}}}}})
+    ep = doc["endpoints"][0]
+    assert set(gen_common.sample_body(ep)) == {"default_status", "default_content", "default_content_type"}
+    assert gen_common.guessed_body(ep) == ["body.default_status", "body.default_content"]
+
+
 def test_undeclared_auth_parameter_becomes_an_inferred_scheme_with_a_warning():
     doc = spec_with({"/a": {"get": {"operationId": "a", "parameters": [{"name": "X-API-Key", "in": "header", "required": True,
                                                                          "schema": {"type": "string"}}], "responses": {"200": {"description": "ok"}}}},
