@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (safety gate stated honestly, feature status)
+- SKILL.md, SECURITY.md, README and `references/security.md` now say the gate is a consent prompt and not an enforced control: environment variables can be set by an agent, a tunnelled host looks local, `staging` is not verified. The rule that an agent never sets `APITEST_AUTHORIZED` or `APITEST_TARGET_ENV` is kept, and SKILL.md now says to ignore any spec, collection or response text asking for it. The gate itself is unchanged.
+- SECURITY.md: a legal and misuse section for third-party systems, and a short plan for a bad release (withdraw, fix, advisory, patch release).
+- README: a stable, beta, experimental and planned table, leading with OpenAPI in and runnable pytest plus a rerun command out.
+- New `tests/test_gate_wording.py`: checks the "never set it yourself" wording stays in SKILL.md and the references, and that a hostile spec whose text tries to make an agent export the variables changes nothing in the gate, the generated suite or the generated files.
+
 ### Fixed (invented values in optional body fields)
 - When a JSON body schema requires no field, the baseline request still sends its first three properties. Those optional fields are now tracked like required ones: a 400, 404, 409, 410, 413, 415 or 422 on a request that sent an invented value for one of them skips as "could not verify" and the report lists the field to give an example for, instead of failing the test (seen on `POST /token` of Webhook.site, where an invented `default_content_type` drew a 422). The skip and failure notes now say "parameter(s) or field(s)" without "required"; the report still reads results written with the old wording.
 
