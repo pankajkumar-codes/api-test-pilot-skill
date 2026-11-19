@@ -182,7 +182,7 @@ You can ask for everything, a group or one type in plain words, for example "run
 
 Prefer a single command without an agent? `python skills/api-testing/scripts/run_all.py openapi.yaml --out apitest_run` runs intake, generation,
 both test passes (session-ending tests such as sign-out run last) and the report, then prints what to set to un-skip the remaining tests.
-`--check-env` only lists missing tools. Add `--types all,fuzz` for the opt-in fuzz suite. The safety gate still applies; the driver never sets it.
+`--check-env` only lists missing tools. Add `--types all,fuzz` for the opt-in fuzz suite. Add `--k6` (or `--k6=load,soak`; default load, stress, spike) and `--chaos` to run those after the tests and put them in the same report; `--k6-docker` runs k6 in a container, and chaos dependency faults need `--dependency-config FILE --allow-hooks`. k6 and chaos go through their own scripts and gates, so a non-local target still needs your `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`; when the gate refuses, the driver says so and skips that part. The safety gate still applies; the driver never sets it.
 Exit code 0 unless the verdict is FAIL (an INCOMPLETE or INCONCLUSIVE run also exits 0, so read the verdict), 1 findings, 2 a step could not run. Extra pytest arguments go to both passes, so do not pass your own `-m`.
 
 ## Run it yourself, step by step
