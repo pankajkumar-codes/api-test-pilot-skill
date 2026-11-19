@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (report hints, issues 86, 87)
+- The report says "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>" in its limitations (HTML, Markdown and `role_matrix_note` in report.json) whenever that test skipped for lack of a matrix.
+- `summarize_results.py` notes on stderr which format an `-o` path without `.html` or `.md` was written as, and when `--k6-dir` has no `manifest.json` (it is the folder the k6 scripts were generated into, not the results folder).
+
 ### Changed (fuzz budget, rate and hostile inputs, issue 49)
 - The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `min(APITEST_FUZZ_CASES, budget / endpoints)` cases (a lower `APITEST_FUZZ_CASES` is honored), so endpoints late in the list are no longer starved. When the budget leaves fewer than 20 cases per endpoint (the full hostile pass is up to 19) the pass is cut at its tail and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it; the hard cap of 5000 covers about 250 endpoints. Write operations are fuzzed before reads.
 - Every endpoint starts with a fixed hostile-input pass (NUL byte in each body field and query parameter, then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, null). This covers the "no 5xx on hostile strings" check without a separate suite.

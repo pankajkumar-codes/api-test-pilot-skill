@@ -70,6 +70,8 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
                  "coverage_text": mod.coverage_text(k["coverage"]) if k.get("coverage") else ""} for k in r.k6],
         "run_problems": dict(sorted(r.problems.items())[:50]),
         "cause_groups": mod.cause_groups(r)[:50],
+        "role_matrix_run": not r.role_matrix_skipped,
+        "role_matrix_note": mod.ROLE_MATRIX_NOTE if r.role_matrix_skipped else "",
         "unskip": [{"variable": v, "tests": n} for v, n in r.unskip_list(200)],
         "needs_example": {k: sorted(v) for k, v in sorted(r.needs_example.items())[:200]},
         "skips": dict(sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]),
@@ -310,6 +312,8 @@ def section_limits(d: dict) -> str:
     if d["run_problems"]:
         items.append("<h3>Run problems</h3><ul>" + "".join(f"<li>{e(k)}" + (f" (x{v})" if v > 1 else "") + "</li>" for k, v in d["run_problems"].items()) + "</ul>")
     lim = []
+    if d.get("role_matrix_note"):
+        lim.append(e(d["role_matrix_note"]))
     if d.get("unskip"):
         lim.append("Set these to run the skipped tests (variable: tests it would unskip): "
                    + ", ".join(f"<code>{e(u['variable'])}</code>: {u['tests']}" for u in d["unskip"][:30]))
