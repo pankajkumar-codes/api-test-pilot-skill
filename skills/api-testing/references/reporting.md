@@ -38,8 +38,10 @@ Samples: `examples/sample-report.html` (seeded flaws) and `examples/spring-boot-
 - Duplicates: the same classname + test name in one or several JUnit files (reruns, merged runs) counts once; the worst outcome wins.
 - Pytest commands: a test name that was truncated (over 200 characters) or scrubbed is not a valid node id, so the command runs the
   whole test file instead of one test.
-- Result line: FAIL (any finding), INCOMPLETE (errors, no findings), INCONCLUSIVE (nothing executed: empty or all-skipped suite, k6
+- Result line: FAIL (any finding above INFO; the line counts cause groups), NOTES (only INFO findings, mostly values that need an example), INCOMPLETE (errors, no findings), INCONCLUSIVE (nothing executed: empty or all-skipped suite, k6
   without requests), PASS (at least one executed passing test or a k6 run with requests, and no findings).
+- First screen: "could not run" (skipped plus errored) beside passed and failed, and "To run more tests set: VAR (n), ..." from the skip reasons.
+  Findings that share a cause (the same test over many operations) are listed first in a **Root causes** table, then individually.
 - Run problems: tests that errored before running (fixtures, setup). They are not findings and never count as a pass.
 - Not tested / limitations: skip reasons with counts, intake endpoints with no result, what was not supplied.
 

@@ -281,6 +281,7 @@ or a CI run. It has the pass/fail verdict, a chart and totals, results per test 
 what was expected and a command to reproduce it), k6 numbers with threshold results, per-endpoint coverage, skip reasons and limitations. Chaos runs show up as their own test type
 (`chaos_run.py` writes a JUnit file you pass with `--junit`; chaos cases have no request or response bodies). It follows
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
+The summary gives passed, failed and could-not-run counts and the variables to set to run the skipped tests (with how many tests each unskips); findings are also grouped by root cause (one group per repeated test). A run whose only findings are informational gets the verdict NOTES, not FAIL.
 
 ### File GitHub issues for the failures (optional)
 

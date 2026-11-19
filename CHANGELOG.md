@@ -24,6 +24,12 @@ First release candidate, built in phases (see PLAN.md).
 ### Added (empty optional body, issue 50)
 - When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
 
+### Changed (report polish, issue 53)
+- The result line counts findings in cause groups ("239 finding(s) in 6 cause group(s)") and gives a "could not run" figure (skipped plus errored) beside passed and failed. The variables that would unskip the most tests are named on the first screen ("To run more tests set: APITEST_VICTIM_X (31), ...").
+- A **Root causes** table (Markdown and HTML, and `cause_groups` in report.json) comes before the individual findings when something repeats. The cause is the test name with the operation id removed.
+- A run whose only findings are INFO now has the verdict NOTES instead of FAIL.
+- A throttled (429) skip names the setting to change: `APITEST_DELAY_MS=250` or `APITEST_RPS=4`.
+
 ### Fixed (review follow-ups on the tenant PR)
 - The documented-401 contract test (`*_error_contract_401`) uses the same probe as the no-credentials test: a real id for reads, an invented one for writes, and it skips (naming `APITEST_PATH_<NAME>`) when an invented id draws a 404 before the credentials are checked, instead of failing.
 - The structured-field name matcher also recognises prefix and compound names such as `emailAddress`, `phoneNumber`, `dob` and `api_key`, but not plain words like `address`, `codename` or `company`.

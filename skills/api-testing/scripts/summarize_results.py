@@ -359,9 +359,10 @@ def ep_key(ep: dict) -> str:
 
 # --------------------------------------------------------------------------- findings
 class Finding:
-    def __init__(self, severity, title, endpoint, kind, rating, lines, commands, owasp="", note=""):
+    def __init__(self, severity, title, endpoint, kind, rating, lines, commands, owasp="", note="", cause=""):
         self.severity, self.title, self.endpoint, self.kind, self.rating = severity, title, endpoint, kind, rating
         self.lines, self.commands, self.owasp, self.note = lines, commands, owasp, note
+        self.cause = cause or title   # what repeats: the test with its operation id removed, else the verdict
 
 
 def case_type(classname: str) -> tuple[str, str]:
@@ -528,6 +529,7 @@ class Report:
             else:
                 label = "(API-wide)"
             rec = {"type": ctype, "stem": stem, "name": name, "status": c["status"], "endpoint": label, "time": c["time"],
+                   "op_id": ep["id"] if ep is not None else "",
                    "http": parse_exchanges(c.get("http_raw", ""))}
             self.cases.append(rec)
             rec["reason"] = ""
@@ -587,6 +589,7 @@ class Report:
                 dropped += 1
         commands = curls + [cmd]
         lines = detail[:12]
+        cause = rec["name"].replace(rec["op_id"], "<op>") if rec["op_id"] and rec["op_id"] in rec["name"] else ""
         return Finding(sev, verdict or rec["name"], rec["endpoint"], rec["type"], rating,
                        [plain(ln, 220) for ln in lines], commands, owasp,
                        " ".join(x for x in (
@@ -596,7 +599,7 @@ class Report:
                            REDACTED_NOTE if any("<redacted>" in c for c in curls) else "",
                            f"{dropped} curl line(s) from the result file were dropped: not the exact shape the generated runtime writes, or "
                            f"the host does not match the target ({'--base-url' if self.args.base_url else 'pass --base-url to include them'})."
-                           if dropped else "") if x))
+                           if dropped else "") if x), cause=cause)
 
     # ---- k6
     def add_k6(self, path: str) -> None:
@@ -785,13 +788,29 @@ def tally(r: Report) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
     return by, tot
 
 
+def cause_groups(r: Report) -> list[dict]:
+    """Findings that share a cause (the same test over many operations, or the same verdict), biggest first. One group per cause."""
+    groups: dict[tuple[str, str], dict] = {}
+    for f in r.findings:
+        g = groups.setdefault((f.kind, f.cause), {"cause": f.cause, "kind": f.kind, "count": 0, "severity": f.severity,
+                                                  "example": f.endpoint, "verdict": f.title})
+        g["count"] += 1
+        if SEVERITIES.index(f.severity) < SEVERITIES.index(g["severity"]):
+            g["severity"] = f.severity
+    return sorted(groups.values(), key=lambda g: (SEVERITIES.index(g["severity"]), -g["count"], g["cause"]))
+
+
 def verdict_info(r: Report) -> tuple[str, str]:
     """(status, sentence). Status is FAIL, INCOMPLETE, INCONCLUSIVE or PASS; the sentence has no markup."""
     _, tot = tally(r)
     sev_counts = {s: sum(1 for f in r.findings if f.severity == s) for s in SEVERITIES}
     sev_txt = ", ".join(f"{s} {n}" for s, n in sev_counts.items() if n)
-    if r.findings:
-        status, text = "FAIL", f"{len(r.findings)} finding(s): {sev_txt}."
+    if r.findings and all(f.severity == "INFO" for f in r.findings):
+        status, text = "NOTES", (f"no failing finding above INFO; {len(r.findings)} INFO note(s), mostly values the skill had to invent "
+                                 "(see the examples hint in the limitations).")
+    elif r.findings:
+        groups = len(cause_groups(r))
+        status, text = "FAIL", f"{len(r.findings)} finding(s) in {groups} cause group(s): {sev_txt}."
     elif tot["error"]:
         status, text = "INCOMPLETE", "no findings, but some tests errored before running (see Run problems)."
     elif not (tot["passed"] or any((k["overall"]["requests"] or 0) > 0 for k in r.k6)):
@@ -799,7 +818,11 @@ def verdict_info(r: Report) -> tuple[str, str]:
     else:
         status, text = "PASS", "no failing tests or crossed thresholds in the supplied results (see limitations for what was not run)."
     if r.cases:
-        text += f" {tot['passed']} passed, {tot['failed']} failed, {tot['skipped']} skipped, {tot['error']} errored of {len(r.cases)} tests."
+        text += (f" {tot['passed']} passed, {tot['failed']} failed, {tot['skipped'] + tot['error']} could not run "
+                 f"({tot['skipped']} skipped, {tot['error']} errored) of {len(r.cases)} tests.")
+        hints = r.unskip_list(5)
+        if hints:
+            text += " To run more tests set: " + ", ".join(f"{v} ({n})" for v, n in hints[:5]) + "."
     return status, text
 
 
@@ -951,6 +974,10 @@ def render_findings(r: Report, limit: int) -> str:
         return "None."
     ordered = sorted(r.findings, key=lambda f: (SEVERITIES.index(f.severity), f.endpoint, f.kind, f.title))
     out = []
+    groups = cause_groups(r)
+    if len(groups) < len(r.findings):   # something repeats: list the causes first
+        out.append("### Root causes\n\n" + table(["Findings", "Worst", "Cause", "Example endpoint"], [
+            [str(g["count"]), g["severity"], esc(plain(g["cause"], 110)), esc(plain(g["example"], 80))] for g in groups[:15]]))
     for f in ordered[:limit]:
         meta = [f"Type: {esc(f.kind)}", f"Rating: {esc(f.rating)}"] + ([f"OWASP: {esc(f.owasp)}"] if f.owasp else [])
         out.append(f"### [{f.severity}] {md(f.title, 110)}\n"
