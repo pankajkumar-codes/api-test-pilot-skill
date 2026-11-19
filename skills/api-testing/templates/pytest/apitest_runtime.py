@@ -600,10 +600,14 @@ def _tagged(value: str, meta: dict) -> str:
     return f"{local}-{tag}{at}{domain}"
 
 
+def unique_bodies_on() -> bool:
+    return os.environ.get("APITEST_UNIQUE_BODIES", "").lower() not in ("no", "0", "false")
+
+
 def unique_body(ep: Endpoint, payload: Any) -> Any:
     """The baseline create body with a run tag on fields the server may keep unique, so each create is a new record.
     APITEST_UNIQUE_BODIES=no sends the body untouched; APITEST_RUN_ID pins the tag prefix."""
-    if not ep.unique or not isinstance(payload, dict) or os.environ.get("APITEST_UNIQUE_BODIES", "").lower() in ("no", "0", "false"):
+    if not ep.unique or not isinstance(payload, dict) or not unique_bodies_on():
         return payload
     out = dict(payload)
     for name, meta in ep.unique.items():
@@ -679,9 +683,12 @@ def expect_status(resp: requests.Response, codes: Any, what: str = "") -> None:
         fail(resp, f"{what or 'unexpected status'}: expected {list(codes)}, got {resp.status_code}")
 
 
+def is_duplicate_refusal(resp: requests.Response) -> bool:
+    return resp.status_code == 409 or (resp.status_code in (400, 422) and bool(_DUPLICATE_RE.search(resp.text or "")))
+
+
 def expect_ok(resp: requests.Response, ep: Endpoint, what: str = "") -> None:
-    if (ep.method == "POST" and not _status_ok(resp.status_code, ep.ok or ("2xx",))
-            and (resp.status_code == 409 or (resp.status_code in (400, 422) and _DUPLICATE_RE.search(resp.text or "")))):
+    if ep.method == "POST" and not _status_ok(resp.status_code, ep.ok or ("2xx",)) and is_duplicate_refusal(resp):
         # Every create test sends the same body. If the target keeps data and enforces unique fields, only the
         # first create works. That is a test data problem, not a bug, so report a skip.
         pytest.skip(f"create refused as a duplicate ({resp.status_code}): the baseline body already exists on the target; "
@@ -1312,7 +1319,7 @@ class Api:
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
              query: Any = UNSET, headers: dict | None = None, body: Any = UNSET, raw: Any = None,
              content_type: Any = UNSET, timeout: float | None = None, victim: bool = False,
-             transient: str = "skip", _refresh: bool = True) -> requests.Response:
+             transient: str = "skip", _refresh: bool = True, _retry_dup: bool = True) -> requests.Response:
         """transient: "skip" (default) skips the test when the target is unreachable; "raise" lets the error propagate."""
         if ep.method not in ("GET", "HEAD", "OPTIONS"):
             skip_writes_on_production()
@@ -1374,6 +1381,10 @@ class Api:
         if resp.status_code == 401 and _refresh and auth == "default" and ep.sec and self.refresh_token(ep, who):
             return self.send(ep, auth=auth, who=who, path=path, query=query, headers=headers, body=body, raw=raw,
                              content_type=content_type, timeout=timeout, victim=victim, transient=transient, _refresh=False)
+        if (_retry_dup and ep.unique and unique_bodies_on() and ep.method == "POST" and body is UNSET and raw is None and is_duplicate_refusal(resp)):
+            # a tagged field still collided (the server keeps another field unique): one more try with a new tag
+            return self.send(ep, auth=auth, who=who, path=path, query=query, headers=headers, body=body, raw=raw,
+                             content_type=content_type, timeout=timeout, victim=victim, transient=transient, _refresh=_refresh, _retry_dup=False)
         resp._optional_headers = tuple(ep.optional_headers)  # type: ignore[attr-defined]
         resp._guessed = tuple(  # type: ignore[attr-defined]
             n for n in ep.guessed

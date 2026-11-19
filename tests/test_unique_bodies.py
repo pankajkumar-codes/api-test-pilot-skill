@@ -185,3 +185,59 @@ def test_a_secret_named_const_never_reaches_the_generated_files(tmp_path):
     assert gen_pytest.scrub(schema)["properties"]["password"] == {"type": "string"}   # the generator's own pass, whatever the parser did
     for f in (tmp_path / "suite").glob("*.py"):
         assert "hunter2-canary" not in f.read_text(), f.name
+
+
+def test_a_description_about_an_identifier_does_not_tag_a_reference_field():
+    post = _post_spec({"customer_id": {"type": "string", "description": "The unique identifier of the customer"},
+                       "owner_ref": {"type": "string", "description": "Must be unique per tenant"},
+                       "api_key": {"type": "string", "description": "Is unique"},
+                       "forced_id": {"type": "string", "x-unique": True},
+                       "label": {"type": "string", "description": "Must be unique per tenant"},
+                       "title": {"type": "string", "description": "Uniquely describes the thing"}})
+    assert set(gen_common.unique_body_fields(post)) == {"forced_id", "label"}
+
+
+def test_fields_the_spec_says_are_unique_are_tagged_too():
+    post = _post_spec({"tag": {"type": "string", "description": "Must be unique across the account."},
+                       "legacy": {"type": "string", "x-unique": True},
+                       "note": {"type": "string", "description": "Free text, not unique-looking."},
+                       "ref": {"type": "string", "description": "Unique per tenant.", "enum": ["a"]},
+                       "invoice_number": {"type": "string"}})
+    assert set(gen_common.unique_body_fields(post)) == {"tag", "legacy", "invoice_number"}
+
+
+class _FirstDuplicate(BaseHTTPRequestHandler):
+    calls = 0
+
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length", 0)))
+        _FirstDuplicate.calls += 1
+        dup = _FirstDuplicate.calls == 1 or self.path == "/always"
+        self.send_response(409 if dup else 201)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"error": "already exists"}' if dup else b"{}")
+
+    def log_message(self, *_a):
+        pass
+
+
+def test_a_duplicate_refusal_is_retried_once_with_a_new_tag_and_still_skips_if_it_repeats(rt, monkeypatch):
+    monkeypatch.setenv("APITEST_TARGET_ENV", "local")
+    srv = HTTPServer(("127.0.0.1", 0), _FirstDuplicate)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        api = rt.Api(f"http://127.0.0.1:{srv.server_address[1]}", {})
+        ep = rt.Endpoint(id="x", method="POST", path="/users", ok=("2xx",), body={"name": "n"}, unique={"name": {}})
+        assert api.send(ep).status_code == 201 and _FirstDuplicate.calls == 2   # first refused, second (new tag) accepted
+        _FirstDuplicate.calls = 5
+        always = rt.Endpoint(id="y", method="POST", path="/always", ok=("2xx",), body={"name": "n"}, unique={"name": {}})
+        r = api.send(always)
+        assert r.status_code == 409 and _FirstDuplicate.calls == 7   # one retry, then the caller's skip
+        with pytest.raises(pytest.skip.Exception):
+            rt.expect_ok(r, always)
+        plain = rt.Endpoint(id="z", method="POST", path="/always", ok=("2xx",), body={"name": "n"})   # no tagged field: no retry
+        api.send(plain)
+        assert _FirstDuplicate.calls == 8
+    finally:
+        srv.shutdown()

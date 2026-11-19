@@ -49,7 +49,7 @@ token lifetime set `APITEST_TOKEN_CMD`; for sign-in operations set `APITEST_LOGI
   need an existing username). Bodies the tests build themselves (invalid, edge, security payloads) are not tagged, and neither are multipart bodies or
   the k6 load scripts. `APITEST_UNIQUE_BODIES=no` turns it off. `APITEST_RUN_ID` pins the 4-character prefix so a run can be reproduced; a rerun then
   repeats the same values, so do not pin it for repeated creates on a target that keeps data. Under pytest-xdist each worker adds its number to the tag, so
-  parallel workers do not send the same value.
+  parallel workers do not send the same value. String fields the spec says are unique (`x-unique`, `unique: true`, or a description like "must be unique"; not for fields named like an id, ref or key) are tagged too, and a create refused as a duplicate is retried once with a new tag before it skips.
   If a unique field the tool cannot see still collides, the skip stays: use a fresh target or clear the earlier test data.
 - Skips with a reason also cover a target that cannot be reached (failed connect after `APITEST_RETRIES` retries of GET/HEAD/OPTIONS; writes are never retried; smoke tests and `APITEST_UNREACHABLE=fail` fail instead). A drop, reset or hang *after* connecting always fails.
 - Pace requests on shared targets with `APITEST_DELAY_MS` or `APITEST_RPS` (CLI: `--apitest-delay-ms`, `--apitest-rps`); the slower limit wins.
