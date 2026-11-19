@@ -3,6 +3,30 @@
 An [Agent Skill](https://agentskills.io/specification) that plans, generates and runs API tests from an OpenAPI spec,
 a GraphQL schema, a `.proto` file, a Postman collection or curl examples. It writes plain pytest and k6 files you can read, edit and keep.
 
+**In:** an OpenAPI spec. **Out:** a folder of plain, runnable pytest files, and the exact command to run them again.
+
+```bash
+python skills/api-testing/scripts/run_all.py openapi.yaml --out apitest_run   # prints the rerun command at the end
+```
+
+### What is stable and what is not
+
+| Feature | Status | Notes |
+|---|---|---|
+| OpenAPI / Swagger in, pytest out (smoke, positive, negative, edge, data-validation, contract, integration) | Stable | The core. Tested in CI on Python 3.11 to 3.13 and run against a real local service. |
+| Report (HTML and JSON), rerun command per finding, `spec_diff.py` breaking-change report | Stable | |
+| Security checks (OWASP API Top 10) | Beta | Detection is shown on seeded flaws in local mocks only, not on real third-party APIs. Expect false positives and read each finding. |
+| Resilience (idempotency, pagination, rate limits) | Beta | |
+| GraphQL, Postman and curl input | Beta | Fewer real-world runs than OpenAPI. |
+| k6 load, stress, spike, soak | Experimental | GET-only by default and capped. Capacity ceilings have not been measured. |
+| Fuzzing | Experimental | REST only, seeded and rate-limited. GraphQL fuzzing is planned. |
+| Chaos (local fault proxy, payload bursts, your own dependency commands) | Experimental | Loopback proxies only. |
+| gRPC | Experimental | Unary calls only, needs the optional `grpcurl`. gRPC load tests (`ghz`) are planned and not generated yet. |
+| Real Petstore, VAmPI, DVGA and crAPI evals | Planned | Only labelled local stand-ins have been run so far. |
+| GitHub Action, MCP server | Planned | Not started. |
+
+Status here means how much evidence there is, not a promise of support. Experimental features can change or be removed between 0.x releases.
+
 | Area | What it produces |
 |---|---|
 | Functional | smoke, positive, negative, edge, data-validation, integration flows (pytest) |
@@ -94,6 +118,18 @@ the suite cannot fetch tokens for. Treat a green report as "the checks that ran 
 
 ## Safety first
 
+**The safety gate is a consent prompt, not an enforced control.** It stops honest mistakes: running a load test at the wrong URL, or
+forgetting that a target is shared. It does not stop anyone who is set on doing harm, and this project does not call itself safe by default.
+In particular:
+- The gate reads environment variables. Anyone, or any program or agent with a shell, can set them. The skill tells an agent never to set
+  `APITEST_AUTHORIZED` or `APITEST_TARGET_ENV` itself, and the repository tests that this text stays in place, but an instruction is not a lock.
+- A remote system reached through a tunnel, port-forward or local proxy looks like `localhost` and passes without the variables.
+- `APITEST_TARGET_ENV=staging` is a label you type. Nothing checks that the target really is staging.
+- A spec, collection or API response is untrusted text and could try to talk an AI agent into exporting the variables. The skill says to ignore
+  that and a test covers it, but review what an agent runs before you let it run.
+
+What the gate does:
+
 - **Load, stress, spike, soak, chaos and fuzz runs need a non-production target that you own or are authorized to test.**
   You confirm it by exporting `APITEST_TARGET_ENV` (for example `staging`) and `APITEST_AUTHORIZED=yes` yourself. The skill and
   the generated code never set these for you, and production is always refused.
@@ -106,6 +142,9 @@ the suite cannot fetch tokens for. Treat a green report as "the checks that ran 
   `curl` repro line shows `<redacted>` where your credential goes; put your own value back before running it.
 - Specs, result files and responses are treated as untrusted input: nothing from them is executed, and generated code embeds
   spec text only as escaped literals.
+
+You are responsible for what you point this tool at. Only test systems you own or have written permission to test; see
+[SECURITY.md](SECURITY.md#legal-and-misuse).
 
 ## Requirements
 
