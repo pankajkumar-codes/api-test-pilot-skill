@@ -616,9 +616,10 @@ class Report:
             v = metrics.get(name)
             return num(v.get(key)) if isinstance(v, dict) else None
 
+        load_failed = stat("http_req_failed{phase:load}", "value")   # the load only, without the baseline probe
         info["overall"] = {
             "requests": stat("http_reqs", "count"), "rps": stat("http_reqs", "rate"),
-            "failed_rate": stat("http_req_failed", "value"), "checks_rate": stat("checks", "value"),
+            "failed_rate": load_failed if load_failed is not None else stat("http_req_failed", "value"), "checks_rate": stat("checks", "value"),
             "avg": stat("http_req_duration", "avg"), "p95": stat("http_req_duration", "p(95)"),
             "p99": stat("http_req_duration", "p(99)"), "max": stat("http_req_duration", "max"),
         }
@@ -904,7 +905,7 @@ def coverage_text(cov: dict) -> str:
     line = f"Endpoints load tested: {len(cov['tested'])}; skipped: {len(cov['skipped'])}; dropped because they fail at baseline: {n_fail}."
     if n_fail:
         line += (" They were sent once before the load and not during it, so they are not in the load's failed-request rate, "
-                 "except that each probe request is still counted in k6's overall figure.")
+                 "and the error-rate verdict covers only the load; k6's own overall http_req_failed figure still includes each probe request.")
     if not cov["baseline_probe"]:
         line += " The baseline probe was off (APITEST_K6_BASELINE=off), so endpoints that always fail are inside the error rate."
     return line
