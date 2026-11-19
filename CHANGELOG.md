@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (report hints, issues 86, 87)
+- The report says "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>" in its limitations (HTML, Markdown and `role_matrix_note` in report.json) whenever that test skipped for lack of a matrix.
+- `summarize_results.py` notes on stderr which format an `-o` path without `.html` or `.md` was written as, and when `--k6-dir` has no `manifest.json` (it is the folder the k6 scripts were generated into, not the results folder).
+
 ### Changed (fuzz budget, rate and hostile inputs, issue 49)
 - The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `min(APITEST_FUZZ_CASES, budget / endpoints)` cases (a lower `APITEST_FUZZ_CASES` is honored), so endpoints late in the list are no longer starved. When the budget leaves fewer than 20 cases per endpoint (the full hostile pass is up to 19) the pass is cut at its tail and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it; the hard cap of 5000 covers about 250 endpoints. Write operations are fuzzed before reads.
 - Every endpoint starts with a fixed hostile-input pass (NUL byte in each body field and query parameter, then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, null). This covers the "no 5xx on hostile strings" check without a separate suite.
@@ -80,6 +84,9 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Changed (k6 error rate counts only the load, issue 92)
 - Load requests carry the tag `phase:load` and the error-rate threshold and the 50% circuit breaker now read `http_req_failed{phase:load}`. The baseline probe (one request per endpoint) and the token fetches are no longer part of the verdict: a probe that fails at baseline, which the run already leaves out, can no longer push a healthy run over the 1% limit and exit 91. The report shows the failed rate of the load, and k6's overall `http_req_failed` still includes the probe requests.
+
+### Changed (k6 token refresh runs one sign-in per renewal, issue 91)
+- The launcher's token server numbers the tokens and each VU says which one it holds. A VU that is behind gets the current token without a new sign-in; only a rejection of the current token (or the optional timed refresh) runs `APITEST_TOKEN_CMD`, at most once per `APITEST_TOKEN_MIN_GAP_S` (default 30 s, was 2 s) and at most `APITEST_TOKEN_MAX_REFRESHES` times per run (default 200). This stops VUs from invalidating each other on APIs with one live session per user, and from hitting a sign-in rate limit. The run ends with "token refreshed N time(s)". A token command for such an API should return a young cached token.
 
 ### Added (fuzz budget report and endpoint list, issue 66)
 - The fuzz run ends with a "Fuzz budget" section: requests sent, how many endpoints got any, min, median and max per endpoint, the endpoints that got no request because the run budget was used up, and those cut off part-way (with the settings that help). It appears for GraphQL suites too.

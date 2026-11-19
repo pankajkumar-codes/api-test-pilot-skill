@@ -395,14 +395,20 @@ const REFRESH_MS = Math.max(0, Number(envOf('APITEST_TOKEN_REFRESH_S')) || 0) * 
 let TOKEN = null;
 let TOKEN_AT = 0;
 let TOKEN_TRIED = 0;
+let TOKEN_GEN = null;
+// The token server counts tokens. Saying which one this VU holds lets it answer a VU that is behind with the current token,
+// so a burst of rejections after one renewal causes one sign-in, not one per VU.
 function fetchToken() {
   TOKEN_TRIED = Date.now();
-  const res = http.get(TOKEN_URL, { responseType: 'text', timeout: '10s', redirects: 0, tags: { name: 'token_refresh' } });
+  const url = TOKEN_GEN === null ? TOKEN_URL : TOKEN_URL + '?have=' + TOKEN_GEN;
+  const res = http.get(url, { responseType: 'text', timeout: '10s', redirects: 0, tags: { name: 'token_refresh' } });
   const text = res.status === 200 && typeof res.body === 'string' ? res.body.trim() : '';
   // a plain length check: k6's regular expressions allow a repeat count of 1000 at most, and tokens can be longer
   if (text.length > 0 && text.length <= 4096 && !/[^\x21-\x7e]/.test(text)) {
     TOKEN = text;
     TOKEN_AT = Date.now();
+    const gen = Number((res.headers || {})['X-Token-Gen']);
+    TOKEN_GEN = Number.isInteger(gen) && gen > 0 ? gen : null;
   }
 }
 

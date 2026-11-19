@@ -485,6 +485,7 @@ class Report:
         self.findings: list[Finding] = []
         self.problems: dict[str, int] = {}
         self.skips: dict[str, int] = {}
+        self.role_matrix_skipped = False   # the role (BFLA) matrix test skipped for lack of a matrix
         self.unskip: dict[str, int] = {}   # variable to set -> number of skipped tests it would unskip
         self.needs_example: dict[str, set[str]] = {}   # endpoint -> fields whose invented value drew a 4xx (once per field)
         self.k6: list[dict] = []
@@ -495,6 +496,9 @@ class Report:
     def _count_unskip(self, text: str) -> None:
         """Skips that name a variable ("no existing id ... set APITEST_PATH_X", "credentials not configured: set X") count
         toward that variable. Read from the whole message, not the shortened reason."""
+        if "no role matrix: set APITEST_ROLE_MATRIX" in text:
+            self.role_matrix_skipped = True
+            return
         if "no existing id" not in text and "credentials not configured" not in text:
             return
         m = re.search(r"\bset (APITEST_[A-Z0-9_]+|[A-Z][A-Z0-9_]{3,})", text)
@@ -996,6 +1000,9 @@ def render_problems(r: Report) -> str:
     return "\n".join(f"- {esc(k)}" + (f" (x{v})" if v > 1 else "") for k, v in sorted(r.problems.items())[:50])
 
 
+ROLE_MATRIX_NOTE = "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>."
+
+
 def render_limitations(r: Report) -> str:
     out = []
     if r.skips:
@@ -1004,6 +1011,8 @@ def render_limitations(r: Report) -> str:
     if r.unskip:
         out.append("Set these to run the skipped tests (variable: tests it would unskip): "
                    + ", ".join(f"`{v}`: {n}" for v, n in r.unskip_list()) + ".")
+    if r.role_matrix_skipped:
+        out.append(ROLE_MATRIX_NOTE)
     if r.needs_example:
         out.append("Give an example (a spec `example`, or `APITEST_EXAMPLES_FILE` with `operationId.field`) for these invented values: "
                    + "; ".join(f"{esc(plain(ep, 80))}: {esc(', '.join(sorted(f)))}" for ep, f in sorted(r.needs_example.items())[:30]) + ".")
@@ -1122,6 +1131,13 @@ def main(argv: list[str] | None = None) -> int:
             jpath = out.with_suffix(".json")
             jpath.write_text(json_text, encoding="utf-8")
             print(f"Wrote {jpath}", file=sys.stderr)
+        if args.output != "-" and not args.format and out.suffix.lower() not in (".html", ".htm", ".md"):
+            print(f"note: {out} has no .html or .md extension, so it was written as {'HTML' if fmt_ == 'html' else 'Markdown'}; "
+                  "pass --format html or a .html path for HTML", file=sys.stderr)
+        k6_manifest = Path(args.k6_dir) / "manifest.json"
+        if r.k6 and not k6_manifest.is_file():
+            print(f"note: no manifest.json in --k6-dir {plain(args.k6_dir, 100)}, so planned stages and rates are not shown; "
+                  "--k6-dir is the folder gen_k6.py wrote the scripts to, not the results folder", file=sys.stderr)
         print(f"Wrote {out} ({len(r.findings)} findings, {len(r.cases)} tests, {len(r.k6)} k6 summaries)", file=sys.stderr)
         print(f"Rerun with:\n  {build_command(args)}", file=sys.stderr)
     return 0
