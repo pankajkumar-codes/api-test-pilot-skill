@@ -351,6 +351,16 @@ def graphql_endpoints(doc: dict, only: list[str] | None, notes: list[str]) -> li
     return out
 
 
+def token_env_names(doc: dict) -> list[str]:
+    """Variables that hold a bearer-style token (the ones APITEST_TOKEN_CMD refreshes), from the spec's security schemes."""
+    out = []
+    for s in schemes_config(doc).values():
+        kind = (s.get("scheme") or "").lower()
+        if (s.get("type") == "http" and kind != "basic") or s.get("type") in ("oauth2", "openIdConnect"):
+            out += [n for n in (s.get("env") or [])[:1] if isinstance(n, str) and re.fullmatch(r"[A-Z][A-Z0-9_]{0,80}", n)]
+    return sorted(set(out))
+
+
 def schemes_config(doc: dict) -> dict:
     out = {}
     for name, s in (doc.get("security_schemes") or {}).items():
@@ -453,7 +463,8 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
     out.mkdir(parents=True, exist_ok=True)  # write only once every plan has validated, so a refused request leaves no files
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8")
-    manifest = {"profiles": chosen, "defaultBaseUrl": base, "endpoints": len(endpoints), "plans": plans}
+    manifest = {"profiles": chosen, "defaultBaseUrl": base, "endpoints": len(endpoints), "plans": plans,
+                "tokenEnv": token_env_names(doc)}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     envs = sorted({n for s in schemes_config(doc).values() for n in s.get("env", [])})
     return {"out": str(out), "files": sorted(files) + ["manifest.json"], "plans": plans, "notes": notes, "env": envs,
