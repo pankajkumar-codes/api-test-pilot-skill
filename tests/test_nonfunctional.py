@@ -1357,6 +1357,42 @@ def test_real_k6_a_probe_that_fails_once_does_not_fail_a_healthy_load(rest_doc, 
     assert summ["http_req_failed"]["value"] > 0, "k6's overall figure still includes the probe failures"
     assert summ["http_req_failed{phase:load}"]["value"] == 0
 
+def test_stress_steps_double_up_to_the_cap_on_a_local_target_by_default(rest_doc, tmp_path):
+    local = gen_k6.generate(rest_doc, tmp_path / "a", ["stress"], base_url="http://localhost:8080")["plans"]["stress"]
+    targets = [s["target"] for s in local["stage_plan"] if s["label"].endswith("_hold")]
+    assert targets == [5, 10, 20, 40, 80, 100], targets
+    assert local["peak_rps"] == 100 and local["ramp"] == "double" and local["max_vus"] == 100
+    assert [s["label"] for s in local["stage_plan"]][-3:] == ["recovery_ramp", "recovery", "ramp_down"]
+    remote = gen_k6.generate(rest_doc, tmp_path / "b", ["stress"], base_url="https://staging.example.com")["plans"]["stress"]
+    assert [s["target"] for s in remote["stage_plan"] if s["label"].endswith("_hold")] == [5, 10, 15, 20]
+    assert "ramp" not in remote and remote["max_vus"] == 50
+
+
+def test_stress_ramp_follows_explicit_choices(rest_doc, tmp_path):
+    def holds(**kw):
+        plan = gen_k6.generate(rest_doc, tmp_path / f"o{len(kw)}{sorted(kw)}", ["stress"], base_url="http://127.0.0.1:8080", **kw)["plans"]["stress"]
+        return [s["target"] for s in plan["stage_plan"] if s["label"].endswith("_hold")], plan
+    assert holds(rate=5)[0] == [5, 10, 15, 20], "an explicit --rate keeps the linear steps"
+    assert holds(steps=3)[0] == [5, 10, 15], "so does an explicit --steps"
+    assert holds(ramp="double", steps=3)[0] == [5, 10, 20]
+    assert holds(ramp="double", rate=30)[0] == [30, 60, 100], "the cap is the last step when doubling passes it"
+    assert holds(ramp="linear")[0] == [5, 10, 15, 20], "linear asks for the old plan even on localhost"
+    only_cap = holds(ramp="double", rate=100)[0]
+    assert only_cap == [100]
+    _, plan = holds(ramp="double", max_vus=40)
+    assert plan["max_vus"] == 40, "an explicit --max-vus is kept"
+    with pytest.raises(gen_k6.PlanError):
+        gen_k6.generate(rest_doc, tmp_path / "bad", ["stress"], base_url="http://localhost:8080", ramp="exponential")
+
+
+def test_the_doubling_ramp_respects_every_hard_cap(rest_doc, tmp_path):
+    plan = gen_k6.generate(rest_doc, tmp_path / "caps", ["stress"], base_url="http://localhost:8080")["plans"]["stress"]
+    assert plan["peak_rps"] <= 100 and plan["max_vus"] <= 200 and plan["total_s"] <= 4 * 3600 and plan["stages"] <= 40
+    cfg = read_config(tmp_path / "caps" / "stress.js")
+    assert cfg["caps"]["maxRps"] == 100 and cfg["caps"]["maxVus"] == 100
+    cli = subprocess.run([sys.executable, str(SCRIPTS / "gen_k6.py"), "--help"], capture_output=True, text=True)
+    assert "--ramp" in cli.stdout
+
 def test_token_source_runs_the_command_once_for_a_burst_of_rejections(tmp_path):
     import shlex
     sys.path.insert(0, str(SCRIPTS))
