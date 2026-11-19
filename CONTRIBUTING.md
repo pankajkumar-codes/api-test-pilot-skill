@@ -33,6 +33,16 @@ that proves the new check fails on a seeded flaw and passes on the clean mock (`
   (see [docs/RELEASE.md](docs/RELEASE.md)).
 - Eval claims must say what actually ran: "mock-based, real target not run" is a valid label; a mock is never presented as the real service.
 
+## Commit and pull request hygiene (standing rule since 2026-11-18)
+- Commit messages, pull request descriptions, review comments and code comments contain only what a human reader needs: no tool-generated footers
+  ("generated with ..."), no session or conversation links, no `Co-Authored-By` or session trailers, and no comment that names the tool that drafted a line.
+  Comments in code say why, in plain words.
+- Whoever opens a pull request is responsible for every line in it, however it was drafted, and the maintainer is responsible for what is merged.
+- Some commits before 2026-11-18 (about 33) carry session trailers from development tooling, and some use the maintainer's personal address. History was not
+  rewritten: the repository was already public, and GitHub keeps the old commits reachable through `refs/pull/*` anyway. Nothing was removed to hide how the
+  project was made; the rule only keeps new commits and comments short and clean.
+- Check a pull request body before asking for review: tools that open pull requests sometimes append a footer on their own, and it has to be edited out.
+
 ## Reporting a security problem
 If you find a way to make the skill or its generated code send traffic to a target the user did not confirm, leak a credential,
 or execute spec content, open a private security advisory on GitHub rather than a public issue.

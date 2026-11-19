@@ -239,7 +239,7 @@ def test_docs_name_every_release_and_safety_item():
 
 def test_release_docs_do_not_claim_a_release_happened():
     text = (ROOT / "CHANGELOG.md").read_text()
-    assert "[0.1.0] - unreleased" in text
+    assert "[0.1.0] - 2026-11-19 (preview)" in text
     assert "Nothing has been tagged" in text
 
 

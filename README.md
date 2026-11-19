@@ -404,6 +404,17 @@ $ echo $?
   - The API gateway and GraphQL example apps in `examples/aws-local/` are local stand-ins written for the tests. The AWS emulator has not been run against them.
   - VAmPI mass assignment is a known miss in the eval (see [docs/evals.md](docs/evals.md)), and the 27 of 28 figure is for seeded flaws in mocks, not real APIs.
 
+## Privacy and support
+
+- **Privacy.** The skill has no telemetry, no account and no server of its own. Its scripts send HTTP requests only to the target API
+  you name (and, if you ask for it, to GitHub when `file_issues.py` files an issue with a token you supply). Specs, generated tests,
+  results and reports stay on your machine. Credentials are read from environment variables and redacted from reports, which is
+  pattern-based, so read a report before you share it. Your agent (for example Claude) processes whatever you paste or let it read under
+  that product's own privacy terms, not this project's.
+- **Support.** Open an issue at <https://github.com/pankajkumar-codes/api-test-pilot-skill/issues>. This is a single-maintainer preview with
+  no service level; expect answers when the maintainer has time. Report a security problem privately, see [SECURITY.md](SECURITY.md).
+- **Warranty.** MIT licence, provided as is. Only test APIs you own or are authorized to test; see the safety gate above and [SECURITY.md](SECURITY.md).
+
 ## Develop
 
 ```bash

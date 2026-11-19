@@ -1,11 +1,17 @@
 # Changelog
 
 All notable changes are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
-versions follow [Semantic Versioning](https://semver.org/). Nothing has been tagged or released yet.
+versions follow [Semantic Versioning](https://semver.org/). Nothing has been tagged or released yet; 0.1.0 is meant to be tagged as a preview.
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-11-19 (preview)
 
-First release candidate, built in phases (see PLAN.md).
+First version, published as a **preview**. It is built in phases (see PLAN.md) and has one maintainer and no outside users yet.
+
+What the preview is: an Agent Skill that generates pytest suites and k6 scripts from an OpenAPI spec, GraphQL schema, Postman collection or curl examples, runs them, and writes a report with a repro command per finding. Load, stress, spike, soak, chaos and fuzz runs go through an advisory safety gate (a confirmation you give by environment variables; it is a consent prompt, not an enforcement mechanism, see SECURITY.md).
+
+What the evidence is: the tests and evals run against local mock servers and a local Spring Boot service, on Python 3.11 to 3.13. 27 of 28 seeded flaws are found, but the seeded flaws and the mocks were written by the same author, so that number shows the checks work on those flaws and nothing about real APIs. Real Swagger Petstore, VAmPI, DVGA and crAPI runs have not been done. No detection rate on a real third-party API is claimed, and the skill is not "production-tested".
+
+Optional and experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), executable chaos experiments, and fuzzing. The AWS-emulator example apps in `examples/aws-local/` are local stand-ins that were not run against the emulator.
 
 ### Added (plugin icon)
 - `.claude-plugin/icon.png` (1024 x 1024, a white check mark on teal) and `"icon"` in `plugin.json`, so `claude plugin validate` no longer warns about a missing icon. It is plain geometry drawn by `tools/make_icon.py` (standard library only), not a third party's logo; replace the file if you have a design of your own.
