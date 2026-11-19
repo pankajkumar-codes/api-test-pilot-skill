@@ -88,11 +88,11 @@ def _tenants(doc: dict, eps: list[dict], mod: Module) -> None:
 def _roles(eps: list[dict], mod: Module) -> None:
     if not any(e.get("auth_required") for e in eps):
         return
-    mod.add("ROLE_CASES = rt.role_cases(EP)   # from the file named by APITEST_ROLE_MATRIX; empty (so skipped) without it\n", is_test=False)
+    mod.add("ROLE_CASES = rt.role_cases(EP) or [(\"\", \"\", False)]   # from the file named by APITEST_ROLE_MATRIX; one placeholder (skipped) without it\n", is_test=False)
     mod.add("@pytest.mark.intrusive\n"
             "@pytest.mark.parametrize(\"op_id,role,allowed\", ROLE_CASES, ids=[f\"{o}-{r}-{'allow' if a else 'deny'}\" for o, r, a in ROLE_CASES])\n"
             f"def {mod.unique('test_api5_role_matrix')}(api, op_id, role, allowed):\n"
-            "    rt.role_check(api, EP[op_id], role, allowed)\n")
+            "    rt.role_check(api, EP.get(op_id), role, allowed)\n")
 
 
 def _api2(doc: dict, eps: list[dict], mod: Module) -> None:

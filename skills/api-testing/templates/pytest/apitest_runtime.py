@@ -1430,6 +1430,8 @@ def role_cases(known: Any) -> list[tuple]:
 def role_check(api: "Api", ep: Endpoint, role: str, allowed: bool) -> None:
     """Call `ep` with the token of one role (APITEST_TOKEN_<ROLE>). Allowed roles must not be refused with 401/403; denied
     roles must be refused (4xx). The call changes data when the operation is a write, so the usual write gates apply."""
+    if ep is None:
+        pytest.skip("no role matrix: set APITEST_ROLE_MATRIX to a JSON file ({\"createFiling\": {\"allow\": [\"owner\"], \"deny\": [\"billing\"]}}) and APITEST_TOKEN_<ROLE> per role")
     token = os.environ.get("APITEST_TOKEN_" + re.sub(r"[^A-Za-z0-9]+", "_", role).strip("_").upper())
     if not token:
         pytest.skip(f"no token for role '{role}': set APITEST_TOKEN_{re.sub(r'[^A-Za-z0-9]+', '_', role).strip('_').upper()}")
