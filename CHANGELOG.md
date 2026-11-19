@@ -13,6 +13,9 @@ First release candidate, built in phases (see PLAN.md).
 ### Changed (chaos payload endpoints, issue 88)
 - `chaos_run.py --payload-endpoints` takes a number N or `all` as well as operation ids (default stays the first 3 write endpoints). The size, burst and run-time ceilings are unchanged, at most 500 endpoints are tried, and a skipped `test_chaos_payload_not_tried` result (shown in the report) and a stderr line say how many were not.
 
+### Changed (skips grouped by cause, issue 90)
+- The report lists skipped tests under four headings with a count each: the skill could have done it itself (duplicate creates, a tenant control call it got wrong), you need to supply something, a safety default is off on purpose, and the target cannot provide it (also where no cause is recognised). Only the first is a defect of the skill. `report.json` keeps the flat `skips` and adds `skip_groups`. No test changes.
+
 ### Changed (report hints, issues 86, 87)
 - The report says "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>" in its limitations (HTML, Markdown and `role_matrix_note` in report.json) whenever that test skipped for lack of a matrix.
 - `summarize_results.py` notes on stderr which format an `-o` path without `.html` or `.md` was written as, and when `--k6-dir` has no `manifest.json` (it is the folder the k6 scripts were generated into, not the results folder).

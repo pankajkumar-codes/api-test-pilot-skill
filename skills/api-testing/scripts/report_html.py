@@ -75,6 +75,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
         "unskip": [{"variable": v, "tests": n} for v, n in r.unskip_list(200)],
         "needs_example": {k: sorted(v) for k, v in sorted(r.needs_example.items())[:200]},
         "skips": dict(sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]),
+        "skip_groups": mod.skip_groups(r),
         "inputs": [{"kind": k, "file": n, "sha256_prefix": d} for k, n, d in r.inputs],
         "command": command,
     }
@@ -320,7 +321,10 @@ def section_limits(d: dict) -> str:
     if d.get("needs_example"):
         lim.append("Give an example (spec <code>example</code> or <code>APITEST_EXAMPLES_FILE</code>) for these invented values: "
                    + "; ".join(f"{e(k)}: {e(', '.join(v))}" for k, v in list(d["needs_example"].items())[:30]))
-    if d["skips"]:
+    if d.get("skip_groups"):
+        for g in d["skip_groups"]:
+            lim.append(f"<strong>{e(g['title'])}: {g['count']}</strong><br>" + "<br>".join(f"{x['tests']} x {e(x['reason'])}" for x in g["reasons"]))
+    elif d["skips"]:
         lim += [f"{n} x {e(reason)}" for reason, n in d["skips"].items()]
     if d["endpoints_without_results"]:
         n = len(d["endpoints_without_results"])
