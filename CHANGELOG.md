@@ -8,7 +8,7 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 First release candidate, built in phases (see PLAN.md).
 
 ### Changed (fuzz budget, rate and hostile inputs, issue 49)
-- The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `max(16, min(APITEST_FUZZ_CASES, budget / endpoints))` cases, so endpoints late in the list are no longer starved. Write operations are fuzzed before reads.
+- The fuzz run budget (`APITEST_FUZZ_MAX_REQUESTS`, hard cap unchanged) is split between endpoints: each gets `min(APITEST_FUZZ_CASES, budget / endpoints)` cases (a lower `APITEST_FUZZ_CASES` is honored), so endpoints late in the list are no longer starved. When the budget leaves fewer than 20 cases per endpoint (the full hostile pass is up to 19) the pass is cut at its tail and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it; the hard cap of 5000 covers about 250 endpoints. Write operations are fuzzed before reads.
 - Every endpoint starts with a fixed hostile-input pass (NUL byte in each body field and query parameter, then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, null). This covers the "no 5xx on hostile strings" check without a separate suite.
 - A loopback target defaults to 50 requests per second (cap 100) instead of 5 (cap 20); other targets keep 5 and 20.
 

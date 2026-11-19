@@ -31,8 +31,7 @@ CRLF reflected into a header (HIGH), slow answers over `APITEST_FUZZ_SLOW_MS` (M
 | `APITEST_FUZZ_MAX_REQUESTS` per run | 2000 | 5000 |
 | `APITEST_FUZZ_MAX_BYTES` per payload | 65536 | 1 MiB |
 | `APITEST_FUZZ_SEED` | 1337 (fixed) | n/a |
-The run budget is shared: with N endpoints each gets `max(16, min(APITEST_FUZZ_CASES, budget / N))` cases, so late endpoints are not starved by early ones, and
-write operations (POST, PUT, PATCH, DELETE) run before reads. The first cases of every endpoint are the hostile inputs: a NUL byte in each body field (up to 6) and
+The run budget is shared: with N endpoints each gets `min(APITEST_FUZZ_CASES, budget / N)` cases (at least 1), so late endpoints are not starved by early ones, and a lower `APITEST_FUZZ_CASES` is always honored. The whole hostile pass needs up to 19 cases (20 with the margin); with fewer per endpoint its tail is cut and a warning names the `APITEST_FUZZ_MAX_REQUESTS` that would fit it (hard cap 5000, so about 250 endpoints at most; above that, fuzz a subset). Write operations (POST, PUT, PATCH, DELETE) run before reads. Details: the first cases of every endpoint are the hostile inputs: a NUL byte in each body field (up to 6) and
 query parameter (up to 3), then very long, lone surrogate, control characters, emoji, right-to-left, negative and huge numbers, empty array and object, and null,
 one per field in rotation. The request budget is per process: parallel runs (pytest-xdist) multiply it, so run fuzz tests serially. Non-finite values (`nan`, `inf`) fall back to the default.
 Writes (POST/PUT/PATCH) run on any gated target; DELETE also needs `APITEST_ALLOW_DESTRUCTIVE=yes`. The fixed seed makes a rerun send the same requests;

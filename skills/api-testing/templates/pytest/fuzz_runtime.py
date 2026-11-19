@@ -25,6 +25,7 @@ import math
 import os
 import random
 import time
+import warnings
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,7 +39,7 @@ HARD_MAX_BYTES = 1 << 20
 HARD_MAX_REQUESTS = 5000
 HARD_MAX_RPS = 20.0
 HARD_MAX_RPS_LOCAL = 100.0   # a loopback target cannot be hurt by the request rate the way a shared one can
-MIN_SHARE = 16               # fewest cases an endpoint gets, so the hostile-input pass always fits
+MIN_SHARE = 20               # cases that fit the whole hostile-input pass (at most 9 NUL cases + 10 other values); below this the pass is cut at its tail
 MAX_NEST = 100
 MAX_FINDINGS_SHOWN = 10
 
@@ -326,10 +327,19 @@ def _repro(exc: requests.exceptions.RequestException) -> str | None:
 
 
 def share_of_budget(cfg: Config, endpoints: Any) -> Config:
-    """Per-endpoint budget: with N endpoints the run budget is split so every endpoint gets cases (at least MIN_SHARE, at most
-    --cases), instead of the first endpoints using it all. `cfg.budget` stays the hard ceiling for the whole run."""
+    """Per-endpoint budget: with N endpoints the run budget is split evenly, so every endpoint gets cases instead of the first
+    endpoints using it all. The share never exceeds --cases (a lower APITEST_FUZZ_CASES is honored). When the budget is too small
+    for the whole hostile pass on every endpoint (fewer than MIN_SHARE cases each) the pass is cut at its tail and a warning says
+    how far to raise APITEST_FUZZ_MAX_REQUESTS. `cfg.budget` stays the hard ceiling for the whole run."""
     if isinstance(endpoints, int) and endpoints > 0:
-        share = max(MIN_SHARE, min(cfg.cases, cfg.budget // endpoints))
+        share = min(cfg.cases, max(1, cfg.budget // endpoints))
+        if share < min(cfg.cases, MIN_SHARE) and not _state.get("warned"):
+            _state["warned"] = True
+            need = min(HARD_MAX_REQUESTS, MIN_SHARE * endpoints)
+            warnings.warn(f"fuzz budget of {cfg.budget} requests for {endpoints} endpoints leaves {share} cases each, fewer than the "
+                          f"{MIN_SHARE} the full hostile-input pass needs; raise APITEST_FUZZ_MAX_REQUESTS to {need} "
+                          f"(hard cap {HARD_MAX_REQUESTS})" + ("" if need >= MIN_SHARE * endpoints else ", or fuzz fewer endpoints"),
+                          stacklevel=2)
         return Config(cfg.seed, share, cfg.max_bytes, cfg.rps, cfg.budget, cfg.slow_ms, cfg.nest)
     return cfg
 
