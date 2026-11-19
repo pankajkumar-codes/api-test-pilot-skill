@@ -932,29 +932,31 @@ HARNESS = """
 const __ENV = %(env)s;
 const STATUS = %(status)s;
 const SENT = [];
-const http = {request: (m, u, b, p) => { const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
+const http = {request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
                                           return {status: STATUS[path] || 200, body: ''}; }};
+const FILES = %(files)s; const open = (p) => { if (!(p in FILES)) throw new Error('no such file'); return FILES[p]; };
+const FULL = [];
 const check = () => true; const sleep = () => {};
 const encoding = {b64encode: (s) => Buffer.from(s).toString('base64')};
 const exec = {scenario: {startTime: Date.now()}, test: {abort: (m) => { throw new Error('ABORT: ' + m); }}};
 const console_log = console.log; const LINES = []; console.log = (s) => LINES.push(s); console.warn = () => {};
-%(script)s
 let out = {};
 try {
+%(script)s
   const data = setup();
   const before = SENT.length;
   for (let i = 0; i < 300; i++) { __default(data); }
-  out = {data: data, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
+  out = {data: data, full: FULL, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
 } catch (e) { out = {error: String(e.message), lines: LINES}; }
 console_log(JSON.stringify(out));
 """
 
 
-def _node_run(script_path: Path, env: dict, status: dict) -> dict:
+def _node_run(script_path: Path, env: dict, status: dict, files: dict | None = None) -> dict:
     text = script_path.read_text(encoding="utf-8")
     text = re.sub(r"^import .*$", "", text, flags=re.M)
     text = text.replace("export default function (data)", "function __default(data)").replace("export function", "function").replace("export const", "const")
-    harness = HARNESS % {"env": json.dumps(env), "status": json.dumps(status), "script": text}
+    harness = HARNESS % {"env": json.dumps(env), "status": json.dumps(status), "files": json.dumps(files or {}), "script": text}
     proc = subprocess.run([shutil.which("node"), "--input-type=commonjs", "-e", harness], capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, proc.stderr[-1500:]
     return json.loads(proc.stdout.strip().splitlines()[-1])
@@ -1020,3 +1022,37 @@ def test_coverage_line_parser_ignores_garbage_and_keeps_only_known_keys():
     assert got["skipped"][0]["set"] == ["V"] and "evil" not in got["skipped"][0]
     assert got["baseline_failed"] == [{"endpoint": "b", "status": 0}] and set(got) == {"tested", "skipped", "baseline_failed", "baseline_probe"}
     assert parse("APITEST_COVERAGE {" + "x" * 2_000_000 + "}") is None
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node is needed to run the script logic")
+def test_k6_takes_ids_and_example_values_from_files(rest_doc, tmp_path):
+    result = gen_k6.generate(rest_doc, tmp_path / "k6", ["load"], base_url="http://localhost:9", rate=3, quick=True,
+                             include_writes=True, only=["preview", "createPet", "getPet"])
+    assert any("invented value" in n and "createPet." in n and "APITEST_EXAMPLES_FILE" in n for n in result["notes"]), result["notes"]
+    script = tmp_path / "k6" / "load.js"
+    env = {"APITEST_BASE_URL": "http://localhost:9", "APITEST_BEARERAUTH_TOKEN": "x", "APITEST_ALLOW_WRITES": "yes",
+           "APITEST_K6_BASELINE": "off", "APITEST_IDS_FILE": "ids.json", "APITEST_EXAMPLES_FILE": "ex.json"}
+    files = {"ids.json": json.dumps({"path": {"petId": "p-77"}}),
+             "ex.json": json.dumps({"preview.url": "https://example.org/a", "*.name": "from-file", "createPet.__proto__": "x", "bad": 1})}
+    run = _node_run(script, env, {}, files)
+    sent = run["full"]
+    assert any(r["u"].endswith("/pets/p-77") for r in sent), [r["u"] for r in sent]
+    assert any("url=https%3A%2F%2Fexample.org%2Fa" in r["u"] for r in sent if "/preview" in r["u"])
+    posts = [json.loads(r["b"]) for r in sent if r["m"] == "POST"]
+    assert posts and all(b["name"] == "from-file" for b in posts), posts
+    without = _node_run(script, {k: v for k, v in env.items() if not k.endswith("_FILE")}, {})
+    assert not any(r["u"].endswith("/pets/p-77") for r in without["full"]) and any(r["u"].startswith("http://localhost:9/preview") for r in without["full"])
+    broken = _node_run(script, {**env, "APITEST_EXAMPLES_FILE": "ex.json"}, {}, {"ids.json": "{}", "ex.json": "[1]"})
+    assert "must hold a JSON object" in broken.get("error", "")
+    missing = _node_run(script, {**env, "APITEST_IDS_FILE": "nope.json"}, {}, {"ex.json": "{}"})
+    assert "must name a readable JSON file" in missing.get("error", "")
+
+
+def test_docker_mounts_the_ids_and_examples_files_read_only(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    ids = tmp_path / "ids.json"
+    ids.write_text("{}")
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--dry-run", results=tmp_path / "res",
+                        env=clean_env(APITEST_IDS_FILE=str(ids), APITEST_BEARERAUTH_TOKEN="tok-secret"))
+    assert f"-v {ids}:/inputs/APITEST_IDS_FILE.json:ro -e APITEST_IDS_FILE=/inputs/APITEST_IDS_FILE.json" in proc.stdout
+    assert "-e APITEST_BEARERAUTH_TOKEN " in proc.stdout and "tok-secret" not in proc.stdout

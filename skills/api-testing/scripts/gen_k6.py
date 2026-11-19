@@ -241,6 +241,7 @@ def _clean_map(src: dict, notes: list[str], what: str) -> dict:
 
 def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, notes: list[str]) -> list[dict]:
     out, used = [], set()
+    invented: list[str] = []
     for ep in doc["endpoints"]:
         if only is not None and ep["id"] not in only:
             continue
@@ -264,6 +265,9 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
         if not PATH_RE.match(ep["path"]):
             notes.append(f"{label}: path has unusual characters; skipped")
             continue
+        guessed = gen_common.guessed_query(ep) + gen_common.guessed_body(ep)
+        if guessed and ep["id"]:
+            invented.append(f"{gen_common.doc_safe(ep['id'])[:40]}.{gen_common.doc_safe(guessed[0].removeprefix('body.'))[:30]}")
         base = gen_common.baseline(ep)
         has_body = write and ep.get("request_body")
         body = gen_common.sample_body(ep) if has_body else None
@@ -271,6 +275,7 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
         sec = ep.get("security") or [] if ep.get("auth_required") else []
         out.append({
             "tag": _tag(ep["id"] or f"{method}_{ep['path']}", used),
+            "opId": ep["id"] if isinstance(ep.get("id"), str) and NAME_RE.match(ep["id"]) else None,
             "method": method,
             "path": ep["path"],
             "write": write,
@@ -284,6 +289,10 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
             "ok": gen_common.success_codes(ep),
             "graphql": False,
         })
+    if invented:
+        notes.append(f"{len(invented)} endpoint(s) send an invented value for a required query or body field the spec gives no example for "
+                     f"(first: {', '.join(invented[:5])}). Put valid values in a JSON file as {{\"operationId.field\": value}} and set "
+                     "APITEST_EXAMPLES_FILE when you run the script; ids for path parameters go in APITEST_IDS_FILE.")
     return out
 
 
