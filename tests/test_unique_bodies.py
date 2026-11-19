@@ -187,6 +187,16 @@ def test_a_secret_named_const_never_reaches_the_generated_files(tmp_path):
         assert "hunter2-canary" not in f.read_text(), f.name
 
 
+def test_a_description_about_an_identifier_does_not_tag_a_reference_field():
+    post = _post_spec({"customer_id": {"type": "string", "description": "The unique identifier of the customer"},
+                       "owner_ref": {"type": "string", "description": "Must be unique per tenant"},
+                       "api_key": {"type": "string", "description": "Is unique"},
+                       "forced_id": {"type": "string", "x-unique": True},
+                       "label": {"type": "string", "description": "Must be unique per tenant"},
+                       "title": {"type": "string", "description": "Uniquely describes the thing"}})
+    assert set(gen_common.unique_body_fields(post)) == {"forced_id", "label"}
+
+
 def test_fields_the_spec_says_are_unique_are_tagged_too():
     post = _post_spec({"tag": {"type": "string", "description": "Must be unique across the account."},
                        "legacy": {"type": "string", "x-unique": True},

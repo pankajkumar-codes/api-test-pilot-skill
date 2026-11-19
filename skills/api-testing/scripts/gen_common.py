@@ -402,9 +402,15 @@ def _field_key(name: str) -> str:
 _CREDENTIAL_PATH_RE = re.compile(r"(^|/)(login|log-?in|sign-?in|auth|authenticate|authorize|oauth2?|tokens?|sessions?)(/|$)", re.I)
 
 
-def _spec_says_unique(v: dict) -> bool:
-    """The spec marks the field unique (x-unique, unique: true or a description that says so; the parser sets `unique`)."""
-    return v.get("unique") is True
+_REFERENCE_NAME_RE = re.compile(r"(^|_)(id|ref|key)$")
+
+
+def _spec_says_unique(name: str, v: dict) -> bool:
+    """The spec marks the field unique (x-unique or unique: true), or its description says so. A description is not trusted for
+    id, ref and key fields: "the unique identifier of the customer" names a record that must already exist."""
+    if v.get("unique") is True:
+        return True
+    return v.get("unique_hint") is True and not _REFERENCE_NAME_RE.search(_field_key(name))
 
 
 def unique_body_fields(ep: dict) -> dict:
@@ -417,7 +423,7 @@ def unique_body_fields(ep: dict) -> dict:
         return {}
     out = {}
     for k, v in sch["properties"].items():
-        if not (isinstance(v, dict) and _first_type(v) == "string" and (_field_key(k) in _UNIQUE_NAMES or _spec_says_unique(v)) and not v.get("readOnly")
+        if not (isinstance(v, dict) and _first_type(v) == "string" and (_field_key(k) in _UNIQUE_NAMES or _spec_says_unique(k, v)) and not v.get("readOnly")
                 and not is_secret_name(k) and v.get("format") in (None, "", "email")):
             continue
         if any(key in v for key in ("enum", "pattern", "const", "default")):   # the spec says what the value must be
