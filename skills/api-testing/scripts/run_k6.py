@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import http.server
 import json
+import math
 import os
 import re
 import shlex
@@ -140,35 +141,60 @@ def check_k6(arg: str | None, use_docker: bool, image: str) -> int:
 
 TOKEN_RE = re.compile(r"^[\x21-\x7e]{1,4096}$")   # one printable token, no spaces or line breaks
 TOKEN_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,80}$")
-TOKEN_MIN_GAP_S = 2.0                             # fresh command runs at most this often, however many VUs ask
+TOKEN_MIN_GAP_S = 30.0                            # the command runs at most this often, however many VUs ask (APITEST_TOKEN_MIN_GAP_S)
+TOKEN_MAX_REFRESHES = 200                         # and at most this many times after the first run (APITEST_TOKEN_MAX_REFRESHES)
 TOKEN_CMD_TIMEOUT_S = 30
 
 
 class TokenSource:
     """Runs APITEST_TOKEN_CMD (split like a shell would, run without a shell) and hands out the token it prints.
-    Nothing about the output is ever printed: a failure says only the exit status."""
+    Nothing about the output is ever printed: a failure says only the exit status.
 
-    def __init__(self, command: list[str], env: dict):
+    Single flight: every token has a generation number. A caller that says which generation it holds gets the current token
+    without a new sign-in when the current one is newer, so many VUs that were rejected together cause one command run, not one
+    each. Only a rejection of the current token runs the command again, and then at most once per `min_gap` seconds and at most
+    `max_refreshes` times in the run. This matters for APIs with one live session per user (each sign-in ends the previous one) and
+    for sign-in rate limits."""
+
+    def __init__(self, command: list[str], env: dict, min_gap: float = TOKEN_MIN_GAP_S, max_refreshes: int = TOKEN_MAX_REFRESHES):
         self.command, self.env = command, env
+        self.min_gap, self.max_refreshes = min_gap, max_refreshes
         self._lock = threading.Lock()
         self._token: str | None = None
         self._at = 0.0
+        self.generation = 0     # 0: no token yet
+        self.refreshes = 0      # command runs after the first one
+
+    def _run(self) -> str:
+        try:
+            proc = subprocess.run(self.command, env=self.env, capture_output=True, text=True, timeout=TOKEN_CMD_TIMEOUT_S)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RuntimeError(f"APITEST_TOKEN_CMD could not run ({type(exc).__name__})") from None
+        token = proc.stdout.strip()
+        if proc.returncode != 0:
+            raise RuntimeError(f"APITEST_TOKEN_CMD exited with status {proc.returncode}")
+        if not TOKEN_RE.match(token):
+            raise RuntimeError("APITEST_TOKEN_CMD must print one token (printable characters, no spaces or line breaks); its output is not shown")
+        return token
+
+    def issue(self, have: int | None = None) -> tuple[str, int]:
+        """The token and its generation. `have`: the generation the caller holds and found rejected (or wants renewed);
+        None asks for whatever is current."""
+        with self._lock:
+            if self._token is not None:
+                newer = have is None or have < self.generation
+                if newer or time.monotonic() - self._at < self.min_gap or self.refreshes >= self.max_refreshes:
+                    return self._token, self.generation
+            token = self._run()
+            if self._token is not None:
+                self.refreshes += 1
+            self._token, self._at = token, time.monotonic()
+            self.generation += 1
+            return token, self.generation
 
     def fresh(self, force: bool = False) -> str:
-        with self._lock:
-            if self._token is not None and (not force or time.monotonic() - self._at < TOKEN_MIN_GAP_S):
-                return self._token
-            try:
-                proc = subprocess.run(self.command, env=self.env, capture_output=True, text=True, timeout=TOKEN_CMD_TIMEOUT_S)
-            except (OSError, subprocess.SubprocessError) as exc:
-                raise RuntimeError(f"APITEST_TOKEN_CMD could not run ({type(exc).__name__})") from None
-            token = proc.stdout.strip()
-            if proc.returncode != 0:
-                raise RuntimeError(f"APITEST_TOKEN_CMD exited with status {proc.returncode}")
-            if not TOKEN_RE.match(token):
-                raise RuntimeError("APITEST_TOKEN_CMD must print one token (printable characters, no spaces or line breaks); its output is not shown")
-            self._token, self._at = token, time.monotonic()
-            return token
+        """The current token; with `force`, a renewed one if the gap and the refresh limit allow it."""
+        return self.issue(self.generation if force else None)[0]
 
 
 def serve_tokens(source: TokenSource) -> tuple[http.server.ThreadingHTTPServer, str]:
@@ -177,15 +203,22 @@ def serve_tokens(source: TokenSource) -> tuple[http.server.ThreadingHTTPServer, 
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802 (http.server API)
-            if self.path != f"/{nonce}":
+            path, _, query = self.path.partition("?")
+            if path != f"/{nonce}":
                 self.send_error(404)
                 return
+            have = None
+            for part in query.split("&"):
+                if part.startswith("have=") and part[5:].isdigit() and len(part) < 14:
+                    have = int(part[5:])
             try:
-                body = source.fresh(force=True).encode()
+                token, generation = source.issue(have)
+                body = token.encode()
             except RuntimeError:
                 self.send_error(503)
                 return
             self.send_response(200)
+            self.send_header("X-Token-Gen", str(generation))
             self.send_header("Content-Type", "text/plain")
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
@@ -196,6 +229,7 @@ def serve_tokens(source: TokenSource) -> tuple[http.server.ThreadingHTTPServer, 
             return
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    server.token_source = source   # type: ignore[attr-defined]  # read by the launcher for its end-of-run line
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_address[1]}/{nonce}"
 
@@ -208,6 +242,15 @@ def manifest_token_env(script: Path) -> list[str]:
     return [n for n in names if isinstance(n, str) and TOKEN_NAME_RE.match(n)]
 
 
+def _env_limit(name: str, default: float, lo: float, hi: float) -> float:
+    """A number from the environment, kept within [lo, hi]; anything unreadable gives the default."""
+    try:
+        value = float(os.environ.get(name, "").strip() or default)
+    except ValueError:
+        return default
+    return min(max(value, lo), hi) if math.isfinite(value) else default
+
+
 def start_token_refresh(script: Path, env: dict) -> tuple[http.server.ThreadingHTTPServer | None, str | None]:
     """When APITEST_TOKEN_CMD is set: run it once, put the token in the variable(s) the script reads, and start the
     loopback server that gives the script fresh tokens. Returns (server, error message)."""
@@ -215,7 +258,8 @@ def start_token_refresh(script: Path, env: dict) -> tuple[http.server.ThreadingH
     if not raw:
         return None, None
     try:
-        source = TokenSource(shlex.split(raw), dict(os.environ))
+        source = TokenSource(shlex.split(raw), dict(os.environ), min_gap=_env_limit("APITEST_TOKEN_MIN_GAP_S", TOKEN_MIN_GAP_S, 1, 3600),
+                             max_refreshes=int(_env_limit("APITEST_TOKEN_MAX_REFRESHES", TOKEN_MAX_REFRESHES, 0, 100000)))
         first = source.fresh()
     except ValueError:
         return None, "APITEST_TOKEN_CMD is not a valid command line"
@@ -405,6 +449,9 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if server is not None:
             server.shutdown()
+            src = getattr(server, "token_source", None)
+            if src is not None:
+                print(f"token refreshed {src.refreshes} time(s) during the run (minimum gap {src.min_gap:g} s, limit {src.max_refreshes})")
     if code == 99:
         families = crossed_families(summary)
         code = threshold_exit_code(families)

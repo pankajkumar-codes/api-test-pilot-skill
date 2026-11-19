@@ -942,9 +942,9 @@ HARNESS = """
 const __ENV = %(env)s;
 const STATUS = %(status)s;
 const SENT = [];
-const TOKENS = %(tokens)s; let TOKEN_FETCHES = 0;
+const TOKENS = %(tokens)s; let TOKEN_FETCHES = 0; const TOKEN_URLS = [];
 { const step = %(step)s; let t = Date.now(); if (step > 0) { Date.now = () => (t += step); } }
-const http = {get: (u, p) => { TOKEN_FETCHES++; return {status: 200, body: TOKENS[Math.min(TOKEN_FETCHES - 1, TOKENS.length - 1)]}; },
+const http = {get: (u, p) => { TOKEN_FETCHES++; TOKEN_URLS.push(u); return {status: 200, body: TOKENS[Math.min(TOKEN_FETCHES - 1, TOKENS.length - 1)], headers: {'X-Token-Gen': String(TOKEN_FETCHES)}}; },
               request: (m, u, b, p) => { FULL.push({m: m, u: u, b: b, auth: (p.headers || {}).Authorization}); const path = u.replace(/^https?:\\/\\/[^/]+/, '').split('?')[0]; SENT.push(path + '#' + (p.tags.stage || ''));
                                           return {status: STATUS[path] || 200, body: ''}; }};
 const FILES = %(files)s; const open = (p) => { if (!(p in FILES)) throw new Error('no such file'); return FILES[p]; };
@@ -959,7 +959,7 @@ try {
   const data = setup();
   const before = SENT.length;
   for (let i = 0; i < 300; i++) { __default(data); }
-  out = {data: data, full: FULL, tokenFetches: TOKEN_FETCHES, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
+  out = {data: data, full: FULL, tokenFetches: TOKEN_FETCHES, tokenUrls: TOKEN_URLS, loadPaths: [...new Set(SENT.slice(before).map((s) => s.split('#')[0]))].sort(), probePaths: SENT.slice(0, before), lines: LINES};
 } catch (e) { out = {error: String(e.message), lines: LINES}; }
 console_log(JSON.stringify(out));
 """
@@ -1118,13 +1118,14 @@ def test_token_source_serves_fresh_tokens_on_a_secret_loopback_path(tmp_path):
     server, url = run_k6.serve_tokens(src)
     try:
         assert url.startswith("http://127.0.0.1:") and len(url.rsplit("/", 1)[1]) >= 20
-        assert urllib.request.urlopen(url, timeout=5).read() == b"tok-0"  # inside the minimum gap, so still the cached one
+        assert urllib.request.urlopen(url, timeout=5).read() == b"tok-0"  # no generation given: the current token
+        assert urllib.request.urlopen(url + "?have=1", timeout=5).read() == b"tok-0"  # rejected, but inside the minimum gap
         base = url.rsplit("/", 1)[0]
         with pytest.raises(urllib.error.HTTPError) as err:
             urllib.request.urlopen(base + "/wrong", timeout=5)
         assert err.value.code == 404
-        src._at -= 10  # past the gap: the next request runs the command again
-        assert urllib.request.urlopen(url, timeout=5).read() == b"tok-1"
+        src._at -= 100  # past the gap: a rejection of the current token runs the command again
+        assert urllib.request.urlopen(url + "?have=1", timeout=5).read() == b"tok-1"
     finally:
         server.shutdown()
 
@@ -1173,6 +1174,7 @@ def test_script_fetches_a_token_before_the_first_request_and_again_after_a_401(r
     assert not any("fresh" in line or "initial" in line for line in run["lines"]), "the token is never logged"
     quick = _node_run(tmp_path / "k6" / "load.js", env, {"/pets": 401}, files=None, token_replies=["fresh-1", "fresh-2"])
     assert quick["tokenFetches"] == 1, "a stream of 401s inside the 5 s gap does not hammer the token command"
+    assert run["tokenUrls"][0].endswith("/nonce") and run["tokenUrls"][1].endswith("/nonce?have=1"), run["tokenUrls"][:3]  # says which token it holds
     off = _node_run(tmp_path / "k6" / "load.js", {k: v for k, v in env.items() if k != "APITEST_TOKEN_URL"}, {}, files=None)
     assert {r["auth"] for r in off["full"]} == {"Bearer initial"} and off["tokenFetches"] == 0
 
@@ -1320,3 +1322,54 @@ def test_the_doubling_ramp_respects_every_hard_cap(rest_doc, tmp_path):
     assert cfg["caps"]["maxRps"] == 100 and cfg["caps"]["maxVus"] == 100
     cli = subprocess.run([sys.executable, str(SCRIPTS / "gen_k6.py"), "--help"], capture_output=True, text=True)
     assert "--ramp" in cli.stdout
+
+def test_token_source_runs_the_command_once_for_a_burst_of_rejections(tmp_path):
+    import shlex
+    sys.path.insert(0, str(SCRIPTS))
+    import run_k6
+    counter = tmp_path / "n"
+    cmd = _token_script(tmp_path, f"import pathlib\np=pathlib.Path({str(counter)!r})\nn=int(p.read_text()) if p.exists() else 0\n"
+                                  "p.write_text(str(n+1))\nprint('tok-%d' % n)\n")
+    src = run_k6.TokenSource(shlex.split(cmd), dict(os.environ), min_gap=0.0, max_refreshes=2)
+    assert src.issue(None) == ("tok-0", 1) and src.refreshes == 0
+    assert src.issue(1) == ("tok-1", 2), "the current token was rejected: one new sign-in"
+    for _ in range(20):   # twenty VUs that still hold token 1 all get the current one, with no further sign-in
+        assert src.issue(1) == ("tok-1", 2)
+    assert src.issue(2) == ("tok-2", 3) and src.refreshes == 2
+    assert src.issue(3) == ("tok-2", 3), "the refresh limit stops further sign-ins"
+    assert counter.read_text() == "3"
+    slow = run_k6.TokenSource(shlex.split(cmd), dict(os.environ), min_gap=3600.0)
+    first = slow.issue(None)
+    assert slow.issue(first[1]) == first, "inside the minimum gap even a rejection gets the same token"
+
+
+def test_token_server_honors_the_generation_in_the_query_and_reports_the_count(rest_doc, tmp_path, monkeypatch):
+    import shlex
+    import urllib.request
+    sys.path.insert(0, str(SCRIPTS))
+    import run_k6
+    counter = tmp_path / "n"
+    cmd = _token_script(tmp_path, f"import pathlib\np=pathlib.Path({str(counter)!r})\nn=int(p.read_text()) if p.exists() else 0\n"
+                                  "p.write_text(str(n+1))\nprint('tok-%d' % n)\n")
+    src = run_k6.TokenSource(shlex.split(cmd), dict(os.environ), min_gap=0.0)
+    server, url = run_k6.serve_tokens(src)
+    try:
+        def get(q):
+            with urllib.request.urlopen(url + q, timeout=5) as r:
+                return r.read().decode(), r.headers["X-Token-Gen"]
+        assert get("") == ("tok-0", "1")
+        assert get("?have=1") == ("tok-1", "2")
+        assert get("?have=1") == ("tok-1", "2") and counter.read_text() == "2"
+        assert get("?have=zzz") == ("tok-1", "2") and get("?have=" + "9" * 40) == ("tok-1", "2")
+    finally:
+        server.shutdown()
+    assert src.refreshes == 1
+
+
+def test_launcher_prints_how_often_the_token_was_refreshed_and_reads_its_limits(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{_fake_k6(tmp_path)}'", results=tmp_path / "res",
+                        env=clean_env(APITEST_TOKEN_CMD=_token_script(tmp_path, "print('tok-abc')\n"),
+                                      APITEST_TOKEN_MIN_GAP_S="45", APITEST_TOKEN_MAX_REFRESHES="7"))
+    assert proc.returncode == 0, proc.stderr
+    assert "token refreshed 0 time(s) during the run (minimum gap 45 s, limit 7)" in proc.stdout and "tok-abc" not in proc.stdout + proc.stderr

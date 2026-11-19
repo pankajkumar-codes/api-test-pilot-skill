@@ -237,7 +237,7 @@ Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,int
 
 k6 needs [k6](https://k6.io/docs/get-started/installation/) installed. Use `--quick` on `gen_k6.py` for a 10x shorter first run that only checks the
 plumbing. k6 scripts are GET-only unless you pass `--include-writes`, and are capped at 100 req/s, 200 virtual users and 4 hours.
-For k6 runs longer than your access token lives, set `APITEST_TOKEN_CMD` (the same variable the pytest suite uses) to a command that prints a fresh token (and `APITEST_TOKEN_REFRESH_S` to refresh on a timer); `run_k6.py` feeds it to the script and the token is never printed.
+For k6 runs longer than your access token lives, set `APITEST_TOKEN_CMD` (the same variable the pytest suite uses) to a command that prints a fresh token (and `APITEST_TOKEN_REFRESH_S` to refresh on a timer); `run_k6.py` feeds it to the script and the token is never printed. The command runs once per renewal, not once per virtual user: at most every `APITEST_TOKEN_MIN_GAP_S` seconds (default 30) and `APITEST_TOKEN_MAX_REFRESHES` times (default 200), and the run ends with "token refreshed N time(s)". On an API that allows one live session per user (each sign-in ends the previous one) or rate-limits sign-ins, let the command return a young cached token.
 
 k6 reads the same `APITEST_EXAMPLES_FILE` and `APITEST_IDS_FILE` as the pytest suite, so load tests send valid values (a first-of-month date, a real id) instead of invented ones; the generator lists the fields that still use an invented value.
 

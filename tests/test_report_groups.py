@@ -42,3 +42,32 @@ def test_only_info_findings_give_a_notes_verdict(tmp_path):
              ("api_t.test_smoke", "test_b", "pass", "", "")]
     _, data = build(tmp_path, cases)
     assert data["result"]["status"] == "NOTES" and "INFO" in data["result"]["summary"]
+
+
+ROLE_SKIP = 'no role matrix: set APITEST_ROLE_MATRIX to a JSON file ({"createFiling": {"allow": ["owner"]}}) and APITEST_TOKEN_<ROLE> per role'
+
+
+def test_role_matrix_gap_is_stated_when_it_did_not_run(tmp_path):
+    cases = [("api_t.test_security", "test_api5_role_matrix[--deny]", "skip", ROLE_SKIP, ""), ("api_t.test_smoke", "test_ok", "pass", "", "")]
+    out, data = build(tmp_path, cases)
+    assert data["role_matrix_run"] is False and "APITEST_TOKEN_<ROLE>" in data["role_matrix_note"]
+    assert "Role (BFLA) matrix not run" in out.read_text(encoding="utf-8")
+    md = tmp_path / "r.md"
+    summarize("--junit", junit(tmp_path, cases), "--base-url", "http://127.0.0.1:9", "-o", md, "--format", "md", "--date", "2026-11-18")
+    assert "Role (BFLA) matrix not run" in md.read_text(encoding="utf-8")
+
+
+def test_no_role_matrix_line_when_it_ran(tmp_path):
+    cases = [("api_t.test_security", "test_api5_role_matrix[x-owner-allow]", "pass", "", "")]
+    out, data = build(tmp_path, cases)
+    assert data["role_matrix_run"] is True and "Role (BFLA) matrix" not in out.read_text(encoding="utf-8")
+
+
+def test_unrecognised_extension_and_k6_dir_hints(tmp_path):
+    k6 = tmp_path / "res.json"
+    k6.write_text(json.dumps({"metrics": {"http_reqs": {"count": 10, "rate": 5}, "http_req_failed": {"value": 0}}}))
+    plain_out = tmp_path / "report"
+    err = summarize("--junit", junit(tmp_path, [("api_t.test_smoke", "test_ok", "pass", "", "")]), "--k6", k6, "-o", plain_out,
+                    "--date", "2026-11-18").stderr
+    assert "written as Markdown" in err and "--format html" in err
+    assert "no manifest.json in --k6-dir" in err
