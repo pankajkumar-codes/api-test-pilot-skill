@@ -96,6 +96,49 @@ if (CONFIG.peakRps > MAX_RPS) {
   throw new Error('peak ' + CONFIG.peakRps + ' req/s exceeds the cap of ' + MAX_RPS + ' (APITEST_MAX_RPS); regenerate with a lower --rate');
 }
 
+// ---- values from files (same format as the pytest suite) ----
+// APITEST_IDS_FILE      {"path": {"business_id": "..."}}                     ids for path parameters
+// APITEST_EXAMPLES_FILE {"operationId.field": value, "*.field": value}      valid values for required query and body fields
+// k6 can read files only at start-up, so both are read here, once, and never echoed.
+function readJsonFile(name) {
+  const path = envOf(name).trim();
+  if (path === '') return null;
+  let data;
+  try {
+    data = JSON.parse(open(path));
+  } catch (e) {
+    throw new Error(name + ' must name a readable JSON file');
+  }
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error(name + ' must hold a JSON object');
+  }
+  return data;
+}
+const IDS_FILE = readJsonFile('APITEST_IDS_FILE');
+const EXAMPLES_FILE = readJsonFile('APITEST_EXAMPLES_FILE');
+
+function idFromFile(name) {
+  const section = IDS_FILE && IDS_FILE.path;
+  if (!section || typeof section !== 'object' || !Object.prototype.hasOwnProperty.call(section, name)) return '';
+  const v = section[name];
+  return v === null || v === undefined ? '' : String(v);
+}
+
+// Example values for one operation: its own ("opId.field") and the shared ones ("*.field"); its own win.
+function examplesFor(opId) {
+  const found = new Map();
+  if (!EXAMPLES_FILE) return found;
+  for (const key of Object.keys(EXAMPLES_FILE)) {
+    const dot = key.indexOf('.');
+    if (dot < 1 || dot === key.length - 1) continue;
+    const op = key.slice(0, dot);
+    const field = key.slice(dot + 1);
+    if (op === '*' && !found.has(field)) found.set(field, EXAMPLES_FILE[key]);
+    if (op === opId) found.set(field, EXAMPLES_FILE[key]);
+  }
+  return found;
+}
+
 // ---- endpoints: only requests that are safe to send and fully configured ----
 function applyScheme(name, headers, query, cookies) {
   const sch = CONFIG.schemes[name];
@@ -163,7 +206,7 @@ function build(ep, notes) {
   }
   let path = ep.path;
   for (const p of ep.pathParams) {
-    const val = envOf(p.env) || (p.default === null || p.default === undefined ? '' : String(p.default));
+    const val = envOf(p.env) || idFromFile(p.name) || (p.default === null || p.default === undefined ? '' : String(p.default));
     if (val === '') {
       notes.push(ep.tag + ': skipped, set ' + p.env + ' to an existing id');
       return null;
@@ -172,6 +215,10 @@ function build(ep, notes) {
   }
   const headers = Object.assign({}, ep.headers, { 'X-Load-Test': 'api-test-pilot-skill' });
   const query = Object.assign({}, ep.query);
+  const given = ep.graphql || !ep.opId ? new Map() : examplesFor(ep.opId);
+  for (const k of Object.keys(query)) {
+    if (given.has(k)) query[k] = given.get(k);
+  }
   const cookies = {};
   const required = ep.sec.length > 0;
   const wanted = required ? ep.sec : ep.softSec || [];
@@ -199,6 +246,13 @@ function build(ep, notes) {
       return null;
     }
     bodyValue = { query: bodyValue.query, variables: variables, operationName: bodyValue.operationName };
+  }
+  if (given.size > 0 && bodyValue !== null && typeof bodyValue === 'object' && !Array.isArray(bodyValue)) {
+    const copy = Object.assign({}, bodyValue);
+    for (const k of Object.keys(copy)) {
+      if (given.has(k)) Object.defineProperty(copy, k, { value: given.get(k), enumerable: true, writable: true, configurable: true });
+    }
+    bodyValue = copy;
   }
   if (bodyValue !== null && bodyValue !== undefined) {
     if ((ep.contentType || '').indexOf('x-www-form-urlencoded') !== -1) {
