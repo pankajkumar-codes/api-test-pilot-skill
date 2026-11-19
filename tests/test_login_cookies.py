@@ -68,3 +68,11 @@ def test_failure_messages_do_not_show_the_account(env):
     res, _ = run_suite(suite, url, {"APITEST_LOGIN_EMAIL": "pilot@example.org", "APITEST_LOGIN_PASSWORD": "wrong-pw-1234"})
     status, msg = next(v for k, v in res.items() if "login" in k)
     assert status == "failed" and "pilot@example.org" not in msg and "wrong-pw-1234" not in msg
+
+
+def test_username_and_otp_are_scrubbed_too(env):
+    suite, url = env
+    res, _ = run_suite(suite, url, {"APITEST_LOGIN_EMAIL": "pilot@example.org", "APITEST_LOGIN_USERNAME": "pilot-user-77",
+                                    "APITEST_LOGIN_OTP": "482913", "APITEST_LOGIN_PASSWORD": "wrong-pw-1234"})
+    status, msg = next(v for k, v in res.items() if "login" in k)
+    assert status == "failed" and "pilot-user-77" not in msg and "482913" not in msg

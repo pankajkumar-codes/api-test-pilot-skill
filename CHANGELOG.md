@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (tenant isolation and role matrix, issues 47, 48)
+- `test_api1_tenant_isolation_matrix`: for tenant-scoped URLs every protected operation is called with user A's token against another tenant's id and must be refused, after a control call with A's own tenant succeeds. The tenant parameter is detected (first two path segments of 60% of protected paths, at least three) or set with `gen_pytest.py --tenant-param`. Reads only unless `APITEST_TENANT_WRITES=yes`. Needs `APITEST_PATH_<TENANT>` and `APITEST_VICTIM_<TENANT>`.
+- `test_api5_role_matrix`: `APITEST_ROLE_MATRIX` names a JSON file of operationId to allowed and denied roles; each role's token is `APITEST_TOKEN_<ROLE>`. Both tests are intrusive (safety gate) and skip when their variables are missing.
+
 ### Added (tokens, sign-in and cookies, issues 44, 45)
 - Generated tests that call an endpoint that probably ends the caller's session (sign-out, revoke, password change or reset, session end or replace) carry a `session_end` marker and run after every other test, so they cannot invalidate the token the rest of the run uses.
 - `APITEST_TOKEN_CMD` (and `_B`): a command that prints a fresh token, run without a shell when a credentialed call gets 401 (rate-limited to once per 5 s, 100 per run); the call is then repeated once. The token is never printed.

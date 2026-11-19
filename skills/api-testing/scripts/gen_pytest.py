@@ -103,6 +103,8 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
   APITEST_TOKEN_CMD         command (no shell) whose output is a fresh token; run once when a call gets 401, then the call is retried (_B for user B)
+  APITEST_TENANT_WRITES=yes also call write operations in the other tenant (tenant isolation matrix; default reads only)
+  APITEST_ROLE_MATRIX       JSON file {{"operationId": {{"allow": ["owner"], "deny": ["billing"]}}}}; each role needs APITEST_TOKEN_<ROLE>
   APITEST_IDS_FILE          JSON file {{"path": {{param: id}}, "victim": {{param: id}}}} instead of many variables
   APITEST_EXAMPLES_FILE     JSON file {{"operationId.field": value, "*.field": value}} of valid values for fields the spec gives no example for
   APITEST_SEND_OPTIONAL_HEADERS   headers the spec marks optional but the server needs (Idempotency-Key, If-Match)
@@ -359,9 +361,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-o", "--out", default="generated_tests")
     ap.add_argument("--types", default="all", help="comma-separated test types (default: all)")
     ap.add_argument("--base-url", help="override the default base URL baked into conftest.py")
+    ap.add_argument("--tenant-param", metavar="NAME", help="path parameter that names the tenant (business_id); default: detected from the paths")
     args = ap.parse_args(argv)
     try:
         doc = _common.load_intake_json(args.intake)
+        if args.tenant_param:
+            doc["tenant_param"] = args.tenant_param
         result = generate(doc, Path(args.out), [t.strip() for t in args.types.split(",") if t.strip()], args.base_url)
     except (OSError, ValueError, _common.IntakeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
