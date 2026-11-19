@@ -9,7 +9,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 - [ ] `python tools/validate_skill.py` prints `OK` (frontmatter, layout, plugin files, version consistency across
       `SKILL.md` metadata, `plugin.json`, CHANGELOG).
 - [ ] `claude plugin validate .` passes. Known, accepted output: a warning that `CLAUDE.md` at the plugin root is not loaded
-      (it is repository instructions, not plugin content), (the icon is included now; see "Icon" below).
+      (it is repository instructions, not plugin content). The icon is included now; see "Icon" below.
 - [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot-skill@api-test-pilot-skill`
       with a scratch `HOME`; `claude plugin list` shows version 0.1.0.
 - [ ] `python tools/build_skill_zip.py`; unzip into an empty folder, create a fresh virtualenv with `pip install pytest requests`,
@@ -54,7 +54,7 @@ Read from Anthropic's pages. Rules change; re-read them on the day you submit.
   The icon is a square PNG or JPEG, 512 to 2048 px, under 2 MB; `claude plugin validate` only advises when it is missing. The icon may become the listing icon only the first time the plugin is saved or submitted, so set it before the first submission.
 - No privacy-policy or support URL is listed among the plugin checks I read (the connector form is different). The README section "Privacy and support" is there in case a form asks.
 - Review time: **not fixed**; Anthropic's status page says so and gives no number. Statuses: Draft, Scanning, Needs changes, In review, Approved, Published (installable only then). Contact: the portal's Get help, or `directory@anthropic.com` (replies can be slow). Limit: 10 submissions per organization per 24 hours.
-- This repository today: 170 tracked files, a valid manifest, README, MIT licence and icon. Three sample report files (`examples/sample-report.html`, `examples/sample-report.json`,
+- This repository today (main a4187bf, 172 tracked files with `git ls-files | wc -l`): a valid manifest, README, MIT licence and icon. Three sample report files (`examples/sample-report.html`, `examples/sample-report.json`,
   `examples/spring-boot-demo/report.html`) are over 256 KiB, so expect a reviewer hold on them. Installs copy the whole plugin folder (see "Plugin size" below).
 - Policy risk to answer: the policy says software must not "evade or enable users to circumvent" Claude's safety guardrails. This is a security-testing tool that sends attack-shaped requests only to targets the user confirms; keep the safety gate wording plain and conservative in the listing.
 
