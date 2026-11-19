@@ -510,6 +510,11 @@ def test_docker_command_passes_variable_names_never_values(rest_doc, tmp_path):
     assert "--docker" in proc.stdout.split("Rerun with:")[1]
     bad = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "x; rm -rf /", "--dry-run")
     assert bad.returncode == 2
+    pinned = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "grafana/k6:0.54.0", "--dry-run")
+    assert "--docker --docker-image grafana/k6:0.54.0" in pinned.stdout.split("Rerun with:")[1]
+    no_docker = subprocess.run([sys.executable, str(SCRIPTS / "run_k6.py"), "--check", "--docker"], capture_output=True, text=True,
+                               env=clean_env(PATH=str(Path(sys.executable).parent)))
+    assert no_docker.returncode == 4 and "docker not found" in no_docker.stdout
 
 
 # ====================================================================== real k6 runs
