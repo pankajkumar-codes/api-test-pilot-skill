@@ -577,7 +577,7 @@ def test_circuit_breaker_aborts_when_the_target_is_failing(rest_doc, tmp_path):
         sent = len(LAST_LOG)
     # exit 91 = error-rate threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
     assert proc.returncode == 91, proc.stdout[-1500:] + proc.stderr[-800:]
-    assert "rate<0.5" in proc.stdout
+    assert "(exit 91)" in proc.stdout   # the launcher names it; older k6 versions do not print the threshold expression themselves
     assert sent < 400, f"run should have aborted early, but {sent} requests were sent"
 
 
