@@ -97,6 +97,9 @@ class Resolver:
                     out.setdefault("$name", name)
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
+        if node.get("x-unique") is True or node.get("unique") is True or any(
+                isinstance(node.get(k), str) and SAYS_UNIQUE_RE.search(node[k]) for k in ("description", "title")):
+            out["unique"] = True   # the spec says the value must be unique; the generator tags such create fields
         if "example" not in out:   # vendor `x-example` and the JSON Schema `examples` list (OpenAPI 3.1) count as an example
             if "x-example" in node:
                 out["example"] = node["x-example"]
@@ -482,6 +485,7 @@ def _bounded(doc: dict, warnings: list[str]) -> dict:
 
 MAX_FILES = 50
 MAX_FILE_BYTES = 5_000_000
+SAYS_UNIQUE_RE = re.compile(r"\b(must be unique|is unique|unique (per|across|within|in)|unique identifier|uniquely|globally unique|no duplicates)\b", re.I)
 BUNDLE_KEY = "x-apitest-bundled"
 FILE_SUFFIXES = (".yaml", ".yml", ".json")
 VALUE_KEYS = ("example", "examples", "enum", "default", "const")   # data, not schema: a "$ref" string in there is just text

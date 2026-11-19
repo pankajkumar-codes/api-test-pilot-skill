@@ -390,7 +390,8 @@ def guessed_body(ep: dict) -> list[str]:
 # Whole field names only (after camelCase becomes snake_case). A suffix match would catch country_code, hostname or
 # surname, and a tagged value like `US-1f3a2` is rejected by any server that validates the format.
 _UNIQUE_NAMES = {"email", "e_mail", "username", "user_name", "login", "handle", "slug", "sku", "name",
-                 "promo_code", "coupon_code", "referral_code", "invite_code", "voucher_code"}
+                 "promo_code", "coupon_code", "referral_code", "invite_code", "voucher_code",
+                 "serial_number", "external_id", "invoice_number", "order_number", "registration_number", "account_number"}
 _FIXED_CODE_RE = re.compile(r"[A-Z0-9]{1,5}")
 
 
@@ -399,6 +400,11 @@ def _field_key(name: str) -> str:
 
 
 _CREDENTIAL_PATH_RE = re.compile(r"(^|/)(login|log-?in|sign-?in|auth|authenticate|authorize|oauth2?|tokens?|sessions?)(/|$)", re.I)
+
+
+def _spec_says_unique(v: dict) -> bool:
+    """The spec marks the field unique (x-unique, unique: true or a description that says so; the parser sets `unique`)."""
+    return v.get("unique") is True
 
 
 def unique_body_fields(ep: dict) -> dict:
@@ -411,7 +417,7 @@ def unique_body_fields(ep: dict) -> dict:
         return {}
     out = {}
     for k, v in sch["properties"].items():
-        if not (isinstance(v, dict) and _first_type(v) == "string" and _field_key(k) in _UNIQUE_NAMES and not v.get("readOnly")
+        if not (isinstance(v, dict) and _first_type(v) == "string" and (_field_key(k) in _UNIQUE_NAMES or _spec_says_unique(v)) and not v.get("readOnly")
                 and not is_secret_name(k) and v.get("format") in (None, "", "email")):
             continue
         if any(key in v for key in ("enum", "pattern", "const", "default")):   # the spec says what the value must be
