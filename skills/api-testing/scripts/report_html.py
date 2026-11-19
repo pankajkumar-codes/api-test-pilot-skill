@@ -236,7 +236,7 @@ def section_k6(d: dict) -> str:
             top = max([_num(v.get("p95")) or 0 for v in k["stages"].values()] + [1])
             rows = "".join(
                 f'<tr><td>{e(name)}</td><td class="bar"><div class="stack"><span class="seg-pass" style="width:{(_num(v.get("p95")) or 0) * 100 / top:.1f}%"></span></div></td>'
-                f'<td class="n">{e(fmt(v.get("p95"), " ms"))}</td><td class="n">{e(fmt(v.get("failed")))}</td></tr>'
+                f'<td class="n">{"not run" if v.get("not_run") else e(fmt(v.get("p95"), " ms"))}</td><td class="n">{"not run" if v.get("not_run") else e(fmt(v.get("failed")))}</td></tr>'
                 for name, v in sorted(k["stages"].items()))
             st = f'<div class="scroll"><table><thead><tr><th>Stage</th><th>p95 latency</th><th></th><th>Failed rate</th></tr></thead><tbody>{rows}</tbody></table></div>'
         peak = f'<p>{e(k["peak_text"])}</p>' if k.get("peak_text") else ""

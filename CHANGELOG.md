@@ -24,6 +24,7 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Added (k6 baseline probe and coverage, issues 61, 63)
 - Before the load starts, each selected endpoint is sent once (paced under the rate cap). An endpoint that already fails with its generated request (invented value rejected, another role's endpoint, a server error) is left out of the run and listed as "not load tested: fails at baseline with status N", so the error-rate threshold judges load, not fixtures. `APITEST_K6_BASELINE=off` keeps them all. If every endpoint fails, the run aborts with a clear message.
+- Stages that never ran (the circuit breaker stopped the run) show "not run" instead of 0, are not counted as good steps in the stress result, and the report says the run stopped early.
 - `run_k6.py` keeps the coverage line the script prints and writes `results/<profile>-coverage.json` (tested endpoints, skipped endpoints with the variable to set, baseline failures). The HTML, Markdown and JSON report show them in the k6 section and say how to read the error rate; without the file the report says coverage was not recorded.
 
 ### Fixed (report evidence and report.json, issues 41, 43)
