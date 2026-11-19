@@ -42,9 +42,9 @@ def run(tmp_path_factory):
     return res
 
 
-def test_rejected_invented_value_is_info(run):
+def test_rejected_invented_value_is_could_not_verify_not_a_failure(run):
     status, msg = next(v for k, v in run.items() if "period" in k)
-    assert status == "failed" and "[INFO]" in msg and "needs an example" in msg and "[HIGH]" not in msg
+    assert status == "skipped" and "could not verify" in msg and "invented value" in msg and "[HIGH]" not in msg
 
 
 def test_a_server_error_keeps_its_severity_rules(run):

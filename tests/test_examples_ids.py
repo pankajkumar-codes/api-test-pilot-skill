@@ -75,12 +75,12 @@ def test_patterns_are_no_longer_treated_as_invented_values():
     assert gen_common.guessed_query(ep) == ["start"]
 
 
-def test_invented_start_is_info_until_an_examples_file_supplies_it(env, tmp_path):
+def test_invented_start_is_could_not_verify_until_an_examples_file_supplies_it(env, tmp_path):
     d, url = env
     base = {"APITEST_PATH_BUSINESS_ID": "b1"}
     res, _ = run_suite(d / "suite", url, base)
     status, msg = next(iter(v for k, v in res.items() if "smoke" in k))
-    assert status == "failed" and "[INFO]" in msg
+    assert status == "skipped" and "could not verify" in msg and "invented value" in msg
     ex = tmp_path / "examples.json"
     ex.write_text(json.dumps({"getPeriod.start": "2024-04-01"}))
     res, _ = run_suite(d / "suite", url, {**base, "APITEST_EXAMPLES_FILE": str(ex)})

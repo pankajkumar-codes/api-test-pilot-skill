@@ -675,8 +675,26 @@ def _status_ok(status: int, expected: Any) -> bool:
 _DUPLICATE_RE = re.compile(r"already\s+(exists?|registered|taken|in\s+use)|duplicate|not\s+unique|unique\s+constraint", re.I)
 
 
+def skip_if_own_guess(resp: requests.Response, codes: Any, what: str) -> None:
+    """A refusal that the skill's own request may have caused is "could not verify", not a failure: a 4xx for a value the spec
+    gave no example, default or enum for (the skill invented it), or a 412 for an If-Match version that went stale. A value taken
+    from the spec, a 5xx and a wrong 2xx stay failures."""
+    guessed = getattr(resp, "_guessed", ())
+    if header_drift(resp):   # the answer names a header the spec calls optional: that is a finding about the spec, reported by fail()
+        return
+    if resp.status_code in INPUT_REJECTED and guessed:
+        pytest.skip(f"could not verify: {what or 'request'}: expected {list(codes)}, got {resp.status_code}; the spec gives "
+                    f"no example or default for required parameter(s) or field(s) {', '.join(guessed)}, so the request used an "
+                    "invented value and the refusal may be that value being rejected. Add an `example` to the spec, or set it "
+                    "in APITEST_EXAMPLES_FILE, to get a verdict")
+    if resp.status_code == 412 and any(k.lower() == "if-match" for k in resp.request.headers):
+        pytest.skip(f"could not verify: {what or 'request'}: expected {list(codes)}, got 412; the If-Match version was stale "
+                    "(an earlier test changed the record) and could not be refreshed from a read of it")
+
+
 def expect_status(resp: requests.Response, codes: Any, what: str = "") -> None:
     if not _status_ok(resp.status_code, codes):
+        skip_if_own_guess(resp, codes, what)
         if resp.status_code == 429:  # throttled: tells us nothing about correctness (the rate-limit checks look at 429 themselves)
             pytest.skip(f"throttled (429): {what or 'the call'} was rate limited, so this check has no verdict; "
                         "slow the run down with APITEST_DELAY_MS=250 (or APITEST_RPS=4), or raise the target's rate limit for this client")
@@ -1350,6 +1368,8 @@ class Api:
         if ep.sec and auth in ("default", "invalid"):
             ah, aq, ac = self.credentials(ep.sec, who, invalid=(auth == "invalid"))
             h.update(ah), q.update(aq), cookies.update(ac)
+        if auth == "default" and ep.method in ("PUT", "PATCH", "DELETE") and not (headers and any(k.lower() == "if-match" for k in headers)):
+            self.refresh_if_match(ep, url, h, cookies)
         kwargs: dict[str, Any] = {}
         ctype = ep.content_type if content_type is UNSET else content_type
         if raw is not None:
@@ -1391,6 +1411,21 @@ class Api:
             if n not in used_examples and ((n.startswith("body.") and body is UNSET and raw is None)
                                            or (n in q and q[n] == ep.query.get(n))))
         return resp
+
+    def refresh_if_match(self, ep: Endpoint, url: str, h: dict, cookies: dict) -> None:
+        """An operation the spec gives a required If-Match header gets the record's current ETag: the record is read first with the
+        same credentials, because an earlier test may have changed it. Nothing changes when the read has no ETag."""
+        name = next((k for k in ep.headers if k.lower() == "if-match"), None)
+        if name is None:
+            return
+        read_h = {k: v for k, v in h.items() if k.lower() not in ("if-match", "content-type", "idempotency-key")}
+        try:
+            r = self._request("GET", url, headers=read_h, cookies=cookies or None, timeout=self.timeout, allow_redirects=False)
+        except Exception:   # noqa: BLE001 (any failure to read leaves the spec's own value in place)
+            return
+        etag = r.headers.get("ETag") if 200 <= r.status_code < 300 else None
+        if etag:
+            h[name] = etag
 
     def get(self, url_path: str, **kw: Any) -> requests.Response:
         return self._request("GET", self.base_url + url_path, timeout=self.timeout, allow_redirects=False, **kw)

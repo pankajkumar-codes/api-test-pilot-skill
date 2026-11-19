@@ -24,7 +24,7 @@ Samples: `examples/sample-report.html` (seeded flaws) and `examples/spring-boot-
 - Summary: result line (PASS / FAIL / INCOMPLETE) and counts per test type.
 - Coverage per endpoint: types run, pass, fail, skipped, k6 p95. Without `--intake` only endpoints named in a failing request appear.
 - k6: overall numbers, every threshold with its observed value, per-stage and per-endpoint tables.
-- Findings, most severe first (CRITICAL, HIGH, MEDIUM, LOW, INFO; a 4xx on a request that used a value the skill had to invent, because the spec gave no example, is INFO with "needs an example" in the title), each with endpoint, what happened vs expected and **Reproduce**:
+- Findings, most severe first (CRITICAL, HIGH, MEDIUM, LOW, INFO; a 4xx on a request that used a value the skill had to invent, because the spec gave no example, is not a finding: the test skips as "could not verify" and the report lists the values that need an example; the same holds for a 412 on an If-Match version that went stale. A value taken from the spec, a 5xx and a wrong 2xx stay failures), each with endpoint, what happened vs expected and **Reproduce**:
   the redacted `curl` line the runtime recorded (when there is one) plus the exact `python -m pytest <file>::<test>` command, or the
   `run_k6.py` command for k6 findings. Gated types (security, fuzz, resilience, k6) add the safety-gate note: the user exports
   `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`; the report never sets them.

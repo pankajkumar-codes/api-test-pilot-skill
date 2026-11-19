@@ -94,3 +94,12 @@ def test_skips_are_grouped_by_who_can_fix_them(tmp_path):
     summarize("--junit", junit(tmp_path, cases), "--base-url", "http://127.0.0.1:9", "-o", md, "--format", "md", "--date", "2026-11-18")
     text = md.read_text(encoding="utf-8")
     assert "Skipped tests, by who can fix it:" in text and "- A safety default is off on purpose: 2" in text
+
+
+def test_could_not_verify_skip_counts_as_could_not_run_and_names_the_values_to_exemplify(tmp_path):
+    msg = ("could not verify: request with valid input should succeed: expected [200], got 422; the spec gives no example or default for "
+           "required parameter(s) or field(s) start, so the request used an invented value and the refusal may be that value being rejected")
+    cases = [("api_t.test_smoke", "test_getPeriod", "skip", msg, ""), ("api_t.test_smoke", "test_ok", "pass", "", "")]
+    _, data = build(tmp_path, cases)
+    assert "1 could not run" in data["result"]["summary"] and data["result"]["status"] == "PASS"
+    assert any("start" in v for v in data["needs_example"].values())

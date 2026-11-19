@@ -542,6 +542,9 @@ class Report:
                 rec["reason"] = reason
                 self.skips[reason] = self.skips.get(reason, 0) + 1
                 self._count_unskip(c["message"] or c["text"] or "")
+                m_skip = NEEDS_EXAMPLE_RE.search(c["message"] or "")
+                if m_skip:   # "could not verify": the refusal may be the skill's own invented value
+                    self.needs_example.setdefault(rec["endpoint"], set()).update(f.strip() for f in m_skip.group(1).split(",") if f.strip())
             elif c["status"] == "error":
                 first = plain((raw.strip().split("\n") or [""])[0], 160) or "error without a message"
                 rec["reason"] = first
