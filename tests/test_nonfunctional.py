@@ -1005,3 +1005,18 @@ def test_run_k6_keeps_the_coverage_line_and_the_report_shows_it(rest_doc, tmp_pa
     nocov = subprocess.run([sys.executable, str(SCRIPTS / "summarize_results.py"), "--k6", str(res / "load-summary.json"), "-o", "-"],
                            capture_output=True, text=True, cwd=tmp_path).stdout
     assert "not recorded" in nocov
+
+
+def test_coverage_line_parser_ignores_garbage_and_keeps_only_known_keys():
+    sys.path.insert(0, str(SCRIPTS))
+    import run_k6
+    parse = run_k6.parse_coverage_line
+    assert parse("nothing here") is None and parse("APITEST_COVERAGE not json") is None and parse("APITEST_COVERAGE {broken") is None
+    assert parse("APITEST_COVERAGE [1,2]") is None
+    assert parse("APITEST_COVERAGE {" + '"tested":["a"],' * 1 + '"x":' + "1" * 5 + "}")["tested"] == ["a"]
+    got = parse('APITEST_COVERAGE {"tested":["ok", 5, {"a":1}],"skipped":[{"endpoint":"e","reason":"' + "r" * 1000
+                + '","set":["V", 3],"evil":"x"}, "str"],"baselineFailed":[{"endpoint":"b","status":"418"}],"__proto__":{"a":1}}')
+    assert got["tested"] == ["ok"] and len(got["skipped"]) == 1 and len(got["skipped"][0]["reason"]) == 300
+    assert got["skipped"][0]["set"] == ["V"] and "evil" not in got["skipped"][0]
+    assert got["baseline_failed"] == [{"endpoint": "b", "status": 0}] and set(got) == {"tested", "skipped", "baseline_failed", "baseline_probe"}
+    assert parse("APITEST_COVERAGE {" + "x" * 2_000_000 + "}") is None
