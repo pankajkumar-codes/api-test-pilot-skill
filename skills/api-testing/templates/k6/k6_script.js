@@ -140,7 +140,7 @@ function examplesFor(opId) {
 }
 
 // ---- endpoints: only requests that are safe to send and fully configured ----
-function applyScheme(name, headers, query, cookies) {
+function applyScheme(name, headers, query, cookies, meta) {
   const sch = CONFIG.schemes[name];
   if (!sch) return [name];
   const names = sch.env || [];
@@ -155,6 +155,7 @@ function applyScheme(name, headers, query, cookies) {
   } else {
     const word = kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : 'Bearer';
     headers['Authorization'] = word + ' ' + vals[0];
+    meta.refresh = word; // this is the header a refreshed token replaces
   }
   return [];
 }
@@ -166,10 +167,11 @@ function credentialsFor(sec) {
     const query = {};
     const cookies = {};
     const gaps = [];
+    const meta = { refresh: null };
     for (const s of alt) {
-      for (const g of applyScheme(s, headers, query, cookies)) gaps.push(g);
+      for (const g of applyScheme(s, headers, query, cookies, meta)) gaps.push(g);
     }
-    if (gaps.length === 0) return { headers, query, cookies };
+    if (gaps.length === 0) return { headers, query, cookies, refresh: meta.refresh };
     if (missing.length === 0) missing = gaps;
   }
   return { missing };
@@ -227,6 +229,7 @@ function build(ep, notes) {
     if (given.has(k)) query[k] = given.get(k);
   }
   const cookies = {};
+  let refresh = null;
   const required = ep.sec.length > 0;
   const wanted = required ? ep.sec : ep.softSec || [];
   if (wanted.length > 0) {
@@ -240,6 +243,7 @@ function build(ep, notes) {
       Object.assign(headers, cred.headers);
       Object.assign(query, cred.query);
       Object.assign(cookies, cred.cookies);
+      refresh = cred.refresh;
     }
   }
   let body = null;
@@ -286,6 +290,7 @@ function build(ep, notes) {
     },
     ok: ep.ok,
     graphql: ep.graphql === true,
+    refresh: refresh, // "Bearer" etc. when a refreshed token should replace the Authorization header
   };
 }
 
@@ -382,6 +387,24 @@ export function setup() {
   return { drop: dropped };
 }
 
+// ---- token refresh for runs longer than the access token lives ----
+// run_k6.py serves fresh tokens on a loopback-only URL (APITEST_TOKEN_URL) from the command in APITEST_TOKEN_CMD. A VU fetches
+// a token before its first request, again every APITEST_TOKEN_REFRESH_S seconds (if set) and after a 401. The token is never logged.
+const TOKEN_URL = envOf('APITEST_TOKEN_URL').trim();
+const REFRESH_MS = Math.max(0, Number(envOf('APITEST_TOKEN_REFRESH_S')) || 0) * 1000;
+let TOKEN = null;
+let TOKEN_AT = 0;
+let TOKEN_TRIED = 0;
+function fetchToken() {
+  TOKEN_TRIED = Date.now();
+  const res = http.get(TOKEN_URL, { responseType: 'text', timeout: '10s', redirects: 0, tags: { name: 'token_refresh' } });
+  const text = res.status === 200 && typeof res.body === 'string' ? res.body.trim() : '';
+  if (/^[\x21-\x7e]{1,4096}$/.test(text)) {
+    TOKEN = text;
+    TOKEN_AT = Date.now();
+  }
+}
+
 let LIVE = null;
 export default function (data) {
   if (LIVE === null) {
@@ -391,6 +414,11 @@ export default function (data) {
   const ep = LIVE[Math.floor(Math.random() * LIVE.length)];
   const stage = stageLabel();
   const params = Object.assign({}, ep.params, { tags: Object.assign({}, ep.params.tags, { stage: stage }) });
+  if (TOKEN_URL && ep.refresh) {
+    if (TOKEN === null || (REFRESH_MS > 0 && Date.now() - TOKEN_AT > REFRESH_MS)) fetchToken();
+    if (TOKEN !== null) params.headers = Object.assign({}, params.headers, { Authorization: ep.refresh + ' ' + TOKEN });
+  }
   const res = http.request(ep.method, ep.url, ep.body, params);
+  if (res.status === 401 && TOKEN_URL && ep.refresh && Date.now() - TOKEN_TRIED > 5000) fetchToken(); // the next request uses it
   check(res, { 'status is expected': (r) => statusOk(ep, r) }, { endpoint: ep.tag, stage: stage });
 }

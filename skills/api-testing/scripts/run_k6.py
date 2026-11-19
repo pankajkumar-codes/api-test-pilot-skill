@@ -24,13 +24,17 @@ otherwise k6's own code (99 = a threshold failed, 107 = script/init error such a
 from __future__ import annotations
 
 import argparse
+import http.server
 import json
 import os
 import re
 import shlex
 import shutil
+import secrets
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -130,6 +134,103 @@ def check_k6(arg: str | None, use_docker: bool, image: str) -> int:
         return 5
     print(f"k6 can start: {(proc.stdout or proc.stderr).strip().splitlines()[0][:200]}")
     return 0
+
+
+TOKEN_RE = re.compile(r"^[\x21-\x7e]{1,4096}$")   # one printable token, no spaces or line breaks
+TOKEN_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,80}$")
+TOKEN_MIN_GAP_S = 2.0                             # fresh command runs at most this often, however many VUs ask
+TOKEN_CMD_TIMEOUT_S = 30
+
+
+class TokenSource:
+    """Runs APITEST_TOKEN_CMD (split like a shell would, run without a shell) and hands out the token it prints.
+    Nothing about the output is ever printed: a failure says only the exit status."""
+
+    def __init__(self, command: list[str], env: dict):
+        self.command, self.env = command, env
+        self._lock = threading.Lock()
+        self._token: str | None = None
+        self._at = 0.0
+
+    def fresh(self, force: bool = False) -> str:
+        with self._lock:
+            if self._token is not None and (not force or time.monotonic() - self._at < TOKEN_MIN_GAP_S):
+                return self._token
+            try:
+                proc = subprocess.run(self.command, env=self.env, capture_output=True, text=True, timeout=TOKEN_CMD_TIMEOUT_S)
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise RuntimeError(f"APITEST_TOKEN_CMD could not run ({type(exc).__name__})") from None
+            token = proc.stdout.strip()
+            if proc.returncode != 0:
+                raise RuntimeError(f"APITEST_TOKEN_CMD exited with status {proc.returncode}")
+            if not TOKEN_RE.match(token):
+                raise RuntimeError("APITEST_TOKEN_CMD must print one token (printable characters, no spaces or line breaks); its output is not shown")
+            self._token, self._at = token, time.monotonic()
+            return token
+
+
+def serve_tokens(source: TokenSource) -> tuple[http.server.ThreadingHTTPServer, str]:
+    """A loopback-only server for the script to fetch tokens from, on a random port behind a random path."""
+    nonce = secrets.token_urlsafe(24)
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802 (http.server API)
+            if self.path != f"/{nonce}":
+                self.send_error(404)
+                return
+            try:
+                body = source.fresh(force=True).encode()
+            except RuntimeError:
+                self.send_error(503)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args: object) -> None:  # no access log: the path is the secret
+            return
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}/{nonce}"
+
+
+def manifest_token_env(script: Path) -> list[str]:
+    try:
+        names = json.loads((script.parent / "manifest.json").read_text(encoding="utf-8")).get("tokenEnv") or []
+    except (OSError, ValueError, AttributeError):
+        return []
+    return [n for n in names if isinstance(n, str) and TOKEN_NAME_RE.match(n)]
+
+
+def start_token_refresh(script: Path, env: dict) -> tuple[http.server.ThreadingHTTPServer | None, str | None]:
+    """When APITEST_TOKEN_CMD is set: run it once, put the token in the variable(s) the script reads, and start the
+    loopback server that gives the script fresh tokens. Returns (server, error message)."""
+    raw = os.environ.get("APITEST_TOKEN_CMD", "").strip()
+    if not raw:
+        return None, None
+    try:
+        source = TokenSource(shlex.split(raw), dict(os.environ))
+        first = source.fresh()
+    except ValueError:
+        return None, "APITEST_TOKEN_CMD is not a valid command line"
+    except RuntimeError as exc:
+        return None, str(exc)
+    wanted = os.environ.get("APITEST_TOKEN_ENV", "")
+    names = [n.strip() for n in wanted.split(",")] if wanted else manifest_token_env(script)
+    names = [n for n in names if TOKEN_NAME_RE.match(n)]
+    if not names:
+        return None, ("APITEST_TOKEN_CMD is set but no token variable is known (the spec has no bearer scheme): "
+                      "set APITEST_TOKEN_ENV to the variable the script reads, e.g. APITEST_BEARERAUTH_TOKEN")
+    for n in names:
+        env[n] = first
+    server, env["APITEST_TOKEN_URL"] = serve_tokens(source)
+    every = os.environ.get("APITEST_TOKEN_REFRESH_S")
+    print(f"token refresh: APITEST_TOKEN_CMD (output not shown) feeds {', '.join(names)}" + (f"; every {every} s and after a 401" if every else "; after a 401"))
+    return server, None
 
 
 COVERAGE_MARKER = "APITEST_COVERAGE "
@@ -265,11 +366,20 @@ def main(argv: list[str] | None = None) -> int:
     results.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
     env["APITEST_BASE_URL"] = base
+    server, problem = start_token_refresh(script, env)
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 2
+    if args.docker and server is not None:   # the container must also get the token variables and the refresh URL (by name)
+        cmd = docker_command(args.docker_image, script, results, passthrough_env(env))
     try:
         code = run_and_collect(cmd, env, results / f"{script.stem}-coverage.json")
     except OSError as exc:
         print(f"error: could not start k6 ({type(exc).__name__}). Run `run_k6.py --check` to see why.", file=sys.stderr)
         return 5
+    finally:
+        if server is not None:
+            server.shutdown()
     if code == 99:
         families = crossed_families(summary)
         print("thresholds crossed: " + (", ".join(families) if families else "see the k6 output above") + " (exit 99)")
