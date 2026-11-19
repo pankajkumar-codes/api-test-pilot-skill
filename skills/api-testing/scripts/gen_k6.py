@@ -81,8 +81,22 @@ def _ramp_s(frm: int, to: int) -> int:
     return max(30, math.ceil(abs(to - frm) / MAX_RAMP_RPS_PER_S))
 
 
-def build_stages(profile: str, rate: int, *, hold: int | None = None, steps: int = 4, multiplier: int = 5,
-                 scale: float = 1.0) -> list[dict]:
+def stress_targets(rate: int, steps: int | None, ramp: str) -> list[int]:
+    """Request rates of the stress steps. linear: rate, 2 x rate, 3 x rate ... (`steps` of them). double: rate, 2 x rate,
+    4 x rate ... up to the hard cap, which is always the last step when the doubling passes it (`steps` limits the count)."""
+    if ramp != "double":
+        return [rate * i for i in range(1, (steps or 4) + 1)]
+    out, tgt = [], rate
+    while len(out) < (steps or MAX_LABELS):
+        out.append(min(tgt, HARD_MAX_RPS))
+        if tgt >= HARD_MAX_RPS:
+            break
+        tgt *= 2
+    return out
+
+
+def build_stages(profile: str, rate: int, *, hold: int | None = None, steps: int | None = 4, multiplier: int = 5,
+                 scale: float = 1.0, ramp: str = "linear") -> list[dict]:
     """Stages as {duration, target, label} (seconds, req/s). Labels become k6 `stage` tags (one per stage).
 
     `scale` < 1 shortens every stage (--quick: a plumbing check, not a capacity measurement); never below 3 s,
@@ -104,8 +118,7 @@ def build_stages(profile: str, rate: int, *, hold: int | None = None, steps: int
         add(30, 0, "ramp_down")
     elif profile == "stress":
         prev = 0
-        for i in range(1, steps + 1):
-            tgt = rate * i
+        for i, tgt in enumerate(stress_targets(rate, steps, ramp), 1):
             add(_ramp_s(prev, tgt), tgt, f"step{i}_ramp")
             add(hold, tgt, f"step{i}_hold")
             prev = tgt
@@ -409,7 +422,9 @@ def default_base_url(doc: dict, override: str | None) -> str:
 def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None = None, rate: int | None = None,
              max_vus: int | None = None, hold: int | None = None, p95_ms: int = 500, error_rate: float = 0.01,
              multiplier: int | None = None, steps: int | None = None, only: list[str] | None = None,
-             include_writes: bool = False, quick: bool = False) -> dict:
+             include_writes: bool = False, quick: bool = False, ramp: str = "auto") -> dict:
+    if ramp not in ("auto", "linear", "double"):
+        raise PlanError("--ramp must be auto, linear or double")
     chosen = list(PROFILES) if profiles == ["all"] else profiles
     bad = [p for p in chosen if p not in PROFILES]
     if bad:
@@ -431,6 +446,7 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
     base = default_base_url(doc, base_url)
     if base_url and not base:
         raise PlanError("--base-url must be a plain http(s) URL without credentials")
+    local = bool(base) and safety_gate.is_local_host(safety_gate.target_host(base))
     files: dict[str, str] = {}
     plans: dict[str, dict] = {}
     for profile in chosen:
@@ -438,8 +454,16 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
         r = rate if rate is not None else d["rate"]
         vus = max_vus if max_vus is not None else d["max_vus"]
         mult = multiplier if multiplier is not None else d.get("multiplier", 1)
-        stages = build_stages(profile, r, hold=hold, steps=steps if steps is not None else d.get("steps", 4), multiplier=mult,
-                              scale=0.1 if quick else 1.0)
+        # A stress run against your own machine can afford to climb to the cap: unless --rate or --steps was given, auto doubles the
+        # rate each step (5, 10, 20, 40, 80, 100) so a limit is found if there is one. Remote targets keep the gentle default.
+        doubling = profile == "stress" and (ramp == "double" or (ramp == "auto" and local and rate is None and steps is None))
+        if doubling and not any("stress steps double" in n for n in notes):
+            notes.append("stress steps double up to the hard cap (5, 10, 20, 40, 80, 100 req/s) because the base URL is this machine and "
+                         "neither --rate nor --steps was given; use --ramp linear for the gentler plan")
+        if doubling and max_vus is None:
+            vus = max(vus, 100)   # 100 req/s needs room for slow answers; still under the hard cap
+        stages = build_stages(profile, r, hold=hold, steps=steps if steps is not None else (None if doubling else d.get("steps", 4)),
+                              multiplier=mult, scale=0.1 if quick else 1.0, ramp="double" if doubling else "linear")
         summary = validate_plan(profile, stages, max_vus=vus, rate=r, multiplier=mult)
         glob_t, ep_t = thresholds_for(profile, stages, p95_ms, error_rate)
         rerun = f"APITEST_BASE_URL={shlex.quote(base) if base else '<target-url>'} python scripts/run_k6.py {shlex.quote(str(out / (profile + '.js')))}"
@@ -458,7 +482,7 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
         if err:
             raise _common.IntakeError(f"generator produced invalid JavaScript in {name}: {err}")
         files[name] = text
-        plans[profile] = {**summary, "rate": r, "max_vus": vus, "rerun": rerun, "p95_ms": p95_ms, "error_rate": error_rate,
+        plans[profile] = {**summary, "rate": r, "max_vus": vus, **({"ramp": "double"} if doubling else {}), "rerun": rerun, "p95_ms": p95_ms, "error_rate": error_rate,
                           "stage_plan": [{"label": s["label"], "duration": s["duration"], "target": s["target"]} for s in stages]}
     out.mkdir(parents=True, exist_ok=True)  # write only once every plan has validated, so a refused request leaves no files
     for name, text in files.items():
@@ -498,6 +522,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--error-rate", type=float, default=0.01, help="max error rate (default 0.01)")
     ap.add_argument("--spike-multiplier", type=int, help=f"spike height as a multiple of --rate (default 5, max {SPIKE_MAX_MULTIPLIER})")
     ap.add_argument("--steps", type=int, help="stress steps (default 4): rate x1, x2, ... then recovery")
+    ap.add_argument("--ramp", choices=("auto", "linear", "double"), default="auto",
+                    help="stress step sizes: linear (rate x1, x2, x3, x4), double (rate, x2, x4 ... up to the cap) or auto "
+                         "(default: double when the base URL is this machine and neither --rate nor --steps is given, else linear)")
     ap.add_argument("--endpoints", help="comma-separated endpoint ids (or GraphQL query names) to include")
     ap.add_argument("--quick", action="store_true", help="10x shorter stages (min 3 s): checks the plumbing, says nothing about capacity")
     ap.add_argument("--include-writes", action="store_true", help="also generate POST/PUT/PATCH (needs APITEST_ALLOW_WRITES=yes at run time)")
@@ -507,7 +534,7 @@ def main(argv: list[str] | None = None) -> int:
         result = generate(
             doc, Path(args.out), [p.strip() for p in args.profiles.split(",") if p.strip()], base_url=args.base_url,
             rate=args.rate, max_vus=args.max_vus, hold=parse_duration(args.duration) if args.duration else None,
-            p95_ms=args.p95_ms, error_rate=args.error_rate, multiplier=args.spike_multiplier, steps=args.steps,
+            p95_ms=args.p95_ms, error_rate=args.error_rate, multiplier=args.spike_multiplier, steps=args.steps, ramp=args.ramp,
             only=[e.strip() for e in args.endpoints.split(",") if e.strip()] if args.endpoints else None,
             include_writes=args.include_writes, quick=args.quick)
     except (OSError, ValueError, _common.IntakeError) as exc:

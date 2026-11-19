@@ -241,7 +241,7 @@ For k6 runs longer than your access token lives, set `APITEST_TOKEN_CMD` (the sa
 
 k6 reads the same `APITEST_EXAMPLES_FILE` and `APITEST_IDS_FILE` as the pytest suite, so load tests send valid values (a first-of-month date, a real id) instead of invented ones; the generator lists the fields that still use an invented value.
 
-Several k6 profiles in one go: `--profiles load,stress`, or `--profiles all`. Pass each k6 summary (`results/<profile>-summary.json`) to the
+Several k6 profiles in one go: `--profiles load,stress`, or `--profiles all`. On a local target the stress steps double up to the 100 req/s cap (5, 10, 20, 40, 80, 100) so a limit is found; `--ramp linear` gives the gentler plan, and remote targets keep it by default. Pass each k6 summary (`results/<profile>-summary.json`) to the
 report with `--k6`, and every pytest result file with `--junit`; both can be repeated. Add `--k6-dir k6_tests` (the folder with `manifest.json`) so the report can show the peak rate and virtual users reached beside the caps and, for stress, the last good and first bad step (or "no limit found up to X req/s"). Results in a sibling folder: add `--root ..`.
 
 ### The safety gate and environment variables

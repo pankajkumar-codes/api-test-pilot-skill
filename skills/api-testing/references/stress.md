@@ -16,6 +16,8 @@ python scripts/run_k6.py k6_tests/stress.js --base-url https://staging.example.c
 holds each for `--duration` (default 1 min), then returns to x1 for at least 90 s to watch recovery. Choose `--rate` so that
 `rate x steps` is above the capacity you expect but below the hard cap of 100 req/s; if it is not, the generator refuses and says why.
 
+**Local targets climb to the cap.** When the base URL given to `gen_k6.py` is this machine (localhost, 127.x, ::1) and you give neither `--rate` nor `--steps`, the steps double instead (5, 10, 20, 40, 80, 100 req/s, up to 100 VUs), so a limit is found if there is one; with a plain default plan the run stops at 20 req/s, which a local service rarely notices. `--ramp linear` asks for the old steps, `--ramp double` doubles from any `--rate` (the hard cap is always the last step), and a remote target keeps the linear default. The choice is made when the script is generated, from the base URL given then. The report says "no limit found up to X req/s" when nothing crossed a threshold, so read X as the peak actually reached.
+
 ## Reading the result
 Failing is the point, so only the circuit breaker (50 % errors, run aborts) and the recovery stage assert. Read the stage metrics in the summary:
 `http_req_duration{stage:step2_hold}`, `http_req_failed{stage:step3_hold}`, ... The **breaking point** is the first step where p95 climbs steeply,
