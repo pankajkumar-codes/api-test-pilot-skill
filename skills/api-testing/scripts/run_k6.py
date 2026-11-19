@@ -371,7 +371,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {problem}", file=sys.stderr)
         return 2
     if args.docker and server is not None:   # the container must also get the token variables and the refresh URL (by name)
-        cmd = docker_command(args.docker_image, script, results, passthrough_env(env))
+        cmd = docker_command(args.docker_image, script, results, passthrough_env(env),
+                             input_files(os.environ))
     try:
         code = run_and_collect(cmd, env, results / f"{script.stem}-coverage.json")
     except OSError as exc:

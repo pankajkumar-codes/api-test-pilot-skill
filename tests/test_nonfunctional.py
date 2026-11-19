@@ -1139,3 +1139,41 @@ def test_script_fetches_a_token_before_the_first_request_and_again_after_a_401(r
     assert quick["tokenFetches"] == 1, "a stream of 401s inside the 5 s gap does not hammer the token command"
     off = _node_run(tmp_path / "k6" / "load.js", {k: v for k, v in env.items() if k != "APITEST_TOKEN_URL"}, {}, files=None)
     assert {r["auth"] for r in off["full"]} == {"Bearer initial"} and off["tokenFetches"] == 0
+
+
+def test_k6_script_regular_expressions_stay_within_k6_repeat_limits():
+    """k6's regular expression engine rejects a repeat count above 1000 (the script then fails to start with exit 107);
+    node accepts them, so the node-based tests cannot see it."""
+    text = (ROOT / "skills" / "api-testing" / "templates" / "k6" / "k6_script.js").read_text(encoding="utf-8")
+    counts = [int(n) for m in re.finditer(r"\{(\d*),?(\d+)\}", text) for n in [m.group(2)]]
+    assert max(counts) <= 1000, f"repeat count {max(counts)} is more than k6 allows"
+
+
+def test_docker_with_a_token_command_keeps_the_file_mounts(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    ids = tmp_path / "ids.json"
+    ids.write_text("{}")
+    fake_docker = tmp_path / "bin" / "docker"
+    fake_docker.parent.mkdir()
+    fake_docker.write_text(f'#!/bin/sh\necho "$@" > {tmp_path / "docker-args.txt"}\nexit 0\n')
+    fake_docker.chmod(0o755)
+    env = clean_env(PATH=f"{fake_docker.parent}:{os.environ['PATH']}", APITEST_IDS_FILE=str(ids),
+                    APITEST_TOKEN_CMD=_token_script(tmp_path, "print('tok-abc')\n"))
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", results=tmp_path / "res", env=env)
+    assert proc.returncode == 0, proc.stderr
+    args = (tmp_path / "docker-args.txt").read_text()
+    assert f"{ids}:/inputs/APITEST_IDS_FILE.json:ro" in args and "-e APITEST_TOKEN_URL" in args and "-e APITEST_BEARERAUTH_TOKEN" in args
+    assert "tok-abc" not in args, "the token travels by name, never as a value"
+
+
+@needs_k6
+def test_real_k6_runs_with_a_token_command_and_stays_authorized(rest_doc, tmp_path):
+    out = tmp_path / "k6"
+    gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=3, quick=True)
+    results = tmp_path / "results"
+    cmd = _token_script(tmp_path, "print('tokA')\n")  # tokA is the one token the mock accepts
+    with rest_server() as url:
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, results=results,
+                            env=_k6_env(APITEST_TOKEN_CMD=cmd, APITEST_TOKEN_REFRESH_S="1"))
+    assert proc.returncode == 0, proc.stdout[-1500:] + proc.stderr[-1500:]
+    assert "feeds APITEST_BEARERAUTH_TOKEN" in proc.stdout and "tokA" not in proc.stdout + proc.stderr
