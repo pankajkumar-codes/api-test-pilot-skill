@@ -446,9 +446,23 @@ def doc_safe(text: str) -> str:
     return re.sub(r'["\\\r\n]', "_", str(text))
 
 
+_SESSION_END_RE = re.compile(r"log-?out|sign-?out|revoke|invalidate|terminate|(change|set|reset|update)-?_?password|password-?_?(change|reset)|"
+                             r"(delete|remove|end|close)[-_]?sessions?|sessions?[-_]?(delete|end|close|replace)", re.I)
+
+
+def ends_session(ep: dict) -> bool:
+    """True for a write that probably invalidates the caller's own token (sign-out, revoke, password change, session end or
+    replace). Generated tests that call it are marked session_end and run last, so they cannot log out the tests before them."""
+    if ep.get("method") == "GET":
+        return False
+    text = f"{ep.get('path', '')} {ep.get('id', '')}"
+    return bool(_SESSION_END_RE.search(text)) or (ep.get("method") == "DELETE" and bool(re.search(r"/sessions?(/|$)", ep.get("path", ""), re.I)))
+
+
 class Module:
-    def __init__(self, title: str, ttype: str, rerun: str):
+    def __init__(self, title: str, ttype: str, rerun: str, session_end_ids: set[str] | None = None):
         self.title, self.ttype, self.rerun = title, ttype, rerun
+        self.session_end_ids = session_end_ids or set()
         self.blocks: list[str] = []
         self.names: set[str] = set()
         self.tests = 0
@@ -464,6 +478,8 @@ class Module:
     def add(self, src: str, is_test: bool = True) -> None:
         if is_test and "require_destructive()" in src:  # generated code only, no spec text. The marker lets conftest run these last
             src = "@pytest.mark.destructive\n" + src
+        if is_test and self.session_end_ids and any(f"EP[{i!r}]" in src for i in self.session_end_ids):
+            src = "@pytest.mark.session_end\n" + src
         self.blocks.append(src.rstrip() + "\n")
         self.tests += is_test
 

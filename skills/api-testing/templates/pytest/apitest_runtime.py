@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import time
 import urllib.parse
 import uuid
@@ -211,6 +212,13 @@ def reset_exchanges() -> None:
 def _secret_values() -> list[str]:
     vals = {v for n, v in os.environ.items()
             if n.startswith("APITEST_") and len(v) >= 4 and v.strip().lower() not in _PLAIN_VALUES and SECRET_KEY_RE.search(n)}
+    for n in ("APITEST_LOGIN_EMAIL", "APITEST_LOGIN_USERNAME"):   # account names: not secret by name, but never shown in a report
+        if len(os.environ.get(n, "")) >= 4:
+            vals.add(os.environ[n])
+    for part in os.environ.get("APITEST_COOKIES", "").split(";"):    # each cookie value on its own (the variable holds "a=b; c=d")
+        val = part.partition("=")[2].strip()
+        if len(val) >= 4:
+            vals.add(val)
     return sorted(vals, key=len, reverse=True)
 
 
@@ -360,6 +368,41 @@ def unskip_hints(reasons: list[str]) -> list[tuple[str, int]]:
     return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
 
 
+LOGIN_PATH_RE = re.compile(r"(log-?in|sign-?in|authenticate|/token|/session|/auth)(/|$|\?)", re.I)
+_LOGIN_FIELDS = (
+    (re.compile(r"^(e-?mail|email_?address)$", re.I), "APITEST_LOGIN_EMAIL"),
+    (re.compile(r"^(user_?name|login|identifier|user)$", re.I), "APITEST_LOGIN_USERNAME"),
+    (re.compile(r"^(pass(word|wd)?|pwd)$", re.I), "APITEST_LOGIN_PASSWORD"),
+    (re.compile(r"^(otp|totp|code|mfa_?code)$", re.I), "APITEST_LOGIN_OTP"),
+)
+
+
+def login_overrides(ep: "Endpoint", payload: Any) -> Any:
+    """Fill a sign-in body with a real account: APITEST_LOGIN_EMAIL / _USERNAME / _PASSWORD / _OTP go into the body fields of that
+    kind on POST operations whose path looks like a sign-in. The email also serves username-like fields when no username is set."""
+    if ep.method != "POST" or not isinstance(payload, dict) or not LOGIN_PATH_RE.search(ep.path):
+        return payload
+    out, changed = dict(payload), False
+    for key in payload:
+        for rx, var in _LOGIN_FIELDS:
+            if rx.match(key):
+                val = os.environ.get(var) or (os.environ.get("APITEST_LOGIN_EMAIL") if var == "APITEST_LOGIN_USERNAME" else None)
+                if val:
+                    out[key], changed = val, True
+                break
+    return out if changed else payload
+
+
+def cookies_from_env() -> dict:
+    """APITEST_COOKIES="refresh_token=abc; sid=def": cookies sent with every request (an HttpOnly refresh token, a session id)."""
+    out: dict = {}
+    for part in os.environ.get("APITEST_COOKIES", "").split(";"):
+        name, eq, val = part.strip().partition("=")
+        if eq and name:
+            out[name] = val.strip()
+    return out
+
+
 def optional_header_values(ep: "Endpoint") -> dict:
     """Headers to send although the spec marks them optional: APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match=*.
     Only names the operation declares are sent. A bare Idempotency-Key gets a fresh unique value per call; any other name
@@ -416,7 +459,7 @@ def fail(resp: requests.Response | None, msg: str, severity: str | None = None, 
         suffix += ("\n  note: the spec gives no example or default for required parameter(s) or field(s) "
                    + ", ".join(guessed) + ", so the request used an invented value; a "
                    f"{resp.status_code} may be that value being rejected, not an API defect. Add an `example` to the spec to settle it.")
-    pytest.fail(f"{tag} {msg}{suffix}".strip(), pytrace=False)
+    pytest.fail(_scrub_text(f"{tag} {msg}{suffix}".strip()), pytrace=False)   # configured values (account names, cookies) never reach a report
 
 
 # --------------------------------------------------------------------------- schema validation
@@ -1099,6 +1142,7 @@ class Api:
         self.min_interval = min_interval_seconds(delay_ms, rps)
         self.retries = int(retries if retries is not None else _env_number("APITEST_RETRIES", 2))
         self._last_sent = 0.0
+        self._refreshes, self._last_refresh = 0, -10.0
         self.unreachable = 0  # requests dropped after a connection error (counted as skipped, not failed)
         self.session = requests.Session()
         self.host = target_host(self.base_url)
@@ -1157,6 +1201,33 @@ class Api:
         if not val:
             pytest.skip(f"credentials not configured: set {names[0] if names else scheme}" + ("_B" if who == "B" else ""))
         return val
+
+    # ---- short-lived tokens
+    MAX_REFRESHES = 100
+
+    def refresh_token(self, ep: "Endpoint", who: str = "A") -> bool:
+        """APITEST_TOKEN_CMD (APITEST_TOKEN_CMD_B for user B): a command, run without a shell, whose output is a fresh token. Run
+        when a call with credentials gets 401, at most MAX_REFRESHES times per run and not more than once per 5 s; True when the
+        token changed, so the caller sends the request again. The token goes into the credential variable of the first scheme
+        (read only from this process's environment) and is redacted like any other secret; the output is never printed."""
+        cmd = os.environ.get("APITEST_TOKEN_CMD" + ("_B" if who == "B" else ""), "").strip()
+        if not cmd or self._refreshes >= self.MAX_REFRESHES or time.monotonic() - self._last_refresh < 5:
+            return False
+        names = next(((self.schemes.get(s) or {}).get("env") for alt in ep.sec for s in alt if (self.schemes.get(s) or {}).get("env")), None)
+        if not names:
+            return False
+        var = names[0] + ("_B" if who == "B" else "")
+        self._refreshes += 1
+        self._last_refresh = time.monotonic()
+        try:
+            out = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=60, check=False)
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return False
+        token = (out.stdout or "").strip().splitlines()[0].strip() if out.returncode == 0 and (out.stdout or "").strip() else ""
+        if not token or token == os.environ.get(var):
+            return False
+        os.environ[var] = token
+        return True
 
     # ---- path ids
     def pid(self, name: str, default: Any = None, victim: bool = False) -> Any:
@@ -1241,7 +1312,7 @@ class Api:
     def send(self, ep: Endpoint, *, auth: str = "default", who: str = "A", path: dict | None = None,
              query: Any = UNSET, headers: dict | None = None, body: Any = UNSET, raw: Any = None,
              content_type: Any = UNSET, timeout: float | None = None, victim: bool = False,
-             transient: str = "skip") -> requests.Response:
+             transient: str = "skip", _refresh: bool = True) -> requests.Response:
         """transient: "skip" (default) skips the test when the target is unreachable; "raise" lets the error propagate."""
         if ep.method not in ("GET", "HEAD", "OPTIONS"):
             skip_writes_on_production()
@@ -1267,7 +1338,8 @@ class Api:
         h = dict(ep.headers)
         h.update(optional_header_values(ep))
         h.update(headers or {})
-        cookies: dict = {}
+        cookies: dict = cookies_from_env() if auth == "default" else {}
+        AUTH_NAMES.update(k.lower() for k in cookies)
         if ep.sec and auth in ("default", "invalid"):
             ah, aq, ac = self.credentials(ep.sec, who, invalid=(auth == "invalid"))
             h.update(ah), q.update(aq), cookies.update(ac)
@@ -1278,6 +1350,8 @@ class Api:
             h["Content-Type"] = ctype or "application/json"
         else:
             payload = unique_body(ep, ep.body) if body is UNSET else body
+            if body is UNSET:
+                payload = login_overrides(ep, payload)
             if given and body is UNSET and isinstance(payload, dict):
                 payload = dict(payload)
                 for k in payload:
@@ -1297,6 +1371,9 @@ class Api:
         resp = self._request(ep.method, url, transient=transient, params=q or None, headers=h, cookies=cookies or None,
                              timeout=timeout or self.timeout, allow_redirects=False, **kwargs)
         resp._sent_body = kwargs.get("json", kwargs.get("data", UNSET)) if raw is None else UNSET  # type: ignore[attr-defined]
+        if resp.status_code == 401 and _refresh and auth == "default" and ep.sec and self.refresh_token(ep, who):
+            return self.send(ep, auth=auth, who=who, path=path, query=query, headers=headers, body=body, raw=raw,
+                             content_type=content_type, timeout=timeout, victim=victim, transient=transient, _refresh=False)
         resp._optional_headers = tuple(ep.optional_headers)  # type: ignore[attr-defined]
         resp._guessed = tuple(  # type: ignore[attr-defined]
             n for n in ep.guessed

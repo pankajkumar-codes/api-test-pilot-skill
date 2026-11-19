@@ -102,6 +102,7 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_AUTHORIZED=yes    you own or are authorized to test the target (needed for intrusive tests)
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
+  APITEST_TOKEN_CMD         command (no shell) whose output is a fresh token; run once when a call gets 401, then the call is retried (_B for user B)
   APITEST_IDS_FILE          JSON file {{"path": {{param: id}}, "victim": {{param: id}}}} instead of many variables
   APITEST_EXAMPLES_FILE     JSON file {{"operationId.field": value, "*.field": value}} of valid values for fields the spec gives no example for
   APITEST_SEND_OPTIONAL_HEADERS   headers the spec marks optional but the server needs (Idempotency-Key, If-Match)
@@ -137,6 +138,7 @@ def pytest_configure(config):
         os.environ["APITEST_READ_ONLY"] = "yes"
     config.addinivalue_line("markers", "smoke: quick reachability checks")
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
+    config.addinivalue_line("markers", "session_end: calls an endpoint that probably ends the caller's session (sign-out, revoke, password change); runs last")
     config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
 
 
@@ -152,6 +154,8 @@ def pytest_sessionstart(session):
 def pytest_collection_modifyitems(config, items):
     """Run the tests that delete or overwrite existing data last, so they cannot remove the ids other tests rely on."""
     def rank(item):
+        if item.get_closest_marker("session_end"):
+            return 3    # after everything else: these invalidate the token the other tests use (see APITEST_TOKEN_CMD for long runs)
         if not item.get_closest_marker("destructive"):
             return 0
         # authorization probes first: they must run while the configured account still exists
@@ -323,7 +327,7 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
     counts: dict[str, int] = {}
     for t in chosen:
         fname, title, fn = REST_TYPES[t]
-        mod = Module(title, TAXONOMY_NAME[t], rerun)
+        mod = Module(title, TAXONOMY_NAME[t], rerun, {e["id"] for e in doc["endpoints"] if gen_common.ends_session(e)})
         extra = fn(doc, mod)
         if isinstance(extra, list):
             notes += extra
