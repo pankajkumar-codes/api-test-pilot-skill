@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Changed (chaos payload endpoints, issue 88)
+- `chaos_run.py --payload-endpoints` takes a number N or `all` as well as operation ids (default stays the first 3 write endpoints). The size, burst and run-time ceilings are unchanged, at most 500 endpoints are tried, and a skipped `test_chaos_payload_not_tried` result (shown in the report) and a stderr line say how many were not.
+
 ### Changed (report hints, issues 86, 87)
 - The report says "Role (BFLA) matrix not run: set APITEST_ROLE_MATRIX and APITEST_TOKEN_<ROLE>" in its limitations (HTML, Markdown and `role_matrix_note` in report.json) whenever that test skipped for lack of a matrix.
 - `summarize_results.py` notes on stderr which format an `-o` path without `.html` or `.md` was written as, and when `--k6-dir` has no `manifest.json` (it is the folder the k6 scripts were generated into, not the results folder).
@@ -81,6 +84,9 @@ First release candidate, built in phases (see PLAN.md).
 
 ### Added (token refresh for long k6 runs, issue 64)
 - `APITEST_TOKEN_CMD` (the same variable the pytest suite uses: a command that prints a fresh token; split like a shell would, run without a shell) keeps long k6 runs authorized. `run_k6.py` runs it once before the start, puts the token in the bearer variable(s) the script reads (`tokenEnv` in `manifest.json`, or `APITEST_TOKEN_ENV`), and serves fresh tokens on a loopback-only URL behind a random path. Each VU fetches a token before its first request, after a 401 (at most one refetch per VU every 5 s) and every `APITEST_TOKEN_REFRESH_S` seconds when set. The command output is never printed or logged; a failing command or one that prints more than a single token stops the run with a message that does not include the output. The fetches count as a few extra local requests in k6's totals.
+
+### Changed (stress ramp climbs to the cap on local targets, issue 93)
+- When the base URL given to `gen_k6.py` is loopback and neither `--rate` nor `--steps` is set, the stress steps double (5, 10, 20, 40, 80, 100 req/s, up to 100 VUs) instead of stopping at 20 req/s. New `--ramp auto|linear|double`: `linear` keeps the old plan, `double` doubles from any rate. Remote targets and explicit `--rate` or `--steps` keep the linear steps. The hard caps and the safety gate are unchanged. The generator says when it chose doubling.
 
 ### Changed (k6 token refresh runs one sign-in per renewal, issue 91)
 - The launcher's token server numbers the tokens and each VU says which one it holds. A VU that is behind gets the current token without a new sign-in; only a rejection of the current token (or the optional timed refresh) runs `APITEST_TOKEN_CMD`, at most once per `APITEST_TOKEN_MIN_GAP_S` (default 30 s, was 2 s) and at most `APITEST_TOKEN_MAX_REFRESHES` times per run (default 200). This stops VUs from invalidating each other on APIs with one live session per user, and from hitting a sign-in rate limit. The run ends with "token refreshed N time(s)". A token command for such an API should return a young cached token.
