@@ -940,9 +940,9 @@ const check = () => true; const sleep = () => {};
 const encoding = {b64encode: (s) => Buffer.from(s).toString('base64')};
 const exec = {scenario: {startTime: Date.now()}, test: {abort: (m) => { throw new Error('ABORT: ' + m); }}};
 const console_log = console.log; const LINES = []; console.log = (s) => LINES.push(s); console.warn = () => {};
-%(script)s
 let out = {};
 try {
+%(script)s
   const data = setup();
   const before = SENT.length;
   for (let i = 0; i < 300; i++) { __default(data); }
