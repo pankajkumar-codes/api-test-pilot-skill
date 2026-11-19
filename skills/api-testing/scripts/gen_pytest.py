@@ -142,6 +142,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "smoke: quick reachability checks")
     config.addinivalue_line("markers", "intrusive: active probes; run only against a confirmed non-production target you are authorized to test")
     config.addinivalue_line("markers", "session_end: calls an endpoint that probably ends the caller's session (sign-out, revoke, password change); runs last")
+    config.addinivalue_line("markers", "rate_limit: sends a quick burst to see the API throttle; skips when APITEST_RPS or APITEST_DELAY_MS paces the run")
     config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
 
 

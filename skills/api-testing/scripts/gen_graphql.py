@@ -337,7 +337,7 @@ def security(sc: Schema, mod: Module) -> list[str]:
             "    if isinstance(body, list) and len(body) > 1:\n"
             f"        gr.fail(resp, \"batched requests are executed ({BATCH} operations in one HTTP call): brute-force and rate-limit bypass risk\", \"MEDIUM\", \"API4:2023 unrestricted resource consumption\")\n"
             "    gr.expect_no_crash(resp, \"batched request\")\n")
-    mod.add(I + "def test_rate_limiting_present(gql):\n"
+    mod.add(I + "@pytest.mark.rate_limit\ndef test_rate_limiting_present(gql):\n"
             "    gr.require_flag(\"APITEST_EXPECT_RATE_LIMIT\", \"this API is expected to rate-limit\")\n"
             "    gr.skip_if_paced(gql)\n"
             "    n = gr.burst_size(40)\n"
@@ -567,7 +567,7 @@ def resilience(sc: Schema, mod: Module) -> list[str]:
                 f"def {mod.unique('test_' + op['name'] + '_pagination')}(gql, label, kw, at_most):\n    op = OPS[{op['id']!r}]\n"
                 "    resp = gql.run(op, **kw)\n    gr.expect_graceful(resp, label)\n"
                 f"    if at_most is not None and not gr.errors_of(resp):\n        gr.expect_page_size(resp, {op['name']!r}, at_most)\n")
-    mod.add("@pytest.mark.intrusive\ndef test_rate_limit_behaviour(gql):\n"
+    mod.add("@pytest.mark.intrusive\n@pytest.mark.rate_limit\ndef test_rate_limit_behaviour(gql):\n"
             "    gr.expect_rate_limit_behaviour(gql, gr.burst_size(30))\n")
     table = flows(sc)
     if table:
