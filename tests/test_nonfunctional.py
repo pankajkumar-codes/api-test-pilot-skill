@@ -495,8 +495,18 @@ def test_k6_can_be_a_command_and_the_last_line_names_the_crossed_thresholds(rest
                                    "http_req_duration": {"p(95)": 9, "thresholds": {"p(95)<500": False}},
                                    "http_req_duration{endpoint:x}": {"p(95)": 900, "thresholds": {"p(95)<500": True}}})
     proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res")
-    assert proc.returncode == 99
-    assert proc.stdout.strip().splitlines()[-1] == "thresholds crossed: error rate, latency (exit 99)"
+    assert proc.returncode == 91
+    assert proc.stdout.strip().splitlines()[-1] == "thresholds crossed: error rate, latency (exit 91)"
+    lat = _fake_k6(tmp_path, 99, {"http_req_duration": {"p(95)": 900, "thresholds": {"p(95)<500": True}},
+                                  "http_req_failed": {"value": 0, "thresholds": {"rate<0.01": False}}})
+    only = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{lat}'", results=tmp_path / "res2")
+    assert only.returncode == 92 and only.stdout.strip().splitlines()[-1] == "thresholds crossed: latency (exit 92)"
+    chk = _fake_k6(tmp_path, 99, {"checks": {"value": 0.5, "thresholds": {"rate>0.99": True}}})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{chk}'", results=tmp_path / "res3").returncode == 91
+    unknown = _fake_k6(tmp_path, 99, {"vus": {"thresholds": {"value<1": True}}})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{unknown}'", results=tmp_path / "res4").returncode == 99
+    nothing = _fake_k6(tmp_path, 99, {})
+    assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{nothing}'", results=tmp_path / "res5").returncode == 99
     ok = _fake_k6(tmp_path, 0)
     assert run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{ok}'", results=tmp_path / "res").returncode == 0
 
@@ -563,11 +573,11 @@ def test_circuit_breaker_aborts_when_the_target_is_failing(rest_doc, tmp_path):
     out = tmp_path / "k6"
     gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=5, hold=120)
     with rest_server({"down"}) as url:
-        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=tmp_path / "r")
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(APITEST_K6_BASELINE="off"), results=tmp_path / "r")
         sent = len(LAST_LOG)
-    # exit 99 = threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
-    assert proc.returncode == 99, proc.stdout[-1500:] + proc.stderr[-800:]
-    assert "rate<0.5" in proc.stdout
+    # exit 91 = error-rate threshold failed; the run must stop long before the planned 3 minutes (abortOnFail after ~20 s)
+    assert proc.returncode == 91, proc.stdout[-1500:] + proc.stderr[-800:]
+    assert "(exit 91)" in proc.stdout   # the launcher names it; older k6 versions do not print the threshold expression themselves
     assert sent < 400, f"run should have aborted early, but {sent} requests were sent"
 
 
@@ -676,8 +686,8 @@ def test_graphql_load_run_treats_http_200_with_errors_as_failure(gql_doc, tmp_pa
         ok = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=env, results=tmp_path / "ok")
     assert ok.returncode == 0, ok.stdout[-1500:] + ok.stderr[-500:]
     with _Canned({"errors": [{"message": "boom"}], "data": None}) as url:
-        bad = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=env, results=tmp_path / "bad")
-    assert bad.returncode == 99, "every response carried errors, so the checks threshold must fail"
+        bad = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env={**env, "APITEST_K6_BASELINE": "off"}, results=tmp_path / "bad")
+    assert bad.returncode == 91, "every response carried errors, so the checks threshold must fail"
     assert _summary(tmp_path / "bad", "load")["metrics"]["checks"]["fails"] > 0
 
 
@@ -1061,6 +1071,32 @@ def test_docker_mounts_the_ids_and_examples_files_read_only(rest_doc, tmp_path):
     assert "-e APITEST_BEARERAUTH_TOKEN " in proc.stdout and "tok-secret" not in proc.stdout
 
 
+@needs_k6
+def test_real_k6_aborts_with_108_when_every_endpoint_fails_the_baseline(rest_doc, tmp_path):
+    out = tmp_path / "k6"
+    gen_k6.generate(rest_doc, out, ["load"], base_url="http://localhost:1", rate=3, quick=True)
+    with rest_server({"down"}) as url:
+        proc = run_launcher(out / "load.js", "--base-url", url, "--k6", K6, env=_k6_env(), results=tmp_path / "r")
+    assert proc.returncode == 108, proc.stdout[-1500:] + proc.stderr[-800:]
+    assert "every endpoint failed the baseline probe (exit 108)" in proc.stdout and "APITEST_K6_BASELINE=off" in proc.stdout
+
+
+def test_launcher_explains_exit_108_from_the_coverage_line(rest_doc, tmp_path):
+    out = _generated(rest_doc, tmp_path)
+    line = ('time="x" level=info msg="APITEST_COVERAGE {\\"tested\\":[],\\"skipped\\":[],'
+            '\\"baselineFailed\\":[{\\"endpoint\\":\\"a\\",\\"status\\":500}],\\"baselineProbe\\":true}" source=console')
+    fake = tmp_path / "fake k6.sh"
+    fake.write_text('#!/bin/sh\nwhile [ $# -gt 0 ]; do [ "$1" = "--summary-export" ] && out="$2"; shift; done\n'
+                    f"echo '{{}}' > \"$out\"\necho '{line}' >&2\nexit 108\n")
+    fake.chmod(0o755)
+    proc = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{fake}'", results=tmp_path / "res")
+    assert proc.returncode == 108 and "every endpoint failed the baseline probe (exit 108)" in proc.stdout
+    other = tmp_path / "other k6.sh"
+    other.write_text('#!/bin/sh\nexit 108\n')
+    other.chmod(0o755)
+    quiet = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--k6", f"'{other}'", results=tmp_path / "res2")
+    assert quiet.returncode == 108 and "baseline probe" not in quiet.stdout
+
 # ---------------------------------------------------------------- token refresh for long runs
 def _token_script(tmp_path, body):
     path = tmp_path / "tok.py"
@@ -1177,3 +1213,73 @@ def test_real_k6_runs_with_a_token_command_and_stays_authorized(rest_doc, tmp_pa
                             env=_k6_env(APITEST_TOKEN_CMD=cmd, APITEST_TOKEN_REFRESH_S="1"))
     assert proc.returncode == 0, proc.stdout[-1500:] + proc.stderr[-1500:]
     assert "feeds APITEST_BEARERAUTH_TOKEN" in proc.stdout and "tokA" not in proc.stdout + proc.stderr
+
+def test_fuzz_summary_lists_budget_per_endpoint_and_the_starved_ones(fuzz_suite):
+    env = {**FUZZ_ENV, "APITEST_FUZZ_MAX_REQUESTS": "5", "APITEST_FUZZ_CASES": "12"}   # fewer requests than endpoints: some get none
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, env, [])
+    out = proc.stdout
+    assert "Fuzz budget" in out and re.search(r"5 request\(s\) to 5 of \d+ fuzzed endpoint\(s\); per endpoint: min 0, median \d+, max 1", out)
+    assert re.search(r"\d+ endpoint\(s\) got no request because the run budget was used up: ", out) and "APITEST_FUZZ_ENDPOINTS" in out
+
+
+def test_fuzz_endpoints_filter_runs_only_the_named_operations(fuzz_suite):
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, {**FUZZ_ENV, "APITEST_FUZZ_ENDPOINTS": "listPets, getPet"}, [])
+    ran = sorted(k for k, (status, _) in results.items() if status == "passed")
+    assert ran == ["test_fuzz::test_fuzz[getPet]", "test_fuzz::test_fuzz[listPets]"], ran
+    skipped = [m for s, m in results.values() if s == "skipped"]
+    assert skipped and all("APITEST_FUZZ_ENDPOINTS" in m for m in skipped)
+    assert "Fuzz budget" in proc.stdout and "of 2 fuzzed endpoint" in proc.stdout
+
+
+def test_fuzz_summary_separates_cut_off_endpoints_from_those_that_got_nothing(fuzz_suite, monkeypatch):
+    sys.path.insert(0, str(fuzz_suite))
+    try:
+        sys.modules.pop("fuzz_runtime", None)
+        import fuzz_runtime as fz
+        monkeypatch.delenv("APITEST_FUZZ_ENDPOINTS", raising=False)
+        cfg = fz.Config(1, 5, 1024, 100.0, 3, 5000, 4)           # a ceiling of 3 requests
+        for title, n in (("A", 2), ("B", 2), ("C", 1)):         # A sends 2, B sends 1 then is cut, C sends none
+            fz._state["per"].setdefault(title, 0)
+            for _ in range(n):
+                try:
+                    fz._pace(cfg, title)
+                except BaseException:
+                    break
+        text = "\n".join(fz.summary_lines())
+        assert "3 request(s) to 2 of 3" in text
+        assert "1 endpoint(s) got no request because the run budget was used up: C." in text
+        assert "1 endpoint(s) were cut off part-way when the run budget was used up: B." in text
+    finally:
+        sys.path.remove(str(fuzz_suite))
+        sys.modules.pop("fuzz_runtime", None)
+
+
+def test_fuzz_endpoint_list_splits_the_budget_dedupes_and_names_unknown_ids(fuzz_suite, monkeypatch):
+    sys.path.insert(0, str(fuzz_suite))
+    try:
+        sys.modules.pop("fuzz_runtime", None)
+        import fuzz_runtime as fz
+        cfg = fz.Config(1, 40, 1024, 100.0, 100, 5000, 4)
+        monkeypatch.delenv("APITEST_FUZZ_ENDPOINTS", raising=False)
+        with pytest.warns(UserWarning, match="hostile-input pass"):   # too small a share for the whole hostile pass
+            assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 1          # 100 requests over 100 endpoints
+        monkeypatch.setenv("APITEST_FUZZ_ENDPOINTS", "a, b, a,,b")             # two distinct ids
+        assert fz.chosen_total(100) == 2
+        assert fz.share_of_budget(cfg, fz.chosen_total(100)).cases == 40       # min(cases 40, 100 // 2)
+        assert fz.selected("a") and not fz.selected("z")
+        monkeypatch.setenv("APITEST_FUZZ_ENDPOINTS", "a,typo")
+        fz.selected("a")
+        lines = fz.summary_lines()
+        assert len(lines) == 1 and "1 id(s)" in lines[0] and "typo" in lines[0] and "a," not in lines[0]
+    finally:
+        sys.path.remove(str(fuzz_suite))
+        sys.modules.pop("fuzz_runtime", None)
+
+
+def test_a_mistyped_fuzz_endpoint_list_is_reported_at_the_end_of_the_run(fuzz_suite):
+    with rest_server() as url:
+        results, proc = run_suite(fuzz_suite, url, {**FUZZ_ENV, "APITEST_FUZZ_ENDPOINTS": "listPetz"}, [])
+    assert not any(s == "passed" for s, _ in results.values())
+    assert "Fuzz budget" in proc.stdout and "listPetz" in proc.stdout and "Check the spelling" in proc.stdout

@@ -70,8 +70,17 @@ First release candidate, built in phases (see PLAN.md).
 ### Changed (report wording)
 - The coverage sentence now says the baseline probe request of a dropped endpoint is still counted in k6's overall failed-request figure.
 
+### Changed (k6 launcher exit codes, issue 70)
+- When the baseline probe leaves nothing to test, k6 aborts with its own code 108; the launcher now says so ("every endpoint failed the baseline probe") and names `APITEST_K6_BASELINE=off`. Real-k6 tests that expect a threshold failure against a dead target now switch the probe off, so the optional k6 CI job passes again.
+- `docs/evals.md` describes the k6 failure runs with exit 91 instead of 99, and the circuit-breaker test no longer depends on k6 printing the threshold expression (older k6 versions do not).
+- `run_k6.py` exits 91 when an error-rate or checks threshold is crossed (also when latency crossed too, since failures come first), 92 when only latency is crossed, and keeps 99 when the summary cannot say which kind. The last line still names the kinds. Callers that tested for 99 must now accept 91 and 92 (a nonzero code is still a failed run).
+
 ### Added (token refresh for long k6 runs, issue 64)
 - `APITEST_TOKEN_CMD` (the same variable the pytest suite uses: a command that prints a fresh token; split like a shell would, run without a shell) keeps long k6 runs authorized. `run_k6.py` runs it once before the start, puts the token in the bearer variable(s) the script reads (`tokenEnv` in `manifest.json`, or `APITEST_TOKEN_ENV`), and serves fresh tokens on a loopback-only URL behind a random path. Each VU fetches a token before its first request, after a 401 (at most one refetch per VU every 5 s) and every `APITEST_TOKEN_REFRESH_S` seconds when set. The command output is never printed or logged; a failing command or one that prints more than a single token stops the run with a message that does not include the output. The fetches count as a few extra local requests in k6's totals.
+
+### Added (fuzz budget report and endpoint list, issue 66)
+- The fuzz run ends with a "Fuzz budget" section: requests sent, how many endpoints got any, min, median and max per endpoint, the endpoints that got no request because the run budget was used up, and those cut off part-way (with the settings that help). It appears for GraphQL suites too.
+- `APITEST_FUZZ_ENDPOINTS=id1,id2` fuzzes only the named operations (REST ids, GraphQL operation names); the rest skip with that reason. The budget is split among the named operations only, duplicates count once, and an id that no fuzz test has is named in the summary (a typo no longer skips everything silently). GraphQL fuzzing now also shares the budget fairly between operations.
 
 ### Added (k6 baseline probe and coverage, issues 61, 63)
 - Before the load starts, each selected endpoint is sent once (paced under the rate cap). An endpoint that already fails with its generated request (invented value rejected, another role's endpoint, a server error) is left out of the run and listed as "not load tested: fails at baseline with status N", so the error-rate threshold judges load, not fixtures. `APITEST_K6_BASELINE=off` keeps them all. If every endpoint fails, the run aborts with a clear message.

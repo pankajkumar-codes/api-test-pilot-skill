@@ -48,12 +48,12 @@ SHA-256 checked against the published checksums file). Tests that need k6 skip w
 | Area | What was run | Result |
 |------|--------------|--------|
 | k6 load, stress (2 steps), spike, soak (quick shapes) | generated scripts executed by k6 against `mock_rest.py` (clean) | exit 0, only GET sent, no admin or write calls, per-stage metrics present in `--summary-export` |
-| Circuit breaker | `mock_rest.py` with `down` (every call 500), planned 3 min run | k6 exits 99 after about 20 s, far fewer requests than planned |
+| Circuit breaker | `mock_rest.py` with `down` (every call 500), planned 3 min run | k6 exits 91 (error rate) after about 20 s, far fewer requests than planned |
 | Gate | `run_k6.py` and `k6 run` directly, production/unconfirmed/odd hosts | refused before any request; mock log empty |
 | Gate parity | 46 URLs x 10 env combinations | JavaScript gate (node) identical to `safety_gate.py`; never looser than the Phase 2 pytest gate |
 | Caps | rates 1..100, all profiles; hand-built steep ramps; env caps | refused or inside caps; run-time caps can only lower |
 | Writes | `--include-writes` with and without `APITEST_ALLOW_WRITES` | POST sent only with both opt-ins; DELETE never generated |
-| GraphQL load | `mock_graphql.py`; canned server answering 200 + `errors` | clean run exit 0; errors-in-200 fails the checks threshold (exit 99) |
+| GraphQL load | `mock_graphql.py`; canned server answering 200 + `errors` | clean run exit 0; errors-in-200 fails the checks threshold (exit 91) |
 | Hostile specs | quotes, comments, U+2028, `__proto__`, template literals in ids, paths, params, schemes, servers (REST and GraphQL) | strings only appear inside the JSON literal; unusual names/paths dropped or skipped; `node --check` and `k6 inspect` pass |
 | Fuzzing | `mock_rest.py` clean vs seeded bugs | clean passes; `crash`, `jsoncrash`, `hang`, `crlf` each fail `test_fuzz[createPet]` with severity and redacted repro |
 | Fuzz limits | env values above the hard caps; budget of 5 requests | clamped; at most 5 requests sent |
@@ -82,7 +82,7 @@ suite, and generated k6 scripts run by **real k6 v1.3.0** (same checksum-verifie
 | Seeded bugs | same suite, 7 seeded bugs | 46 failing tests = 46 findings, HIGH first; BOLA on getPet, mass assignment on createPet, contract violation on listPets all present; every finding has curl + pytest commands; the first finding's pytest command re-run on the same server fails again |
 | Fuzz | `--types fuzz` against `crash` | HIGH finding per endpoint with all distinct repro lines |
 | k6 healthy | load, spike, stress (quick) | no findings; stage and per-endpoint tables present |
-| k6 `down` | load, exit 99 | `checks` and `http_req_failed` thresholds reported HIGH with observed values; confirmed that `true` in `--summary-export` means crossed |
+| k6 `down` | load, exit 91 | `checks` and `http_req_failed` thresholds reported HIGH with observed values; confirmed that `true` in `--summary-export` means crossed |
 | Canary secrets | tokens, passwords, cookies, JWTs, userinfo, query params, `curl -u`, headers and env values placed in message, text, names, skip reasons, system-out, k6 names, intake and `--title` | none reach the report (the regenerate command leaked a `--title` secret on the first run; fixed by scrubbing it) |
 | Hostile XML | XXE (file and http), billion laughs, parameter entities, DOCTYPE hidden in UTF-16, undefined entities, depth, size, case count, FIFO, `/dev/zero` | refused with a clean error before any expansion; nothing read from the file system |
 | Markdown | link/image/HTML injection, fence break-outs, table rows, headings, `{{placeholders}}`, bidi/zero-width/control characters, autolinks | everything outside fenced blocks is escaped; headings are only the template's; placeholders are not re-substituted |

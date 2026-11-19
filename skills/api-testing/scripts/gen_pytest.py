@@ -116,6 +116,7 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_FUZZ_SEED / _CASES / _RPS / _MAX_REQUESTS / _MAX_BYTES / _SLOW_MS   fuzz tuning (hard caps apply)
 """
 import os
+import sys
 
 import pytest
 
@@ -186,6 +187,11 @@ def pytest_runtest_makereport(item, call):
 
 def pytest_terminal_summary(terminalreporter):
     """A run where most tests skip proves little: say so, with the usual causes."""
+    fuzz = sys.modules.get("fuzz_runtime")
+    if fuzz is not None and fuzz.summary_lines():
+        terminalreporter.section("Fuzz budget")
+        for line in fuzz.summary_lines():
+            terminalreporter.write_line(line)
     stats = terminalreporter.stats
     gated = [r for r in stats.get("skipped", []) if rt.GATE_PREFIX in str(getattr(r, "longrepr", ""))]
     if gated:
