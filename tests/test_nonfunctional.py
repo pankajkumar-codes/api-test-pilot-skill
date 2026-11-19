@@ -510,6 +510,11 @@ def test_docker_command_passes_variable_names_never_values(rest_doc, tmp_path):
     assert "--docker" in proc.stdout.split("Rerun with:")[1]
     bad = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "x; rm -rf /", "--dry-run")
     assert bad.returncode == 2
+    pinned = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "grafana/k6:0.54.0", "--dry-run")
+    assert "--docker --docker-image grafana/k6:0.54.0" in pinned.stdout.split("Rerun with:")[1]
+    no_docker = subprocess.run([sys.executable, str(SCRIPTS / "run_k6.py"), "--check", "--docker"], capture_output=True, text=True,
+                               env=clean_env(PATH=str(Path(sys.executable).parent)))
+    assert no_docker.returncode == 4 and "docker not found" in no_docker.stdout
 
 
 # ====================================================================== real k6 runs
@@ -904,3 +909,19 @@ def test_scripts_are_stdlib_only_and_python_311_compatible():
             n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
         third_party = mods & {"requests", "yaml", "pytest", "httpx", "numpy", "urllib3"}
         assert third_party <= {"urllib3"} if name == "safety_gate.py" else not third_party, (name, third_party)
+
+
+def test_generated_k6_asks_for_stage_rows_request_counts_and_per_endpoint_failures(rest_doc, tmp_path):
+    result = gen_k6.generate(rest_doc, tmp_path / "k6", ["load", "stress", "soak"], base_url="http://localhost:9", rate=3, quick=True)
+    manifest = json.loads((tmp_path / "k6" / "manifest.json").read_text())
+    stress = manifest["plans"]["stress"]
+    assert stress["p95_ms"] == 500 and stress["error_rate"] == 0.01
+    assert [s["label"] for s in stress["stage_plan"]][:2] == ["step1_ramp", "step1_hold"] and stress["stage_plan"][1]["target"] == 3
+    load = read_config(tmp_path / "k6" / "load.js")["thresholds"]
+    assert "http_req_duration{stage:steady}" in load and "http_reqs{stage:steady}" in load, "load gets a stage row and a request count"
+    stress_t = read_config(tmp_path / "k6" / "stress.js")["thresholds"]
+    assert "http_reqs{stage:step1_hold}" in stress_t and "http_reqs{stage:recovery}" in stress_t
+    soak_t = read_config(tmp_path / "k6" / "soak.js")["thresholds"]
+    assert any(k.startswith("http_req_failed{stage:w") for k in soak_t)
+    assert "http_req_failed{endpoint:' + ep.tag" in (tmp_path / "k6" / "load.js").read_text()
+    assert result["plans"]["load"]["stage_plan"]

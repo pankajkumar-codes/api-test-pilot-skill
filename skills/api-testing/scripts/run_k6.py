@@ -94,6 +94,9 @@ def k6_prefix(arg: str | None, use_docker: bool) -> list[str] | None:
 
 def check_k6(arg: str | None, use_docker: bool, image: str) -> int:
     """Print whether k6 can start here. Nothing is sent to any target."""
+    if use_docker and not shutil.which("docker"):
+        print("docker not found; install it or drop --docker")
+        return 4
     cmd = ["docker", "run", "--rm", image, "version"] if use_docker else (k6_prefix(arg, False) or [])
     if not use_docker and cmd:
         cmd = [*cmd, "version"]
@@ -175,7 +178,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         k6 = k6_prefix(args.k6, False)
         cmd = build_command(k6 or ["k6"], script, summary)
-    rerun = f"APITEST_BASE_URL={shlex.quote(base)} python {shlex.quote(sys.argv[0])} {shlex.quote(args.script)}" + (" --docker" if args.docker else "")
+    rerun = f"APITEST_BASE_URL={shlex.quote(base)} python {shlex.quote(sys.argv[0])} {shlex.quote(args.script)}" + (
+        f" --docker --docker-image {shlex.quote(args.docker_image)}" if args.docker and args.docker_image != DOCKER_IMAGE
+        else " --docker" if args.docker else "")
     print(f"target: {base}  (gate passed)")
     print(f"k6 command: {' '.join(shlex.quote(c) for c in cmd)}")
     print(f"Rerun with: {rerun}")

@@ -48,6 +48,7 @@ PROFILE_DEFAULTS = {
     "spike": {"rate": 5, "multiplier": 5, "max_vus": 50},
     "soak": {"rate": 2, "hold": 1800, "max_vus": 10},
 }
+HOLD_LABELS = ("steady", "baseline", "spike", "recovery")
 BREAKER_RATE = 0.5           # stop the run when more than half of the requests fail
 SPIKE_MIN_RAMP_S = 5
 SPIKE_MAX_MULTIPLIER = 10
@@ -178,6 +179,8 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         t["http_req_duration"] = [f"p(95)<{p95_ms}", f"p(99)<{p95_ms * 3}"]
         t["checks"] = [f"rate>{1 - error_rate:g}"]
         per_endpoint = [f"p(95)<{p95_ms}"]
+        t["http_req_duration{stage:steady}"] = [never_fails]  # a stage row, so the report shows the steady state on its own
+        t["http_req_failed{stage:steady}"] = ["rate<=1"]
     elif profile == "stress":
         # Failing is expected here, so only the circuit breaker asserts. The per-step numbers show where it degrades.
         t["http_req_duration"] = [never_fails]
@@ -203,6 +206,11 @@ def thresholds_for(profile: str, stages: list[dict], p95_ms: int, error_rate: fl
         for s in stages:
             if re.fullmatch(r"w\d\d", s["label"]):
                 t[f"http_req_duration{{stage:{s['label']}}}"] = [f"p(95)<{p95_ms}"]  # a late window failing means it degraded over time
+                t[f"http_req_failed{{stage:{s['label']}}}"] = ["rate<=1"]
+    # Request counts per holding stage: the report turns them into the rate actually reached (count / stage seconds).
+    for s in stages:
+        if s["label"].endswith("_hold") or s["label"] in HOLD_LABELS or re.fullmatch(r"w\d\d", s["label"]):
+            t[f"http_reqs{{stage:{s['label']}}}"] = ["count>=0"]
     return t, per_endpoint
 
 
@@ -431,7 +439,8 @@ def generate(doc: dict, out: Path, profiles: list[str], *, base_url: str | None 
         if err:
             raise _common.IntakeError(f"generator produced invalid JavaScript in {name}: {err}")
         files[name] = text
-        plans[profile] = {**summary, "rate": r, "max_vus": vus, "rerun": rerun}
+        plans[profile] = {**summary, "rate": r, "max_vus": vus, "rerun": rerun, "p95_ms": p95_ms, "error_rate": error_rate,
+                          "stage_plan": [{"label": s["label"], "duration": s["duration"], "target": s["target"]} for s in stages]}
     out.mkdir(parents=True, exist_ok=True)  # write only once every plan has validated, so a refused request leaves no files
     for name, text in files.items():
         (out / name).write_text(text, encoding="utf-8")
