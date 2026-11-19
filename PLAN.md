@@ -46,7 +46,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 
 ## Phase 5 — Evals
 - [~] Run against each API in eval-apis.md; record expected vs found bugs (seeded FastAPI app run for real, locally; Petstore, VAmPI and GraphQL as labelled mock stand-ins; real third-party targets not reachable from the sandbox, run them with `evals/README.md`)
-- [x] Iterate on prompts/references/generators until expected bugs are found (26 of 27 seeded flaws found; VAmPI mass assignment is a documented gap)
+- [x] Iterate on prompts/references/generators until expected bugs are found (27 of 28 seeded flaws found; VAmPI mass assignment is a documented gap)
 - [x] Add results to docs/evals.md
 - [ ] Person runs the real Petstore, VAmPI (vulnerable and `vulnerable=0`) and DVGA evals on their machine and fills the "found" column (`evals/README.md`)
 

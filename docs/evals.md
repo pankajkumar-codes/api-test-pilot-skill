@@ -1,5 +1,17 @@
 # Evals
 
+> **What this document proves, and what it does not (read first).** Every detection figure here ("27 of 28 seeded flaws found") was measured
+> against **local targets whose flaws and expected tests were written by the same author as the generators**: stdlib mock servers, labelled
+> stand-ins for Petstore, VAmPI and DVGA that follow those projects' documents, and one seeded FastAPI app. That makes it a regression suite
+> that shows each check works on the flaw it was written for. It is not an independent evaluation, and it says nothing about detection on
+> real third-party APIs. No such rate is claimed anywhere in this repository.
+>
+> **Real Swagger Petstore, VAmPI, DVGA and crAPI runs: not yet run.** The build environment has no Docker daemon (checked again 2026-11-19:
+> `docker ps` cannot reach `/var/run/docker.sock`), so the containers could not be started, and the public Petstore host was not reachable when last checked (2026-11-12).
+> The steps to run them on your machine are in [evals/README.md](../evals/README.md); when you do, record the exact numbers, including
+> misses, in a new section here. Until then the labels "mock-based, real target not run" stay.
+> The 2026-11-19 recheck of the offline evals (`python evals/run_evals.py --target all` on commit 4c8b12f): 27 flaws FOUND, 1 MISSED (VAmPI mass assignment), 4 clean variants.
+
 ## Phase 2: generator validation against local mock servers (2026-11-12)
 
 The targets in `eval-apis.md` (Petstore, crAPI/VAmPI, DVGA, a seeded FastAPI app) are not reachable from the build

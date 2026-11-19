@@ -44,8 +44,8 @@ Scope: gRPC streaming is not covered. **Not part of this skill at all:** UI acce
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 
 > **Version 0.1.0 is the first version.** The code is public and tested, but no release tag has been cut and it is not yet listed in any
-> skill marketplace; that is the remaining release work, see [docs/RELEASE.md](docs/RELEASE.md). The three third-party eval targets
-> (Petstore, VAmPI, DVGA) have **not** been run for real, only against labelled mock stand-ins written by the same author, so the detection numbers
+> skill marketplace; that is the remaining release work, see [docs/RELEASE.md](docs/RELEASE.md). The third-party eval targets
+> (Petstore, VAmPI, DVGA, crAPI) have **not** been run for real, only against labelled mock stand-ins written by the same author, so the detection numbers
 > show that the checks work on those seeded flaws and nothing more. Read [docs/evals.md](docs/evals.md) before you trust them.
 
 ## Results: what has been run
@@ -110,7 +110,7 @@ the strict `page` rules). Whether the CORS and header findings matter for a publ
   using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 9.
 - 28 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
   10 in a GraphQL mock). The matching generated test failed on 27 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
-  The three third-party eval targets (Petstore, VAmPI, DVGA) have **not** been run for real.
+  The third-party eval targets (Petstore, VAmPI, DVGA, crAPI) have **not** been run for real.
 - The repository's own tests run on Python 3.11, 3.12 and 3.13 in CI.
 
 What this does not show: detection rates on real third-party APIs, behaviour under production load, or anything about APIs that need OAuth flows
@@ -442,6 +442,17 @@ $ echo $?
   - gRPC load tests through `ghz` are not generated or run; gRPC unary tests are covered, against a local `grpcio` server and real grpcurl 1.9.1.
   - The API gateway and GraphQL example apps in `examples/aws-local/` are local stand-ins written for the tests. The AWS emulator has not been run against them.
   - VAmPI mass assignment is a known miss in the eval (see [docs/evals.md](docs/evals.md)), and the 27 of 28 figure is for seeded flaws in mocks, not real APIs.
+
+## Privacy and support
+
+- **Privacy.** The skill has no telemetry, no account and no server of its own. Its scripts send HTTP requests only to the target API
+  you name (and, if you ask for it, to GitHub when `file_issues.py` files an issue with a token you supply). Specs, generated tests,
+  results and reports stay on your machine. Credentials are read from environment variables and redacted from reports, which is
+  pattern-based, so read a report before you share it. Your agent (for example Claude) processes whatever you paste or let it read under
+  that product's own privacy terms, not this project's.
+- **Support.** Open an issue at <https://github.com/pankajkumar-codes/api-test-pilot-skill/issues>. This is a single-maintainer preview with
+  no service level; expect answers when the maintainer has time. Report a security problem privately, see [SECURITY.md](SECURITY.md).
+- **Warranty.** MIT licence, provided as is. Only test APIs you own or are authorized to test; see the safety gate above and [SECURITY.md](SECURITY.md).
 
 ## Develop
 
