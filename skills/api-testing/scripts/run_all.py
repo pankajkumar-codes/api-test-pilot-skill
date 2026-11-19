@@ -3,13 +3,21 @@
 
 Usage:
   python run_all.py <spec> [--out DIR] [--base-url URL] [--types all,fuzz] [--assume-bearer [--public-paths GLOBS]]
-                    [--tenant-param NAME] [--check-env] [-- <extra pytest arguments>]
+                    [--tenant-param NAME] [--check-env] [--k6 [PROFILES] [--k6-docker]]
+                    [--chaos [--chaos-experiments LIST] [--dependency-config FILE --allow-hooks]] [-- <extra pytest arguments>]
 
 Steps: intake, generate the suites, run them in two passes, build the report, print what to set to run the skipped tests.
 Pass one runs everything except tests marked `session_end` (sign-out, revoke, password change); pass two runs those last, so they
 cannot end the session the other tests use. Credentials come from the environment (see the intake summary); the safety gate is the
 generated suite's own: intrusive types (security, fuzz, resilience) skip unless the target is local or APITEST_TARGET_ENV and
-APITEST_AUTHORIZED=yes are set by you. This driver never sets them. Chaos and k6 runs need their own configuration and are not started here;
+APITEST_AUTHORIZED=yes are set by you. This driver never sets them.
+
+k6 and chaos are opt-in and run after the tests, before the report, through the same scripts you would run by hand, so each applies its
+own safety gate (a target that is not local needs your APITEST_TARGET_ENV and APITEST_AUTHORIZED=yes; production is refused) and the
+driver stops that part when the gate refuses. `--k6` runs gen_k6.py and run_k6.py for the profiles you name (default load,stress,spike; soak
+takes 30 minutes, so name it: `--k6 load,soak`) and `--k6-docker` runs k6 in a container. `--chaos` runs chaos_run.py with its default
+proxy and payload experiments; dependency experiments need `--dependency-config FILE` and `--allow-hooks` (your own start and stop commands, loopback
+targets only), which are never implied by one another. A threshold crossed or a chaos finding goes into the report and its verdict. Without these flags
 the exact commands are printed at the end.
 
 Exit codes: 0 unless the verdict is FAIL (INCOMPLETE and INCONCLUSIVE also exit 0, so read the verdict), 1 findings in the report,
@@ -33,6 +41,72 @@ def run(cmd: list[str], env: dict | None = None) -> int:
     return subprocess.run(cmd, env=env).returncode
 
 
+K6_DEFAULT = "load,stress,spike"
+K6_PROFILES = ("load", "stress", "spike", "soak")
+GATE_REFUSED = 3   # run_k6.py and chaos_run.py both exit 3 when the safety gate refuses the target
+
+
+def option_problem(args: argparse.Namespace) -> str | None:
+    if args.k6:
+        bad = [p for p in (x.strip() for x in args.k6.split(",")) if p not in K6_PROFILES]
+        if bad or not args.k6.strip(","):
+            return (f"--k6 takes a comma list of {', '.join(K6_PROFILES)}, got {args.k6!r}; put the spec file first, or write --k6=load,stress "
+                    "(a bare --k6 takes the next word as its profiles)")
+    if args.k6_docker and not args.k6:
+        return "--k6-docker needs --k6"
+    if (args.chaos_experiments or args.dependency_config or args.allow_hooks) and not args.chaos:
+        return "--chaos-experiments, --dependency-config and --allow-hooks need --chaos"
+    if args.dependency_config and not args.allow_hooks:
+        return ("--dependency-config runs the start and stop commands in that file, so it also needs --allow-hooks "
+                "(loopback targets only); the two are never implied by each other")
+    if args.allow_hooks and not args.dependency_config:
+        return "--allow-hooks only applies together with --dependency-config"
+    return None
+
+
+def run_k6_profiles(args: argparse.Namespace, py: str, intake: Path, out: Path, results: Path) -> list[Path]:
+    """Generate and run the chosen k6 profiles; return the summary files that exist. A refused gate or a launcher error stops the
+    rest of k6 with a message; a crossed threshold does not (it is in the summary and so in the report)."""
+    profiles = [p.strip() for p in args.k6.split(",") if p.strip()]
+    k6_dir = out / "k6_tests"
+    base = ["--base-url", args.base_url] if args.base_url else []
+    if run([py, str(HERE / "gen_k6.py"), str(intake), "-o", str(k6_dir), "--profiles", ",".join(profiles)] + base) != 0:
+        print("k6: the scripts could not be generated (see above); k6 was skipped", file=sys.stderr)
+        return []
+    found: list[Path] = []
+    for profile in profiles:
+        cmd = [py, str(HERE / "run_k6.py"), str(k6_dir / f"{profile}.js"), "--results-dir", str(results)] + base
+        code = run(cmd + (["--docker"] if args.k6_docker else []))
+        summary = results / f"{profile}-summary.json"
+        if summary.exists():
+            found.append(summary)
+        if code == GATE_REFUSED:
+            print("k6: the safety gate refused this target, so no further k6 profile was run. Set APITEST_TARGET_ENV to a non-production "
+                  "value and APITEST_AUTHORIZED=yes yourself if you own it and may load test it.", file=sys.stderr)
+            break
+        if code in (2, 4, 5):
+            print(f"k6: {profile} could not run (exit {code}); the other profiles were skipped", file=sys.stderr)
+            break
+    return found
+
+
+def run_chaos(args: argparse.Namespace, py: str, intake: Path, results: Path) -> Path | None:
+    """Run chaos_run.py; return its JUnit file when it wrote one. Findings (exit 1) go to the report; a refused gate is said once."""
+    chaos_out = results / "chaos"
+    cmd = [py, str(HERE / "chaos_run.py"), str(intake), "--out", str(chaos_out)]
+    cmd += ["--base-url", args.base_url] if args.base_url else []
+    cmd += ["--experiments", args.chaos_experiments] if args.chaos_experiments else []
+    cmd += ["--dependency-config", args.dependency_config, "--allow-hooks"] if args.dependency_config else []
+    code = run(cmd)
+    if code == GATE_REFUSED:
+        print("chaos: the safety gate refused this target, so nothing was run. Set APITEST_TARGET_ENV to a non-production value and "
+              "APITEST_AUTHORIZED=yes yourself if you own it and may inject faults into it.", file=sys.stderr)
+    elif code == 2:
+        print("chaos: bad input (see above); nothing was run", file=sys.stderr)
+    xml = chaos_out / "chaos.xml"
+    return xml if xml.exists() else None
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     extra: list[str] = []
@@ -48,13 +122,28 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--public-paths", help="with --assume-bearer: comma-separated path globs that stay public")
     ap.add_argument("--tenant-param", help="path parameter that names the tenant (default: detected)")
     ap.add_argument("--check-env", action="store_true", help="only report what is missing (python, pytest, requests, k6, grpcurl) and stop")
+    ap.add_argument("--k6", nargs="?", const=K6_DEFAULT, metavar="PROFILES",
+                    help=f"after the tests, generate and run k6 (comma list of load,stress,spike,soak; default {K6_DEFAULT})")
+    ap.add_argument("--k6-docker", action="store_true", help="with --k6: run k6 in a container instead of a local binary")
+    ap.add_argument("--chaos", action="store_true", help="after the tests (and k6), run the chaos experiments")
+    ap.add_argument("--chaos-experiments", help="with --chaos: comma list for chaos_run.py (default: its proxy and payload experiments)")
+    ap.add_argument("--dependency-config", help="with --chaos: JSON file with your dependency start/stop commands (needs --allow-hooks)")
+    ap.add_argument("--allow-hooks", action="store_true", help="with --chaos --dependency-config: permit those commands to run (loopback targets only)")
     args = ap.parse_args(argv)
 
     py = sys.executable
+    problem = option_problem(args)
+    if problem:
+        print(f"error: {problem}", file=sys.stderr)
+        return 2
     if args.check_env:
         needs = ["grpcurl"] if args.spec.endswith(".proto") else []
         return run([py, str(HERE / "check_env.py"), "--needs", ",".join(needs)] + (["--base-url", args.base_url] if args.base_url else []))
     if run([py, str(HERE / "check_env.py")]) != 0:
+        return 2
+    if args.k6 and run([py, str(HERE / "run_k6.py"), "--check"] + (["--docker"] if args.k6_docker else [])) != 0:
+        print("error: --k6 was asked for but k6 cannot start here (see above); install it, set K6_BIN or add --k6-docker. Nothing was run.",
+              file=sys.stderr)
         return 2
 
     out = Path(args.out)
@@ -81,10 +170,16 @@ def main(argv: list[str] | None = None) -> int:
     if not junits[0].exists():
         print("error: the test run produced no results file", file=sys.stderr)
         return 2
+    k6_summaries = run_k6_profiles(args, py, intake, out, results) if args.k6 else []
+    chaos_xml = run_chaos(args, py, intake, results) if args.chaos else None
+    if chaos_xml:
+        junits.append(chaos_xml)
     report = out / "report.html"
     rep = [py, str(HERE / "summarize_results.py"), "--intake", str(intake), "--tests-dir", str(suite), "--k6-dir", str(out / "k6_tests"), "--root", str(out.resolve()), "-o", str(report)]
     for j in junits:
         rep += ["--junit", str(j)]
+    for k in k6_summaries:
+        rep += ["--k6", str(k)]
     if args.base_url:
         rep += ["--base-url", args.base_url]
     if run(rep) != 0:
@@ -95,7 +190,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print("\n" + data["result"]["status"] + ": " + data["result"]["summary"])
     print(f"Report: {report} (and {report.with_suffix('.json')})")
-    print("Next: k6 load profiles: gen_k6.py then run_k6.py; chaos: chaos_run.py with your dependency config (see references/chaos.md).")
+    todo = []
+    if not args.k6:
+        todo.append("k6 load profiles: add --k6 (or run gen_k6.py then run_k6.py)")
+    if not args.chaos:
+        todo.append("chaos: add --chaos (and --dependency-config FILE --allow-hooks for dependency faults; see references/chaos.md)")
+    if todo:
+        print("Next: " + "; ".join(todo) + ".")
     return 1 if data["result"]["status"] == "FAIL" else 0
 
 
