@@ -57,7 +57,7 @@ def build_data(r, title: str, date: str, command: str, limit: int, mod) -> dict:
     data = {
         "schema_version": SCHEMA_VERSION,
         "title": title, "date": date,
-        "result": {"status": status, "summary": text, "warning": mod.skip_warning(r)},
+        "result": {"status": status, "summary": text, "warning": mod.skip_warning(r), "ran": mod.ran_line(r)},
         "totals": {**tot, "total": len(r.cases), "test_seconds": round(sum(c["time"] or 0 for c in r.cases), 2)},
         "cases": cases,
         "by_type": {t: {**v, "total": sum(v.values())} for t, v in sorted(by.items())},
@@ -424,6 +424,8 @@ JS = """
 def render_html(d: dict) -> str:
     cls = STATUS_CLASS.get(d["result"]["status"], "warn")
     warn = f'<div class="warnbox">{e(d["result"]["warning"])}</div>' if d["result"]["warning"] else ""
+    if d["result"].get("ran"):
+        warn = f'<div class="warnbox"><b>{e(d["result"]["ran"])}</b></div>' + warn
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

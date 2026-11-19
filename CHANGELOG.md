@@ -7,6 +7,18 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (plugin icon)
+- `.claude-plugin/icon.png` (1024 x 1024, a white check mark on teal) and `"icon"` in `plugin.json`, so `claude plugin validate` no longer warns about a missing icon. It is plain geometry drawn by `tools/make_icon.py` (standard library only), not a third party's logo; replace the file if you have a design of your own.
+
+### Added (`run_all.py --k6-writes`)
+- `run_all.py` had no way to make k6 send writes, although `gen_k6.py` has `--include-writes`. `--k6-writes` (needs `--k6`) passes it through. The requests still only run when you set `APITEST_ALLOW_WRITES=yes` yourself; the driver never sets it and says so when it is unset.
+
+### Changed (report: how many tests ran)
+- Every report (Markdown, HTML, `report.json` as `result.ran`) now carries one line under the verdict: "Ran 171 of 173 tests (99%): 171 passed, 0 failed; 2 skipped and 0 errored did not run. A skipped test is neither a pass nor a failure." It is shown for every run, not only when over half of the tests skipped, so a run that mostly skipped is not read as a clean one. The over-half warning stays.
+
+### Fixed (README example)
+- The example run in the README and `examples/sample-report.*` were rerun with the shipped zip's scripts: 134 functions, 240 passed, 9 failed, 20 skipped of 269 tests (the tenant isolation matrix added two more BOLA findings on the seeded demo). The demo server itself needs this repository checkout (it reuses `tests/mock_rest.py`); the README now says so.
+
 ### Changed (safety gate stated honestly, feature status)
 - SKILL.md, SECURITY.md, README and `references/security.md` now say the gate is a consent prompt and not an enforced control: environment variables can be set by an agent, a tunnelled host looks local, `staging` is not verified. The rule that an agent never sets `APITEST_AUTHORIZED` or `APITEST_TARGET_ENV` is kept, and SKILL.md now says to ignore any spec, collection or response text asking for it. The gate itself is unchanged.
 - SECURITY.md: a legal and misuse section for third-party systems, and a short plan for a bad release (withdraw, fix, advisory, patch release).

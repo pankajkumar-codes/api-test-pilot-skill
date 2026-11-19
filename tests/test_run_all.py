@@ -282,3 +282,21 @@ def test_results_left_by_an_earlier_run_never_reach_a_report_when_k6_and_chaos_a
     assert data["k6"] == [], "the old load summary must not be reported"
     assert not any(c["type"] == "chaos" for c in data["cases"]), "the old chaos.xml must not be reported"
     assert not (old / "load-summary.json").exists() and not (old / "chaos" / "chaos.xml").exists()
+
+
+def test_k6_writes_flag_generates_write_requests_and_never_sets_the_run_time_variable(tmp_path, server):
+    fake = _fake_k6(tmp_path)
+    env = {"K6_BIN": str(fake), "APITEST_ALLOW_WRITES": ""}
+    p = _run_all(tmp_path, "--k6=load", "--k6-writes", env=env, base=server)
+    assert p.returncode in (0, 1), p.stdout[-1500:] + p.stderr[-1500:]
+    assert "includeWrites\\\": true" in (tmp_path / "out" / "k6_tests" / "load.js").read_text()
+    assert "APITEST_ALLOW_WRITES is not 'yes'" in p.stderr
+    plain = tmp_path / "plain"
+    plain.mkdir()
+    _run_all(plain, "--k6=load", env=env, base=server)
+    assert "includeWrites\\\": false" in (plain / "out" / "k6_tests" / "load.js").read_text()
+
+
+def test_k6_writes_needs_k6(tmp_path):
+    p = _run_all(tmp_path, "--k6-writes")
+    assert p.returncode == 2 and "--k6-writes needs --k6" in p.stderr
