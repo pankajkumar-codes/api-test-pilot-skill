@@ -289,6 +289,19 @@ what was expected and a command to reproduce it), k6 numbers with threshold resu
 your system's light or dark theme. `reports/report.json` has the same data for scripts. Secrets are removed from both. Add `-o report.md` for the older Markdown form.
 The summary gives passed, failed and could-not-run counts and the variables to set to run the skipped tests (with how many tests each unskips); findings are also grouped by root cause (one group per repeated test). A run whose only findings are informational gets the verdict NOTES, not FAIL. Skipped tests are listed under four headings with a count each, by who can fix them: the skill could have done it itself, you need to supply something, a safety default is off on purpose, or the target cannot provide it (`skip_groups` in `report.json`; the flat `skips` list stays). A refusal (4xx) of a value the skill had to invent because the spec gives no example, default or enum, or a 412 for a stale `If-Match`, is not a failure: it skips as "could not verify", counts as could not run, and the report lists the fields that need an example (set them in `APITEST_EXAMPLES_FILE`). Operations with a required `If-Match` header read the record first and send its current ETag.
 
+### Create the records the tests need (optional)
+
+Most skipped tests say "no existing id for X". `seed_ids.py` is an opt-in setup stage that makes those ids: for every resource with a create endpoint and an item endpoint it sends one create request and writes the new id to an ids file (the same `APITEST_IDS_FILE` the suite reads). Nothing calls it for you:
+
+```
+python $SK/seed_ids.py intake.json --out ids.json --dry-run     # print what it would create, send nothing
+python $SK/seed_ids.py intake.json --out ids.json               # create the records, write ids.json
+APITEST_IDS_FILE=ids.json pytest api_tests                      # run the suite with them
+python $SK/seed_ids.py intake.json --cleanup ids.json           # delete what it created
+```
+
+It writes data, so it follows the same gate as the intrusive runs: production is refused, a target that is not on this machine needs your `APITEST_TARGET_ENV` (non-production) and `APITEST_AUTHORIZED=yes`, and `APITEST_READ_ONLY=yes` turns it off. An id you already set (`APITEST_PATH_<NAME>` or an entry in the file) is kept and no record is made for it. Credentials come from the usual environment variables; output lists operation ids, status codes and ids, never bodies or tokens. It makes one record per resource (at most 25); nested resources are created when their parents' ids are known. What it created is listed under `created` in the ids file, and `--cleanup` deletes it newest first (a record with no DELETE endpoint is listed for you to remove by hand). It does not set the `victim` ids, which need a second user's data. Exit codes: 0 done, 1 a record could not be created or removed, 2 refused or bad input.
+
 ### File GitHub issues for the failures (optional)
 
 `file_issues.py` turns the findings in `reports/report.json` into GitHub issues. It is opt-in and previews by default (no network, no token):
