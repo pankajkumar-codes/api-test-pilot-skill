@@ -316,6 +316,50 @@ def describe(resp: requests.Response) -> str:
     return f"{resp.request.method} {_redact_url(resp.request.url)} -> {resp.status_code} ({ms} ms)\n  body: {body}\n  repro: {curl_of(resp)}"
 
 
+_FILES: dict[str, Any] = {}
+
+
+def read_json_env_file(var: str) -> dict:
+    """JSON object from the file named by env var `var` ({} when unset). A bad file stops the run with a clear message."""
+    path = os.environ.get(var, "").strip()
+    if not path:
+        return {}
+    if path not in _FILES:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, ValueError) as exc:
+            raise pytest.UsageError(f"{var} must name a readable JSON file ({type(exc).__name__}: {exc})") from None
+        if not isinstance(data, dict):
+            raise pytest.UsageError(f"{var} must hold a JSON object")
+        _FILES[path] = data
+    return _FILES[path]
+
+
+def example_overrides(ep: "Endpoint") -> dict:
+    """Values from APITEST_EXAMPLES_FILE for this operation: {"createFiling.period_start": "2024-04-01", "*.state_code": "27"}.
+    The operation id (or `*` for every operation) comes first, the body field or query parameter name after the dot."""
+    out: dict = {}
+    for key, val in read_json_env_file("APITEST_EXAMPLES_FILE").items():
+        op, _, name = str(key).partition(".")
+        if name and op in ("*", ep.id):
+            out[name] = val
+    return out
+
+
+_HINT_RE = re.compile(r"\bset (APITEST_[A-Z0-9_]+)")
+
+
+def unskip_hints(reasons: list[str]) -> list[tuple[str, int]]:
+    """From skip messages: (variable, number of tests it would unskip), most tests first. Only messages that say "set VAR"."""
+    counts: dict[str, int] = {}
+    for text in reasons:
+        m = _HINT_RE.search(text) or re.search(r"\bset ([A-Z][A-Z0-9_]+)", text)
+        if m and ("no existing id" in text or "credentials not configured" in text):
+            counts[m.group(1)] = counts.get(m.group(1), 0) + 1
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def optional_header_values(ep: "Endpoint") -> dict:
     """Headers to send although the spec marks them optional: APITEST_SEND_OPTIONAL_HEADERS=Idempotency-Key,If-Match=*.
     Only names the operation declares are sent. A bare Idempotency-Key gets a fresh unique value per call; any other name
@@ -611,6 +655,16 @@ def expect_unauthenticated(resp: requests.Response, invented: bool = False, what
     if invented:
         msg += " (path id was invented, so 404 is accepted; set APITEST_PATH_<NAME> for a strict check)"
     expect_status(resp, codes, msg)
+
+
+def expect_unauthenticated_contract(resp: requests.Response, ep: Endpoint, invented: bool) -> None:
+    """The documented 401 body. With an invented path id an API that resolves the path first answers 404, which says nothing
+    about its 401 body, so that case skips and names the variable that makes the check strict."""
+    if invented and resp.status_code == 404:
+        pytest.skip("the API answered 404 for an invented path id before checking credentials, so its 401 body was not seen: "
+                    "set APITEST_PATH_<NAME> for the ids in this path")
+    expect_status(resp, (401,), "request without credentials must be rejected")
+    expect_contract(resp, ep)
 
 
 def expect_no_crash(resp: requests.Response, what: str = "") -> None:
@@ -1106,9 +1160,15 @@ class Api:
 
     # ---- path ids
     def pid(self, name: str, default: Any = None, victim: bool = False) -> Any:
-        """Existing resource id: env APITEST_PATH_<NAME> (or APITEST_VICTIM_<NAME>), else the spec example, else skip."""
+        """Existing resource id: env APITEST_PATH_<NAME> (or APITEST_VICTIM_<NAME>), else APITEST_IDS_FILE
+        ({"path": {"business_id": "..."}, "victim": {...}}), else the spec example, else skip."""
         key = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_").upper()
-        val = os.environ.get(("APITEST_VICTIM_" if victim else "APITEST_PATH_") + key, default if not victim else None)
+        val = os.environ.get(("APITEST_VICTIM_" if victim else "APITEST_PATH_") + key)
+        if val in (None, ""):
+            section = read_json_env_file("APITEST_IDS_FILE").get("victim" if victim else "path")
+            val = section.get(name) if isinstance(section, dict) else None
+        if val in (None, "") and not victim:
+            val = default
         if val in (None, ""):
             pytest.skip(f"no existing id for '{name}': set APITEST_{'VICTIM' if victim else 'PATH'}_{key} "
                         "(or run the integration flows, which create their own data)")
@@ -1197,6 +1257,13 @@ class Api:
             else urllib.parse.quote(str(ids[m.group(1)]), safe=""),
             ep.path)
         q = dict(ep.query) if query is UNSET else dict(query)
+        given = example_overrides(ep)
+        used_examples: set[str] = set()
+        if given and query is UNSET:
+            for k in q:
+                if k in given:
+                    q[k] = given[k]
+                    used_examples.add(k)
         h = dict(ep.headers)
         h.update(optional_header_values(ep))
         h.update(headers or {})
@@ -1211,6 +1278,12 @@ class Api:
             h["Content-Type"] = ctype or "application/json"
         else:
             payload = unique_body(ep, ep.body) if body is UNSET else body
+            if given and body is UNSET and isinstance(payload, dict):
+                payload = dict(payload)
+                for k in payload:
+                    if k in given:
+                        payload[k] = given[k]
+                        used_examples.add("body." + k)
             if payload is not UNSET:
                 if ctype and "x-www-form-urlencoded" in ctype:
                     kwargs["data"] = payload
@@ -1227,7 +1300,8 @@ class Api:
         resp._optional_headers = tuple(ep.optional_headers)  # type: ignore[attr-defined]
         resp._guessed = tuple(  # type: ignore[attr-defined]
             n for n in ep.guessed
-            if (n.startswith("body.") and body is UNSET and raw is None) or (n in q and q[n] == ep.query.get(n)))
+            if n not in used_examples and ((n.startswith("body.") and body is UNSET and raw is None)
+                                           or (n in q and q[n] == ep.query.get(n))))
         return resp
 
     def get(self, url_path: str, **kw: Any) -> requests.Response:

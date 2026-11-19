@@ -97,6 +97,11 @@ class Resolver:
                     out.setdefault("$name", name)
             return out
         out: dict[str, Any] = {k: node[k] for k in SCHEMA_KEYS if k in node}
+        if "example" not in out:   # vendor `x-example` and the JSON Schema `examples` list (OpenAPI 3.1) count as an example
+            if "x-example" in node:
+                out["example"] = node["x-example"]
+            elif isinstance(node.get("examples"), list) and node["examples"]:
+                out["example"] = node["examples"][0]
         for k in ("example", "default", "enum", "const"):   # data the author wrote: may be an alias bomb
             if isinstance(out.get(k), (dict, list)):
                 out[k] = redact_example(out[k])
@@ -162,6 +167,12 @@ def _param(r: Resolver, p: Any, swagger2: bool) -> dict | None:
                 sch.pop(drop, None)
     elif "example" in p:
         out["example"] = p["example"]
+    elif "x-example" in p:
+        out["example"] = p["x-example"]
+    elif isinstance(p.get("examples"), dict) and p["examples"]:   # named examples: the first one with a value
+        first = r.deref(next(iter(p["examples"].values())))
+        if isinstance(first, dict) and "value" in first:
+            out["example"] = redact_example(first["value"]) if isinstance(first["value"], (dict, list)) else first["value"]
     if p.get("deprecated"):
         out["deprecated"] = True
     return out
@@ -610,6 +621,36 @@ def bundle(doc: Any, path: str) -> tuple[Any, list[str]]:
     if b.copies:
         out[BUNDLE_KEY] = b.copies
     return out, warnings
+
+
+def apply_assumed_bearer(doc: dict, public_paths: list[str] | None = None) -> int:
+    """For a spec that declares no security scheme but whose API needs a token: add a `bearerAuth` scheme (token from
+    APITEST_BEARERAUTH_TOKEN) to every operation that has no security, except paths matching `public_paths` (globs such as
+    /health or /docs*). Returns how many operations were changed. Does nothing when the spec declares a scheme."""
+    import fnmatch
+    if doc.get("security_schemes"):
+        return 0
+    doc["security_schemes"] = {"bearerAuth": _scheme_info("bearerAuth", {"type": "http", "scheme": "bearer"})}
+    doc["security_schemes"]["bearerAuth"]["assumed"] = True
+    changed = 0
+    for ep in doc["endpoints"]:
+        if not isinstance(ep, dict) or ep.get("auth_required") or any(fnmatch.fnmatchcase(ep["path"], g) for g in public_paths or []):
+            continue
+        ep["security"], ep["auth_required"] = [["bearerAuth"]], True
+        changed += 1
+    doc.setdefault("warnings", []).append(
+        f"--assume-bearer: the spec declares no security scheme, so {changed} operation(s) are treated as needing a bearer token "
+        "(APITEST_BEARERAUTH_TOKEN). " + (f"Public paths left open: {', '.join(public_paths)}." if public_paths else "Use --public-paths for open endpoints."))
+    return changed
+
+
+def warn_if_no_scheme(doc: dict) -> None:
+    """An API that needs a token but whose spec declares none looks fully public to the skill; say so in the intake."""
+    if doc.get("endpoints") and not doc.get("security_schemes") and not any(isinstance(e, dict) and e.get("auth_required") for e in doc["endpoints"]):
+        doc.setdefault("warnings", []).append(
+            "the spec declares no security scheme, so every operation is treated as public (no credentials sent, no authentication or "
+            "authorization tests). If the API answers 401 without a token, rerun intake with --assume-bearer "
+            "(and --public-paths '/health,/docs*' for open endpoints).")
 
 
 def build(path: str) -> dict:

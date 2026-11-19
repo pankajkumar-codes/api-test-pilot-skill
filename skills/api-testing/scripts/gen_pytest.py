@@ -102,6 +102,9 @@ Credentials are read from environment variables, never from files. Variables thi
   APITEST_AUTHORIZED=yes    you own or are authorized to test the target (needed for intrusive tests)
   APITEST_PATH_<PARAM>      id of an existing resource for path parameters
   APITEST_VICTIM_<PARAM>    id of ANOTHER user's resource (BOLA checks)
+  APITEST_IDS_FILE          JSON file {{"path": {{param: id}}, "victim": {{param: id}}}} instead of many variables
+  APITEST_EXAMPLES_FILE     JSON file {{"operationId.field": value, "*.field": value}} of valid values for fields the spec gives no example for
+  APITEST_SEND_OPTIONAL_HEADERS   headers the spec marks optional but the server needs (Idempotency-Key, If-Match)
   APITEST_READ_ONLY=yes     public sandbox you only read from: sends only GET/HEAD/OPTIONS, no active probes, no environment confirmation needed
   APITEST_ALLOW_DESTRUCTIVE=yes   permit DELETE-style calls against existing data
   APITEST_DELAY_MS / APITEST_RPS  pause between requests / cap on requests per second (also --apitest-delay-ms, --apitest-rps)
@@ -185,6 +188,13 @@ def pytest_terminal_summary(terminalreporter):
     down = [r for r in stats.get("skipped", []) if rt.UNREACHABLE_PREFIX in str(getattr(r, "longrepr", ""))]
     if down:
         terminalreporter.write_line(f"{{len(down)}} test(s) skipped because the target was unreachable (connection errors); check the target and rerun.")
+    hints = rt.unskip_hints([str(r.longrepr[2]) if isinstance(r.longrepr, tuple) else str(r.longrepr) for r in stats.get("skipped", [])])
+    if hints:
+        terminalreporter.section("Set these to run the skipped tests")
+        for var, n in hints[:40]:
+            terminalreporter.write_line(f"{{n:>5}} tests need {{var}}")
+        terminalreporter.write_line("Ids can also go in one JSON file: APITEST_IDS_FILE=ids.json with "
+                                    '{{"path": {{"<param>": "<id>"}}, "victim": {{"<param>": "<id>"}}}}.')
     skipped = len(stats.get("skipped", []))
     total = skipped + sum(len(stats.get(k, [])) for k in ("passed", "failed", "error"))
     if total and skipped * 2 > total:

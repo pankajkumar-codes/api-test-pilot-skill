@@ -11,13 +11,14 @@ from gen_common import (
 # Field names that imply a structure. A run of "a" is not a valid value for these, so a length edge case there only checks
 # that the answer is a clean 4xx or success (no 5xx, no hang) instead of demanding success.
 STRUCTURED_NAME_RE = re.compile(
-    r"(^|[_\-.])(e?-?mail|password|passwd|pwd|pass|code|otp|pin|token|secret|url|uri|link|date|time|phone|mobile|"
-    r"file_?name|filename|extension|ext|iban|gstin|pan|zip|postal|pincode|uuid|guid|ip|host|domain)($|[_\-.])|"
-    r"(Email|Password|Code|Otp|Token|Url|Uri|Date|Phone|FileName|Filename)$", re.I)
+    r"(^|[_\-.])(e?-?mail|password|passwd|pwd|pass|code|otp|pin|token|secret|url|uri|link|date|time|phone|mobile|dob|"
+    r"file_?name|filename|extension|ext|iban|gstin|pan|zip|postal|pincode|uuid|guid|ip|host|domain|api_?key)($|[_\-.])", re.I)
+CAMEL_STRUCTURED_RE = re.compile(   # case matters here: userEmail, emailAddress, phoneNumber, but not codename or company
+    r"(Email|Password|Code|Otp|Token|Url|Uri|Date|Phone|Mobile|FileName|Filename|ApiKey)$|^(email|phone|mobile|password|token|url|date|code)[A-Z]")
 
 
 def _structured(name: str) -> bool:
-    return bool(STRUCTURED_NAME_RE.search(name))
+    return bool(STRUCTURED_NAME_RE.search(name) or CAMEL_STRUCTURED_RE.search(name))
 
 
 SPECIAL = "!@#$%^&*()_+-={}[]|\\:;\"'<>,.?/~`"
@@ -145,6 +146,10 @@ def _body_edges(ep: dict, base: dict) -> list[tuple]:
     props = writable_props(schema)
     out: list[tuple] = []
     big_done = False
+    if props and not schema.get("required") and base:
+        # The baseline body already carries only the required properties. When none are required it carries the first few
+        # optional ones, so also send an empty object: catches servers that break on a record whose optional fields are all empty.
+        out.append(("no_optional_fields", {"body": {}}, "no_crash"))
     for k, sch in list(props.items())[:6]:
         def b(v, key=k):
             return {"body": {**base, key: v}}

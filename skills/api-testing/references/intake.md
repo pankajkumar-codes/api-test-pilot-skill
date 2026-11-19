@@ -48,6 +48,13 @@ absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it
   them to: no tests are generated, the summary lists them, and a plan can mention them as untested. Secret-looking payload values are dropped like everywhere else. At most 200 are listed.
 - Unsupported (warn the user): gRPC (v2).
 
+- **Example values**: a schema or parameter `example`, the vendor `x-example`, the 3.1 `examples` list and the first named
+  `examples` entry are all read as the example. A simple `pattern` gets a generated matching value; one it cannot build
+  (lookaheads) stays an invented value and is flagged.
+- **No security scheme**: a spec that declares none makes every operation public, and intake warns once. If the API answers 401 without
+  a token, run `intake.py spec.json --assume-bearer [--public-paths '/health,/docs*']`: operations without security then need a bearer
+  token (`APITEST_BEARERAUTH_TOKEN`) except the listed path globs.
+
 ## Ask the user when
 No `servers` (base URL), only variable base URLs, no 2xx responses documented, or the target environment
 is unclear. Never guess a production URL.

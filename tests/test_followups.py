@@ -326,7 +326,7 @@ def test_sample_uses_name_hints_only_when_the_spec_gives_nothing_better():
     assert S({"type": "string"}, "email") == "apitest@example.com"
     assert S({"type": "integer", "minimum": 100, "maximum": 599}, "default_status") == 100   # a range wins
     assert S({"type": "integer", "default": 404}, "default_status") == 404
-    assert S({"type": "string", "pattern": "^x+$"}, "email") == "sample-email"                # a pattern: do not override
+    assert S({"type": "string", "pattern": "^x+$"}, "email") == "x"                          # a pattern wins over the name hint
     assert S({"type": "string"}, "label") == "sample-label"
 
 

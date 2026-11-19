@@ -7,6 +7,21 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 First release candidate, built in phases (see PLAN.md).
 
+### Added (empty optional body, issue 50)
+- When a JSON body has no required property, the edge tests also send `{}` and require a clean answer (no 5xx). When some properties are required the baseline body already carries only those, so a separate "required fields only" case would repeat it.
+
+### Fixed (review follow-ups on the tenant PR)
+- The documented-401 contract test (`*_error_contract_401`) uses the same probe as the no-credentials test: a real id for reads, an invented one for writes, and it skips (naming `APITEST_PATH_<NAME>`) when an invented id draws a 404 before the credentials are checked, instead of failing.
+- The structured-field name matcher also recognises prefix and compound names such as `emailAddress`, `phoneNumber`, `dob` and `api_key`, but not plain words like `address`, `codename` or `company`.
+
+### Added (examples, ids file, no-scheme specs, issues 46, 51, 52)
+- The report (HTML, `report.json` field `unskip`, Markdown) carries the same "set these to run the skipped tests" list as the terminal summary.
+- The pattern generator gives up early on nested counts such as `((a{5000}){5000}){5000}` instead of building a huge string. An empty `APITEST_PATH_*` variable counts as unset and falls through to the ids file and the spec example.
+- Intake reads `x-example`, the OpenAPI 3.1 `examples` list and the first named `examples` entry as the example. A simple `pattern` (classes, ranges, counts, groups, first alternative) gets a generated matching value; patterns it cannot build, such as lookaheads, stay flagged as invented.
+- `APITEST_EXAMPLES_FILE` (`operationId.field` or `*.field` to a value) sets body fields and query parameters at run time; the report lists the fields whose invented value drew a 4xx ("give an example for these").
+- `APITEST_IDS_FILE` holds path and victim ids in one JSON file (an environment variable still wins). Every run ends with "Set these to run the skipped tests": each variable and how many tests it would unskip.
+- Intake warns when a spec declares no security scheme; `--assume-bearer` (with `--public-paths` globs) makes the other operations need a bearer token. Not done from issue 46: the setup stage that creates the objects itself, tracked as a follow-up.
+
 ### Added (k6 launcher in sandboxed environments, issues 67, 70)
 - `run_k6.py --check` prints whether k6 can start (its version) and exits 5 when it cannot, so a blocked binary is found before generation.
 - `--k6` accepts a command with arguments (split safely, run without a shell). `--docker` and `--docker-image` run the `grafana/k6` image with the results folder mounted and environment variables passed by name only.

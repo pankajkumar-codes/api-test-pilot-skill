@@ -68,6 +68,7 @@ REDACTED_NOTE = ("The curl line is redacted: replace each `<redacted>` header or
 WRITE_CURL_RE = re.compile(r"^curl -sS -i -X (POST|PUT|PATCH|DELETE) ")
 METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE")
 REQUEST_LINE_RE = re.compile(r"^\s*(" + "|".join(METHODS) + r")\s+(\S+)\s+->", re.M)
+NEEDS_EXAMPLE_RE = re.compile(r"no example or default for required parameter\(s\) or field\(s\) (.+?), so the request used an invented value")
 REPRO_RE = re.compile(r"^\s*repro:\s*(curl\s.*)$", re.M)
 OWASP_RE = re.compile(r"^API\d{1,2}(:\d{4})?$", re.I)
 CHAOS_EXPERIMENTS = {"proxy-latency", "proxy-5xx", "proxy-drop", "proxy-truncate", "proxy-blackhole", "payload", "dep-outage", "dep-slow",
@@ -483,11 +484,25 @@ class Report:
         self.findings: list[Finding] = []
         self.problems: dict[str, int] = {}
         self.skips: dict[str, int] = {}
+        self.unskip: dict[str, int] = {}   # variable to set -> number of skipped tests it would unskip
+        self.needs_example: dict[str, set[str]] = {}   # endpoint -> fields whose invented value drew a 4xx (once per field)
         self.k6: list[dict] = []
         self.inputs: list[tuple[str, str, str]] = []   # (kind, basename, sha256[:12])
         self._raw: dict[tuple[str, str], dict] = {}
 
     # ---- pytest
+    def _count_unskip(self, text: str) -> None:
+        """Skips that name a variable ("no existing id ... set APITEST_PATH_X", "credentials not configured: set X") count
+        toward that variable. Read from the whole message, not the shortened reason."""
+        if "no existing id" not in text and "credentials not configured" not in text:
+            return
+        m = re.search(r"\bset (APITEST_[A-Z0-9_]+|[A-Z][A-Z0-9_]{3,})", text)
+        if m:
+            self.unskip[m.group(1)] = self.unskip.get(m.group(1), 0) + 1
+
+    def unskip_list(self, limit: int = 30) -> list[tuple[str, int]]:
+        return sorted(self.unskip.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+
     def add_junit(self, path: str) -> None:
         data_cases, digest = parse_junit(path)
         self.inputs.append(("junit", Path(path).name, digest))
@@ -520,6 +535,7 @@ class Report:
                 reason = plain(c["message"] or c["text"], 160) or "no reason given"
                 rec["reason"] = reason
                 self.skips[reason] = self.skips.get(reason, 0) + 1
+                self._count_unskip(c["message"] or c["text"] or "")
             elif c["status"] == "error":
                 first = plain((raw.strip().split("\n") or [""])[0], 160) or "error without a message"
                 rec["reason"] = first
@@ -533,6 +549,10 @@ class Report:
 
     def _pytest_finding(self, rec: dict, raw: str, raw_name: str, request) -> Finding:
         sev, owasp, verdict, detail, repros = split_message(raw)
+        m_ex = NEEDS_EXAMPLE_RE.search(raw)
+        if m_ex:
+            fields = self.needs_example.setdefault(rec["endpoint"], set())
+            fields.update(f.strip() for f in m_ex.group(1).split(",") if f.strip())
         if rec["type"] == "chaos":   # the rerun line is parsed further down, not shown
             detail = [d for d in detail if not d.startswith("rerun:")]
         rating = "tagged by the test" if sev else "default for this test type"
@@ -903,6 +923,12 @@ def render_limitations(r: Report) -> str:
     if r.skips:
         out.append("Skipped tests, by reason:")
         out += [f"- {n} x {esc(reason)}" for reason, n in sorted(r.skips.items(), key=lambda kv: -kv[1])[:15]]
+    if r.unskip:
+        out.append("Set these to run the skipped tests (variable: tests it would unskip): "
+                   + ", ".join(f"`{v}`: {n}" for v, n in r.unskip_list()) + ".")
+    if r.needs_example:
+        out.append("Give an example (a spec `example`, or `APITEST_EXAMPLES_FILE` with `operationId.field`) for these invented values: "
+                   + "; ".join(f"{esc(plain(ep, 80))}: {esc(', '.join(sorted(f)))}" for ep, f in sorted(r.needs_example.items())[:30]) + ".")
     if r.index.eps:
         seen = {c["endpoint"] for c in r.cases}
         none = [ep_key(e) for e in r.index.eps if ep_key(e) not in seen]

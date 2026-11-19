@@ -189,6 +189,7 @@ SK=skills/api-testing/scripts                      # or ~/.claude/skills/api-tes
 
 # 1. Normalize the spec (GraphQL: add --url http://localhost:4000/graphql)
 python $SK/intake.py openapi.yaml -o intake.json --summary
+# Spec declares no security scheme but the API needs a token? Add: --assume-bearer --public-paths '/health,/docs*'
 
 # 2. Credentials and target: environment variables only. intake.py lists the names it expects.
 export APITEST_BASE_URL=http://localhost:8080
@@ -255,6 +256,8 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_ALLOW_DESTRUCTIVE=yes` | allow tests that delete or overwrite data; they run last |
 | `APITEST_<SCHEME>_TOKEN` (for example `APITEST_BEARERAUTH_TOKEN`) | credentials; `intake.py` prints the names your spec needs |
 | `APITEST_SEND_OPTIONAL_HEADERS` | comma list of headers the spec marks optional but the server needs, for example `Idempotency-Key,If-Match`. Sent on every operation that declares them: `Idempotency-Key` gets a fresh unique value per call, others get `*` or the value after `=` (`If-Match=\"v1\"`) |
+| `APITEST_IDS_FILE` | JSON file `{"path": {"business_id": "..."}, "victim": {...}}` with the same ids, instead of many variables (a variable wins over the file). The run ends with a list of the variables that would unskip the most tests |
+| `APITEST_EXAMPLES_FILE` | JSON file `{"createFiling.period_start": "2024-04-01", "*.state_code": "27"}`: valid values for body fields and query parameters the spec gives no example for. The report lists the fields that need one |
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
 | `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (`email`, `username`, `slug` ...) with a run id, or pin its 4-character prefix to reproduce a run (a rerun then repeats the same values) |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |
