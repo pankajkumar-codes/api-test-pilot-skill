@@ -24,7 +24,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 - [ ] Repository is public and its visibility, description and topics are set (suggested topics: `agent-skills`, `claude-code`,
       `api-testing`, `openapi`, `graphql`, `pytest`, `k6`, `owasp`).
 - [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot-skill 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
-      `api-test-pilot-skill--v0.1.0`, which is only needed when other plugins depend on a version range.)
+      `api-test-pilot--v0.1.0` (named after the plugin), which is only needed when other plugins depend on a version range.)
 - [ ] GitHub release for `v0.1.0`: notes from CHANGELOG; attach `dist/api-testing-0.1.0.zip` and `dist/SHA256SUMS` (both written by the zip tool), and paste the SHA-256 into the notes.
 - [ ] Bump `version` in `SKILL.md` metadata, `.claude-plugin/plugin.json` and CHANGELOG together for every later release.
       `plugin.json` sets `version`, so users only receive an update when it changes.
