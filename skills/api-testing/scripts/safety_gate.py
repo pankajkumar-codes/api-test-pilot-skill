@@ -4,7 +4,7 @@ Mirrors the gate in templates/pytest/apitest_runtime.py (intrusive tests) and th
 generated k6 script; tests/test_nonfunctional.py proves the three agree on a host matrix. This copy is deliberately
 a little stricter where the spellings are ambiguous, never looser.
 
-Rules (CLAUDE.md, non-negotiable):
+Rules (SECURITY.md and CONTRIBUTING.md, non-negotiable):
   * APITEST_TARGET_ENV=production|prod|live blocks everything, even a local address.
   * Loopback targets (`localhost`, `*.localhost`, 127.x.x.x, ::1) are assumed to be the user's own machine.
   * Every other target needs APITEST_TARGET_ENV set to a non-production value AND APITEST_AUTHORIZED=yes.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build dist/api-testing-<version>.zip for the Claude app's skill upload: one top-level `api-testing/` folder holding the skill.
 
-    python tools/build_skill_zip.py            # validates first, then writes the zip and prints its SHA-256
+    python tools/build_skill_zip.py            # validates first, then writes the zip and dist/SHA256SUMS and prints the hash
 
 Leaves out __pycache__ and *.pyc, writes entries in sorted order with a fixed timestamp (so the same files give the same zip),
 and refuses to build when the validator reports errors. Stdlib only.
@@ -41,8 +41,16 @@ def build(skill_dir: Path, out_dir: Path) -> Path:
 
 def main() -> int:
     z = build(REPO / "skills" / "api-testing", REPO / "dist")
-    print(f"{z}  ({z.stat().st_size} bytes)\nsha256 {hashlib.sha256(z.read_bytes()).hexdigest()}")
+    digest = write_sums(z)
+    print(f"{z}  ({z.stat().st_size} bytes)\nsha256 {digest}\nwrote {z.parent / 'SHA256SUMS'}")
     return 0
+
+
+def write_sums(zpath: Path) -> str:
+    """Write SHA256SUMS next to the zip in the format `sha256sum -c` reads, so a download can be checked with one command."""
+    digest = hashlib.sha256(zpath.read_bytes()).hexdigest()
+    (zpath.parent / "SHA256SUMS").write_text(f"{digest}  {zpath.name}\n", encoding="utf-8")
+    return digest
 
 
 if __name__ == "__main__":

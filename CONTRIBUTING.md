@@ -26,6 +26,13 @@ python evals/run_evals.py --target all    # mock-based evals, offline
 Before opening a pull request, both `pytest` and the validator must pass. If you changed generators, add or update a test
 that proves the new check fails on a seeded flaw and passes on the clean mock (`tests/mock_rest.py`, `tests/mock_graphql.py`).
 
+## How work is planned
+- [PLAN.md](PLAN.md) holds the phases. Work one phase at a time and tick its boxes as items land.
+- A phase is done when its PLAN.md boxes are ticked, the evals against the APIs in [eval-apis.md](eval-apis.md) are run and written up,
+  and [DECISIONS.md](DECISIONS.md) records any scope or stack choice made on the way.
+- Every generated suite must print the exact command that reruns it.
+- Docs are Markdown, scripts are Python 3.11+, load tests are k6 (JavaScript).
+
 ## Pull requests
 - Use [Conventional Commits](https://www.conventionalcommits.org/): `feat:`, `fix:`, `docs:`, `test:`, `chore:`.
 - One topic per pull request. Describe what you ran and what you did not (for example "no k6 available, k6 tests skipped").

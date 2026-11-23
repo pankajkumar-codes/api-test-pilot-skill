@@ -3,6 +3,10 @@
 All notable changes are recorded here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [Semantic Versioning](https://semver.org/). Nothing has been tagged or released yet; 0.1.0 is meant to be tagged as a preview.
 
+## [Unreleased]
+
+Nothing yet. Changes merged after the 0.1.0 tag go here.
+
 ## [0.1.0] - 2026-11-19 (preview)
 
 First version, published as a **preview**. It is built in phases (see PLAN.md) and has one maintainer and no outside users yet.
@@ -12,6 +16,21 @@ What the preview is: an Agent Skill that generates pytest suites and k6 scripts 
 What the evidence is: the tests and evals run against local mock servers and a local Spring Boot service, on Python 3.11 to 3.13. The skill was also run on four public sandbox APIs (JSONPlaceholder, ReqRes, HTTPBin and Webhook.site); those runs produced false positives from the APIs' own quirks, which were fixed afterwards, and a few findings that look real (for example missing HSTS and CORS that reflects any origin with credentials). They show how the skill behaves on someone else's API, not a detection rate. 27 of 28 seeded flaws are found, but the seeded flaws and the mocks were written by the same author, so that number shows the checks work on those flaws and nothing about real APIs. Real Swagger Petstore, VAmPI, DVGA and crAPI runs have not been done. No detection rate on a real third-party API is claimed, and the skill is not "production-tested".
 
 Optional and experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), executable chaos experiments, and fuzzing. The AWS-emulator example apps in `examples/aws-local/` are local stand-ins that were not run against the emulator.
+
+### Changed (release preparation, 2026-11-23)
+- The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot-skill` and call the skill as
+  `/api-test-pilot:api-testing`. The repository and the marketplace keep the name `api-test-pilot-skill`, the skill keeps `api-testing`, and the k6 header and
+  user agent are unchanged. Nothing was tagged under the old name.
+- LICENSE names Pankaj Kumar as the copyright holder.
+- `CLAUDE.md` is removed. Its rules already lived in CONTRIBUTING.md and SECURITY.md; CONTRIBUTING.md gains a short "How work is planned" section for the rest,
+  and the scripts and TAXONOMY.md point to those files instead.
+
+### Added (release hygiene)
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1; reports go through a private advisory).
+- README section "Third-party software and trademarks": k6 is AGPL-3.0 but run as a separate program, not bundled; licenses of the Python packages and the
+  two eval spec fixtures; OWASP API Top 10 attribution; a non-affiliation line for OpenAPI, GraphQL, OWASP, k6, Swagger, Claude and Anthropic. The listing copy has the same line.
+- `tools/build_skill_zip.py` also writes `dist/SHA256SUMS`, in the format `sha256sum -c` reads, to attach to a release; the README says how to check a download.
+- CI installs a pinned ruff from `requirements-lint.txt`, so Dependabot can update it, instead of the latest release.
 
 ### Added (plugin icon)
 - `.claude-plugin/icon.png` (1024 x 1024, a white check mark on teal) and `"icon"` in `plugin.json`, so `claude plugin validate` no longer warns about a missing icon. It is plain geometry drawn by `tools/make_icon.py` (standard library only), not a third party's logo; replace the file if you have a design of your own.
@@ -324,3 +343,6 @@ Optional and experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built
 - Real Petstore, VAmPI and DVGA runs were not possible from the build sandbox; those evals ran against labelled mocks.
 - VAmPI mass assignment is not detected (documented in `docs/evals.md`).
 - GraphQL fuzzing, mass-assignment read-back and uniquified create bodies are deferred to a later version.
+
+[Unreleased]: https://github.com/pankajkumar-codes/api-test-pilot-skill/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/pankajkumar-codes/api-test-pilot-skill/releases/tag/v0.1.0

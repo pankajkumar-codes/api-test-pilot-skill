@@ -8,9 +8,8 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 - [ ] `python -m pytest tests` passes. With k6 installed (`K6_BIN` or PATH) the generated k6 scripts run too; record whether k6 was present.
 - [ ] `python tools/validate_skill.py` prints `OK` (frontmatter, layout, plugin files, version consistency across
       `SKILL.md` metadata, `plugin.json`, CHANGELOG).
-- [ ] `claude plugin validate .` passes. Known, accepted output: a warning that `CLAUDE.md` at the plugin root is not loaded
-      (it is repository instructions, not plugin content). The icon is included now; see "Icon" below.
-- [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot-skill@api-test-pilot-skill`
+- [ ] `claude plugin validate .` passes. The icon is included now; see "Icon" below.
+- [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot@api-test-pilot-skill`
       with a scratch `HOME`; `claude plugin list` shows version 0.1.0.
 - [ ] `python tools/build_skill_zip.py`; unzip into an empty folder, create a fresh virtualenv with `pip install pytest requests`,
       and run the README example (intake, generate, run, report) against `examples/demo_server.py`.
@@ -26,7 +25,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
       `api-testing`, `openapi`, `graphql`, `pytest`, `k6`, `owasp`).
 - [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot-skill 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
       `api-test-pilot-skill--v0.1.0`, which is only needed when other plugins depend on a version range.)
-- [ ] GitHub release for `v0.1.0`: notes from CHANGELOG; attach `dist/api-testing-0.1.0.zip` and its SHA-256 (printed by the zip tool).
+- [ ] GitHub release for `v0.1.0`: notes from CHANGELOG; attach `dist/api-testing-0.1.0.zip` and `dist/SHA256SUMS` (both written by the zip tool), and paste the SHA-256 into the notes.
 - [ ] Bump `version` in `SKILL.md` metadata, `.claude-plugin/plugin.json` and CHANGELOG together for every later release.
       `plugin.json` sets `version`, so users only receive an update when it changes.
 
@@ -63,7 +62,7 @@ Read from Anthropic's pages. Rules change; re-read them on the day you submit.
 **Other Agent Skills hubs and directories** (for example skills.sh, SkillsMP): not checked. Those hosts are blocked from the build environment (HTTP 403 from the egress proxy), so their current rules and review times are unknown. Check each one's page on the day; most index public GitHub repositories automatically or by pull request.
 
 ## Cold install check, 2026-11-19 (main 4c8b12f plus the report and icon changes)
-- `claude plugin marketplace add ./` and `claude plugin install api-test-pilot-skill@api-test-pilot-skill` with a scratch `HOME`: installed, `claude plugin list` showed 0.1.0 enabled (Claude Code 2.1.329).
+- `claude plugin marketplace add ./` and `claude plugin install api-test-pilot-skill@api-test-pilot-skill` with a scratch `HOME` (the plugin was still named `api-test-pilot-skill` then): installed, `claude plugin list` showed 0.1.0 enabled (Claude Code 2.1.329).
   The install copied the whole repository (7.2 MB, `tests/`, `evals/`, `docs/` included), as described under "Plugin size".
 - `python tools/build_skill_zip.py`, unzipped into an empty directory with a fresh virtualenv and `pip install pytest requests`: intake, generation (134 tests), run and report worked
   against `examples/demo_server.py` (240 passed, 9 failed on the seeded flaws, 20 skipped). The demo server needs this repository checkout (it imports `tests/mock_rest.py`); the zip does not contain it.
@@ -76,6 +75,6 @@ Read from Anthropic's pages. Rules change; re-read them on the day you submit.
 - **Icon.** `.claude-plugin/icon.png` is a plain placeholder (white check mark on teal, drawn by `tools/make_icon.py`) and `plugin.json` points to it. Replace it with a design of your own before the first directory submission, because the listing icon is only taken once. Do not use a third party's logo.
 - **Privacy policy and support URLs** if a directory asks for them: see the README section "Privacy and support" and `docs/LISTING.md`. The skill sends nothing anywhere except HTTP requests to
   the target API the user names; it collects no telemetry. The GitHub Issues link serves as the support URL.
-- **Copyright holder.** LICENSE names `pankajkumar-codes`; change it to your legal name or organization if you prefer.
+- **Copyright holder.** LICENSE names Pankaj Kumar (changed from the GitHub handle on 2026-11-23).
 - **Plugin size.** The plugin source is the whole repository (`source: "./"`), so an install also copies `tests/`, `evals/` and
   `docs/`. If that matters, move the plugin into a subfolder and point `source` at it.

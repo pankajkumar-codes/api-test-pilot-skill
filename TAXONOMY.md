@@ -25,4 +25,4 @@ Protocols in v1: REST (OpenAPI) and GraphQL. Every type above applies to both un
 
 Accessibility: not applicable to APIs (UI concern). Tracked as a future separate skill.
 
-Types 11–16 are gated by the safety check in CLAUDE.md.
+Types 11–16 are gated by the safety check described in SECURITY.md and CONTRIBUTING.md.

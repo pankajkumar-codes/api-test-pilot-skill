@@ -9,7 +9,7 @@ Usage:
 Output directory: <profile>.js per profile and manifest.json. Run them with scripts/run_k6.py (it enforces the
 safety gate before k6 starts; the scripts enforce it again themselves).
 
-Design rules (CLAUDE.md, references/load.md):
+Design rules (CONTRIBUTING.md, references/load.md):
   * Safe by default: GET/HEAD only; POST/PUT/PATCH need --include-writes plus APITEST_ALLOW_WRITES=yes at run time;
     DELETE and GraphQL mutations are never generated.
   * Hard caps, enforced here and again inside each script: {HARD_MAX_RPS} req/s, {HARD_MAX_VUS} VUs, 4 h total,

@@ -1,0 +1,1 @@
+ruff==0.17.6   # lint job in CI; Dependabot keeps this current
