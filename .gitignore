@@ -18,3 +18,7 @@ dist/
 .ruff_cache/
 api_tests/
 *.egg-info/
+apitest_run/
+gql_tests/
+grpc_tests/
+ids.json

@@ -1,6 +1,6 @@
 # Intake: normalized JSON
 
-All parsers (`parse_openapi.py`, `parse_postman.py`, `parse_curl.py`, dispatcher `intake.py`) emit the
+All parsers (`parse_openapi.py`, `parse_postman.py`, `parse_curl.py`, `parse_graphql.py`, `parse_proto.py`, dispatcher `intake.py`) emit the
 same shape, so planning and generators never care about the input format. Python 3.11+, stdlib only;
 YAML uses PyYAML when installed, otherwise a built-in subset reader (no anchors/aliases: it errors and
 tells the user to install PyYAML or convert to JSON). Parsers are offline: remote URLs are never fetched.
@@ -10,7 +10,7 @@ absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it
 
 ```
 {
-  "source":  {"type": "openapi|postman|curl|graphql", "version": "3.0.3", "file": "spec.yaml"},
+  "source":  {"type": "openapi|postman|curl|graphql|grpc", "version": "3.0.3", "file": "spec.yaml"},
   "info":    {"title": "...", "version": "..."},
   "servers": ["http://localhost:8080/v1"],
   "security_schemes": {"bearerAuth": {"type": "http", "scheme": "bearer", "env": ["APITEST_BEARERAUTH_TOKEN"]}},
@@ -46,8 +46,7 @@ absolute paths, URLs, a `..` that leaves the folder, symlinks pointing out of it
   when there are some) as `{kind: webhook|callback, name, method, summary, request_body: {content_type, schema, example}, responses: ["200", ...]}`,
   callbacks also carry `parent` (the endpoint id) and `expression`. They are calls the API makes to the client, so there is nothing to send
   them to: no tests are generated, the summary lists them, and a plan can mention them as untested. Secret-looking payload values are dropped like everywhere else. At most 200 are listed.
-- Unsupported (warn the user): gRPC (v2).
-
+- **gRPC** (`.proto`, `parse_proto.py`): unary methods only; streaming methods are listed and skipped. Details in `references/grpc.md`.
 - **Example values**: a schema or parameter `example`, the vendor `x-example`, the 3.1 `examples` list and the first named
   `examples` entry are all read as the example. A simple `pattern` gets a generated matching value; one it cannot build
   (lookaheads) stays an invented value and is flagged.

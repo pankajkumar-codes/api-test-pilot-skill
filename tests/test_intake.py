@@ -208,7 +208,7 @@ def test_cli_summary_and_error_exit(tmp_path):
     assert bad.returncode == 2 and "error:" in bad.stderr and "Traceback" not in bad.stderr
 
 
-# ---------------------------------------------------------------- canary secrets (regression for review of PR #1)
+# ---------------------------------------------------------------- canary secrets
 CANARIES = ["CANARYPW", "CANARYTOK", "CANARYSIG", "CANARYSID", "CANARYJWT", "CANARYPWD", "CANARYBEARER",
             "CANARYQ", "CANARYEX", "CANARYCOOKIE", "CANARYHDR"]
 

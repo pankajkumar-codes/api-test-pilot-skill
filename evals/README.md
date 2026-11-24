@@ -13,7 +13,7 @@ python evals/run_evals.py --target petstore --variant clean --variant noauth
 Requirements: Python 3.11+, `pip install -r requirements-dev.txt`; the real local FastAPI target also needs `pip install -r evals/requirements.txt`.
 Scratch output (generated suites, JUnit XML, reports) goes to `evals/out/` (git-ignored); every run prints where its report is.
 
-## Two modes, never mixed up
+## Three modes, never mixed up
 
 | Mode | What runs | Label in docs/evals.md |
 |------|-----------|------------------------|

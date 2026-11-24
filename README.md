@@ -79,7 +79,7 @@ Each report is one self-contained file (no external scripts, styles or fonts) an
 ### A real Spring Boot service (local, throwaway database)
 
 Target: a Spring Boot 4 REST demo built from source and run on `localhost:8080` against a throwaway PostgreSQL 16. The spec was
-written by hand from the controller (7 endpoints). Nothing outside the sandbox was touched. This is the latest run, with the fuzz bug in the demo fixed
+written by hand from the controller (7 endpoints, [openapi.json](examples/spring-boot-demo/openapi.json)). Nothing outside the sandbox was touched. This is the latest run, with the fuzz bug in the demo fixed
 before it and before the `dep-slow` fix described below; one report covers all of it: [report.html](examples/spring-boot-demo/report.html).
 
 | Run | Tests | Pass | Fail | Skip | Outcome |
@@ -278,7 +278,7 @@ python $SK/summarize_results.py --junit results/pytest.xml --intake intake.json 
 | **Everything including non-functional** | all of the above plus the k6, fuzz and chaos rows below | yes |
 
 The pytest types for `--types` are `smoke`, `positive`, `negative`, `edge`, `data-validation`, `integration`, `contract`, `security`,
-`resilience` and `fuzz`. Each one becomes one file, `api_tests/test_<type>.py`. `all` means every type except `fuzz`. GraphQL schemas support `smoke`, `positive`, `negative`, `edge`, `security`, `contract`, `integration`, `data-validation`, `resilience` and `fuzz`: every pytest type now works for GraphQL.
+`resilience` and `fuzz`. Each one becomes one file, `api_tests/test_<type>.py`. `all` means every type except `fuzz`. GraphQL schemas support `smoke`, `positive`, `negative`, `edge`, `security`, `contract`, `integration`, `data-validation`, `resilience` and `fuzz`: every pytest type works for GraphQL.
 Typical groups: *functional* = `smoke,positive,negative,edge,data-validation,integration`; *API quality* = `contract,resilience`.
 
 | Type | How to run it | Safety gate |
@@ -451,8 +451,8 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (613 pass and 34 skip when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about four minutes
-  on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (811 pass and 36 skip on 2026-11-26 (main at a2d6dee plus the file-by-file review changes) when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about seven
+  and a half minutes on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
@@ -491,8 +491,8 @@ Build plan and status: [PLAN.md](PLAN.md).
 ```
 skills/api-testing/     the skill: SKILL.md (router), references/ (loaded on demand), scripts/, templates/
 .claude-plugin/         plugin.json and marketplace.json (Claude Code plugin packaging)
-tools/                  validate_skill.py, build_skill_zip.py (repository tooling, not part of the skill)
-examples/               demo API, sample spec, a real sample report
+tools/                  validate_skill.py, build_skill_zip.py, make_icon.py (repository tooling, not part of the skill)
+examples/               demo API and sample spec, sample reports, the Spring Boot and public sandbox runs, local gateway and GraphQL apps
 tests/  evals/  docs/   tests, eval driver and targets, validation record and release docs
 ```
 

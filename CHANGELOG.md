@@ -22,6 +22,16 @@ What the evidence is: the tests and evals run against local mock servers and a l
 
 Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, Postman and curl input, GraphQL fuzzing and `spec_diff.py`. Beta: security checks, resilience, k6 load tests, REST fuzzing and chaos experiments. The README says what each level needs. The AWS-emulator example apps in `examples/aws-local/` are local stand-ins that were not run against the emulator.
 
+### Changed (file-by-file review, 2026-11-24)
+- Docs brought in line with the code: SKILL.md's description names spike, fuzzing and gRPC unary, and fuzzing is no longer called REST-only;
+  `references/intake.md` lists the GraphQL and proto parsers and no longer calls gRPC unsupported; `references/test-types.md` matches TAXONOMY.md again.
+- TAXONOMY.md says plainly that Regression has no baseline comparison yet and that error-message checks live inside the negative, edge and
+  security tests (no localization checks).
+- Stale figures and wording fixed: the README test count and run time, the GraphQL mock result in `eval-apis.md` (10 of 10), a broken table there,
+  the marketplace copy's report format, the evals README's mode count, and leftover phase and pull-request numbers in docs and test comments.
+- Removed generated files that a run recreates: `examples/spring-boot-demo/demo-intake.json` (intake output of the `openapi.json` next to it) and
+  `examples/sample-report.json` and `examples/spring-boot-demo/report.json` (same data as the HTML reports next to them). `.gitignore` also covers `apitest_run/`, `gql_tests/`, `grpc_tests/` and `ids.json`.
+
 ### Changed (release preparation, 2026-11-23)
 - The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot-skill` and call the skill as
   `/api-test-pilot:api-testing`. The repository and the marketplace keep the name `api-test-pilot-skill`, the skill keeps `api-testing`, and the k6 header and

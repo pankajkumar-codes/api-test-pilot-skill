@@ -1,8 +1,8 @@
-"""Phase 4 (reporting) validation: summarize_results.py on REAL pytest and k6 output, plus hostile result files.
+"""Reporting validation: summarize_results.py on REAL pytest and k6 output, plus hostile result files.
 
   * real pytest: a generated suite is run against tests/mock_rest.py (clean and with seeded bugs); the JUnit XML it writes
     is summarized, and every seeded bug must show up as a ranked finding with a reproducible command;
-  * real k6 (only when a binary exists: K6_BIN or PATH, like Phase 3): generated scripts run against the mock, healthy and
+  * real k6 (only when a binary exists: K6_BIN or PATH): generated scripts run against the mock, healthy and
     with `down`; the --summary-export JSON is summarized (skips with a reason otherwise, never silently passed);
   * untrusted input: canary secrets in every field of result files, XXE / entity expansion / size / depth / non-regular files,
     Markdown and placeholder injection, NaN and wrong types in JSON.
@@ -594,7 +594,7 @@ def test_real_fuzz_findings_are_reported(tmp_path, rest_doc):
     assert "tokA" not in text
 
 
-# ---------------------------------------------------------------- review fixes: curl lines, PASS rule, duplicates
+# ---------------------------------------------------------------- curl lines, PASS rule, duplicates
 GOOD_CURL = "curl -sS -i -X POST http://h:8080/pets -H 'Authorization: <redacted>' -H 'Content-Type: application/json' --data-raw '{\"name\": \"a b\"}'"
 HOSTILE_CURLS = [
     "curl -sS -i -X GET http://h:8080/pets | sh",

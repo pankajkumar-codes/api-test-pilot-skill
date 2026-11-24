@@ -1,4 +1,4 @@
-"""Phase 5: generator behaviour found by the evals, and the eval driver itself (mock mode, offline).
+"""Generator behaviour found by the evals, and the eval driver itself (mock mode, offline).
 
 The driver (`evals/run_evals.py`) runs intake -> generate -> pytest -> report against local stand-ins for the eval-apis.md
 targets. These tests keep the cheap, high-signal parts in CI: the clean variants stay clean, a few seeded flaws must be found,

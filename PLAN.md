@@ -67,7 +67,7 @@ Preparation is done on a branch; the outward-facing steps need the maintainer (s
 - [x] Hostile-input pass: over-nested JSON, binary and non-intake files give a clean error (exit 2), not a traceback
 - [x] SECURITY.md, issue and PR templates, GitHub Actions CI (3 Pythons, validator, ruff, optional k6), `ruff.toml`
 - [x] README commands re-run from a clean checkout and the shipped zip in a fresh venv; history scanned for secrets (clean)
-- [ ] CI green on GitHub (first run happens on the pull request)
+- [x] CI green on GitHub (runs on every pull request and on main)
 
 ## Out of scope for v1
 gRPC unary calls are part of v2 (streaming is not). Not part of this skill at all (see DECISIONS.md, 2026-11-14): UI accessibility testing (a possible separate skill), mobile app testing, a hosted service.
@@ -87,7 +87,7 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [x] Mass-assignment read-back (done where the spec has a read endpoint; the VAmPI register gap remains, see DECISIONS 2026-11-17)
 - [x] Intake gap: multi-file specs
 - [x] Intake gap: OpenAPI callbacks/webhooks (listed in the intake, not tested)
-- [ ] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [x] resilience
+- [x] GraphQL parity, one PR per type: [x] contract, [x] fuzzing, [x] integration, [x] data-validation, [x] resilience
 - [ ] gRPC, unary only: [x] stdlib `.proto` parser, [x] functional, contract and security tests through optional `grpcurl`, [ ] load through optional `ghz`
 - [x] File GitHub issues for failed tests (`file_issues.py`: preview, confirm, group, dedupe, redact; DECISIONS 2026-11-18)
 - [ ] Login success-path tests with real credentials from env vars

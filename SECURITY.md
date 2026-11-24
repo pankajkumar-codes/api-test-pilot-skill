@@ -30,7 +30,7 @@ load, stress, spike and soak). Use it only against systems you own or have writt
 - Run load, stress, spike, soak, chaos and fuzz tests only against a **non-production** target.
   The safety gate refuses anything else, and you confirm the target yourself with `APITEST_TARGET_ENV` and `APITEST_AUTHORIZED=yes`.
   Never let an automated agent set those two variables for you.
-  Remember that this is a consent prompt, not a lock; see "What the safety gate is, and is not" above.
+  Remember that this is a consent prompt, not a lock; see "What the safety gate is, and is not" below.
 - Loopback addresses (`localhost`, `127.x.x.x`, `::1`) are treated as your own machine. If you tunnel or port-forward a remote
   system to localhost, the gate cannot know; the responsibility is yours.
 - Third-party services, shared environments and production systems need the owner's explicit permission, and often a
