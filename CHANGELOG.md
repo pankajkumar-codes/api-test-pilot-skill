@@ -5,7 +5,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 ## [Unreleased]
 
-Nothing yet. Changes merged after the 0.1.0 tag go here.
+Changes merged after the 0.1.0 tag go here.
+
+### Planned
+- v0.2: an MCP server over the same scripts. Its safety gate uses a target allowlist the user writes, MCP elicitation for confirmation, and plan/generate-only
+  by default; it needs a security review before release (DECISIONS.md, v0.2). Nothing is built yet.
 
 ## [0.1.0] - 2026-11-19 (preview)
 
