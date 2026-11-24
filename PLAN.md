@@ -93,4 +93,4 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [ ] Login success-path tests with real credentials from env vars
 
 ## v0.2 (planned)
-- [ ] MCP server as a thin wrapper over the existing scripts; gate via user-written target allowlist, MCP elicitation, plan/generate-only by default (DECISIONS 2026-11-24). Security review before release.
+- [ ] MCP server as a thin wrapper over the existing scripts; every gated run needs the user-written target allowlist and MCP elicitation, no fallback; plan/generate-only by default (DECISIONS 2026-11-24). Security review against that entry before release.
