@@ -15,7 +15,7 @@ What the preview is: an Agent Skill that generates pytest suites and k6 scripts 
 
 What the evidence is: the tests and evals run against local mock servers and a local Spring Boot service, on Python 3.11 to 3.13. The skill was also run on four public sandbox APIs (JSONPlaceholder, ReqRes, HTTPBin and Webhook.site); those runs produced false positives from the APIs' own quirks, which were fixed afterwards, and a few findings that look real (for example missing HSTS and CORS that reflects any origin with credentials). They show how the skill behaves on someone else's API, not a detection rate. 27 of 28 seeded flaws are found, but the seeded flaws and the mocks were written by the same author, so that number shows the checks work on those flaws and nothing about real APIs. Real Swagger Petstore, VAmPI, DVGA and crAPI runs have not been done. No detection rate on a real third-party API is claimed, and the skill is not "production-tested".
 
-Optional and experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), executable chaos experiments, and fuzzing. The AWS-emulator example apps in `examples/aws-local/` are local stand-ins that were not run against the emulator.
+Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, Postman and curl input, GraphQL fuzzing and `spec_diff.py`. Beta: security checks, resilience, k6 load tests, REST fuzzing and chaos experiments. The README says what each level needs. The AWS-emulator example apps in `examples/aws-local/` are local stand-ins that were not run against the emulator.
 
 ### Changed (release preparation, 2026-11-23)
 - The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot-skill` and call the skill as
@@ -34,6 +34,12 @@ Optional and experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built
 
 ### Added (plugin icon)
 - `.claude-plugin/icon.png` (1024 x 1024, a white check mark on teal) and `"icon"` in `plugin.json`, so `claude plugin validate` no longer warns about a missing icon. It is plain geometry drawn by `tools/make_icon.py` (standard library only), not a third party's logo; replace the file if you have a design of your own.
+
+### Changed (feature status levels, 2026-11-24)
+- README "What is stable and what is not" now states what each level needs. Stable and Beta need an end-to-end run on a service that was not written for this project (so far the maintainer's own Spring Boot demo, written before and apart from this skill with no seeded flaws, and the four public sandbox APIs); anything run only against our own mocks, seeded apps or fixtures is Experimental.
+- Moved up to Beta, because they ran on the Spring Boot demo: k6 load, stress, spike and soak (also run by real k6 in an optional CI job that is not required to merge), REST fuzzing (found a real 500) and chaos experiments (found a slow failure with the database frozen, fixed and rechecked; the `dep-blackhole` finding was not rechecked). All three rest on that one demo.
+- Moved down to Experimental, because they have only been run against targets written for this project: GraphQL input, Postman and curl input, and `spec_diff.py` (now its own row).
+- Corrected: GraphQL fuzzing shipped on 2026-11-17; the table still called it planned. Security checks stay Beta: the public API runs found CORS and header findings that look real (not confirmed with the providers), but BOLA, BFLA, mass assignment and injection detection is shown only on seeded flaws.
 
 ### Added (`run_all.py --k6-writes`)
 - `run_all.py` had no way to make k6 send writes, although `gen_k6.py` has `--include-writes`. `--k6-writes` (needs `--k6`) passes it through. The requests still only run when you set `APITEST_ALLOW_WRITES=yes` yourself; the driver never sets it and says so when it is unset.
