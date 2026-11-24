@@ -13,7 +13,7 @@ how long the API takes to serve normally again (recovery time).
   dep-outage | dep-slow                                                        user-supplied start/stop commands for a dependency
   dep-latency | dep-blackhole | dep-reset                                      a TCP fault proxy between the API and a dependency
 
-Safety (CLAUDE.md, non-negotiable; scripts/safety_gate.py is the single gate):
+Safety (SECURITY.md and CONTRIBUTING.md, non-negotiable; scripts/safety_gate.py is the single gate):
   * Production is refused. A non-loopback target needs APITEST_TARGET_ENV (non-production) and APITEST_AUTHORIZED=yes.
     Never set them for the user.
   * Fault commands (dependency start/stop) are never guessed: they come from the user's --dependency-config file, run

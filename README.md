@@ -200,12 +200,12 @@ Pick one. Every route ends with the same folder: `api-testing/` containing `SKIL
 **1. Claude Code, as a plugin** (this repository is also a one-plugin marketplace):
 ```
 /plugin marketplace add pankajkumar-codes/api-test-pilot-skill
-/plugin install api-test-pilot-skill@api-test-pilot-skill
+/plugin install api-test-pilot@api-test-pilot-skill
 ```
 The first line registers the marketplace, the second installs the plugin (the part after `@` is the marketplace name).
 From a shell the same steps are `claude plugin marketplace add pankajkumar-codes/api-test-pilot-skill` and
-`claude plugin install api-test-pilot-skill@api-test-pilot-skill`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
-The skill then loads automatically when you ask to test an API.
+`claude plugin install api-test-pilot@api-test-pilot-skill`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
+The skill then loads automatically when you ask to test an API; to call it by name, use `/api-test-pilot:api-testing`.
 
 **2. Claude Code, as plain files** (works for any checkout, no plugin system needed):
 ```bash
@@ -217,8 +217,10 @@ mkdir -p ~/.claude/skills && cp -r api-test-pilot-skill/skills/api-testing ~/.cl
 **3. Claude app (claude.ai), as an uploaded skill:** from the repository root, build the zip and upload it in Settings, Capabilities, Skills. Menu names
 change between releases; see Anthropic's [Using Skills in Claude](https://support.claude.com/en/articles/12512180-using-skills-in-claude) if they differ.
 ```bash
-python tools/build_skill_zip.py        # validates first, writes dist/api-testing-0.1.0.zip with one top-level api-testing/ folder
+python tools/build_skill_zip.py        # validates first, writes dist/api-testing-0.1.0.zip with one top-level api-testing/ folder, and dist/SHA256SUMS
 ```
+If you download the zip from a GitHub release instead, download `SHA256SUMS` from the same release into the same folder and check it with
+`sha256sum -c SHA256SUMS` (macOS: `shasum -a 256 -c SHA256SUMS`). It must print `api-testing-0.1.0.zip: OK`.
 
 **4. Other agents and marketplaces that read the Agent Skills format:** copy `skills/api-testing/` into that tool's skills folder.
 The folder follows the open specification (`name` equals the folder name, `description` states when to use it), checked by
@@ -481,7 +483,7 @@ python tools/validate_skill.py             # SKILL.md frontmatter, folder layout
 python evals/run_evals.py --target all --markdown
 ```
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Changes: [CHANGELOG.md](CHANGELOG.md). Design decisions: [DECISIONS.md](DECISIONS.md).
-Build plan and status: [PLAN.md](PLAN.md). Instructions for Claude Code in this repo: [CLAUDE.md](CLAUDE.md).
+Build plan and status: [PLAN.md](PLAN.md).
 
 `intake.json` (parser output) describes your API; it is git-ignored, do not commit it.
 
@@ -498,4 +500,20 @@ tests/  evals/  docs/   tests, eval driver and targets, validation record and re
 See [SECURITY.md](SECURITY.md): how to report a vulnerability privately, and the rules for testing only systems you own or may test.
 
 ## License
-[MIT](LICENSE). The vendored OpenAPI documents in `evals/specs/` are test fixtures under their upstream projects' own licenses.
+[MIT](LICENSE). Contributors follow the [code of conduct](CODE_OF_CONDUCT.md).
+
+## Third-party software and trademarks
+Nothing from another project is bundled into the skill. What it relies on, or ships next to it:
+
+| Component | License | How it is used |
+|---|---|---|
+| [k6](https://github.com/grafana/k6) | AGPL-3.0 | A separate program you install yourself. The skill writes k6 scripts and starts the `k6` command; it does not include, link or modify k6, so k6's license does not apply to this repository's code. |
+| [pytest](https://github.com/pytest-dev/pytest), [requests](https://github.com/psf/requests), [PyYAML](https://github.com/yaml/pyyaml) | MIT, Apache-2.0, MIT | Installed by you with pip; not copied into the repository. |
+| [FastAPI](https://github.com/fastapi/fastapi), [Uvicorn](https://github.com/encode/uvicorn) | MIT, BSD-3-Clause | Only for the local eval target (`evals/requirements.txt`). |
+| `evals/specs/petstore-openapi.yaml` | Apache-2.0 ([swagger-api/swagger-petstore](https://github.com/swagger-api/swagger-petstore)) | Test fixture, unchanged, with its license field kept. Not part of the skill. |
+| `evals/specs/vampi-openapi.yaml` | Upstream license ([erev0s/VAmPI](https://github.com/erev0s/VAmPI)) | Test fixture, unchanged. Not part of the skill. |
+| [OWASP API Security Top 10 (2023)](https://owasp.org/API-Security/) | CC BY-SA 4.0 | Category ids and names are used to label findings; OWASP's text is not copied. The Top 10 is a project of the OWASP Foundation. |
+
+OpenAPI is a trademark of The Linux Foundation, GraphQL is a trademark of The GraphQL Foundation, OWASP is a trademark of the OWASP Foundation,
+k6 and Grafana are trademarks of Grafana Labs, Swagger is a trademark of SmartBear Software, and Claude and Anthropic are trademarks of Anthropic.
+They are named only to say what this project works with. This project is independent and is not affiliated with, sponsored or endorsed by any of them.

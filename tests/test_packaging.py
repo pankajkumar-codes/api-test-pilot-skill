@@ -162,7 +162,7 @@ def _repo_copy(tmp_path):
 def test_plugin_files_are_valid_and_consistent():
     plugin = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())
     market = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
-    assert plugin["name"] == "api-test-pilot-skill" and plugin["version"] == "0.1.0" and plugin["license"] == "MIT"
+    assert plugin["name"] == "api-test-pilot" and plugin["version"] == "0.1.0" and plugin["license"] == "MIT"
     entry = market["plugins"][0]
     assert entry["name"] == plugin["name"] and entry["source"] == "./" and market["owner"]["name"]
     assert not market["name"].startswith(("claude", "anthropic"))
@@ -220,6 +220,15 @@ def test_zip_has_one_top_level_folder_no_pycache_and_is_reproducible(tmp_path):
     assert r.errors == []
 
 
+def test_sha256sums_matches_the_zip_in_sha256sum_format(tmp_path):
+    import hashlib
+    z = bz.build(ROOT / "skills" / "api-testing", tmp_path)
+    digest = bz.write_sums(z)
+    line = (tmp_path / "SHA256SUMS").read_text(encoding="utf-8")
+    assert digest == hashlib.sha256(z.read_bytes()).hexdigest()
+    assert line == f"{digest}  {z.name}\n"
+
+
 def test_zip_builder_refuses_an_invalid_skill(tmp_path):
     d = make_skill(tmp_path, GOOD.replace("name: demo-skill", "name: nope"))
     with pytest.raises(SystemExit, match="does not validate"):
@@ -230,7 +239,7 @@ def test_zip_builder_refuses_an_invalid_skill(tmp_path):
 def test_docs_name_every_release_and_safety_item():
     readme = (ROOT / "README.md").read_text()
     for needle in ("APITEST_TARGET_ENV", "APITEST_AUTHORIZED=yes", "production is always refused", "destructive", "xdist",
-                   "tools/validate_skill.py", "tools/build_skill_zip.py", "/plugin install api-test-pilot-skill@api-test-pilot-skill", "LICENSE"):
+                   "tools/validate_skill.py", "tools/build_skill_zip.py", "/plugin install api-test-pilot@api-test-pilot-skill", "LICENSE"):
         assert needle in readme, needle
     release = (ROOT / "docs/RELEASE.md").read_text()
     assert "outward-facing" in release and "maintainer" in release and "v0.1.0" in release
@@ -245,4 +254,4 @@ def test_release_docs_do_not_claim_a_release_happened():
 
 def test_license_is_mit_and_names_a_holder():
     lic = (ROOT / "LICENSE").read_text()
-    assert lic.startswith("MIT License") and "Copyright (c) 2026 pankajkumar-codes" in lic
+    assert lic.startswith("MIT License") and "Copyright (c) 2026 Pankaj Kumar" in lic

@@ -4,8 +4,8 @@ Plain facts only; every claim below is true of version 0.1.0 and is backed by th
 Do not add claims about detection rates on real third-party targets until those runs exist.
 
 ## Names
-- Display name: **API Test Pilot Skill**
-- Plugin and marketplace id: `api-test-pilot-skill`; skill folder and skill name: `api-testing`
+- Display name: **API Test Pilot**
+- Plugin id: `api-test-pilot`; marketplace id and repository: `api-test-pilot-skill`; skill folder and skill name: `api-testing`
 - Repository: https://github.com/pankajkumar-codes/api-test-pilot-skill
 - License: MIT
 - Category: testing (tags: api, testing, openapi, graphql, security, pytest, k6)
@@ -19,7 +19,7 @@ k6 files, covers functional, contract, security (OWASP API Top 10), load and fuz
 Heavy tests only run against targets you confirm are non-production.
 
 ## Long description
-API Test Pilot Skill is an Agent Skill for testing HTTP APIs. Give your agent an OpenAPI or Swagger spec, a GraphQL schema, a Postman
+API Test Pilot is an Agent Skill for testing HTTP APIs. Give your agent an OpenAPI or Swagger spec, a GraphQL schema, a Postman
 collection or a few curl commands, plus a base URL, and it walks through intake, a test plan you approve, generation, a run and a report.
 
 What you get:
@@ -45,7 +45,7 @@ the real Petstore, VAmPI, DVGA and crAPI are not yet done, and no detection rate
 ## Install lines
 ```
 /plugin marketplace add pankajkumar-codes/api-test-pilot-skill
-/plugin install api-test-pilot-skill@api-test-pilot-skill
+/plugin install api-test-pilot@api-test-pilot-skill
 ```
 Plain files: copy `skills/api-testing/` to `~/.claude/skills/`. Claude app: upload `dist/api-testing-<version>.zip`
 (`python tools/build_skill_zip.py`).
@@ -67,6 +67,10 @@ Plain files: copy `skills/api-testing/` to `~/.claude/skills/`. Claude app: uplo
 Allowed: open-source Agent Skill that generates pytest and k6 API tests from OpenAPI, GraphQL, Postman or curl; safety gate for heavy runs;
 tested on Python 3.11 to 3.13; evals against local mocks only.
 Not allowed until it is true: detection rates on real APIs, "production-tested", "enforces" or "guarantees" safety, naming the real Petstore, VAmPI, DVGA or crAPI as validated.
+
+## Trademarks (add to any listing that has room)
+OpenAPI, GraphQL, OWASP, k6, Swagger, Claude and Anthropic are trademarks of their owners. API Test Pilot is an independent project, not affiliated
+with or endorsed by any of them. Do not use their logos in the icon or screenshots.
 
 ## Screenshots
 None. The skill has no UI. The README shows real terminal output and `examples/sample-report.md` is a real generated report.
