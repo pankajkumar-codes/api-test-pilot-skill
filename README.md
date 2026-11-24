@@ -11,21 +11,39 @@ python skills/api-testing/scripts/run_all.py openapi.yaml --out apitest_run   # 
 
 ### What is stable and what is not
 
-| Feature | Status | Notes |
+Each level is earned by evidence, and a feature moves up only when it meets every point of the next level:
+
+- **Stable**: covered by the required CI tests on Python 3.11 to 3.13, and run end to end on at least one service that was not written for this
+  project, with the results recorded in this README or [docs/evals.md](docs/evals.md). Flags and output change only with a CHANGELOG entry.
+- **Beta**: covered by CI tests and run end to end on at least one service not written for this project, with results recorded, but the runs are
+  few or narrow and known gaps are listed. Expect rough edges.
+- **Experimental**: works, but has only been run against targets written for this project (mocks, seeded apps, stand-ins, fixture files), or needs
+  an optional tool that CI does not install. It can change or be removed between 0.x releases.
+- **Planned**: not built yet.
+
+"A service not written for this project" so far means the maintainer's own Spring Boot demo (written earlier to learn Spring Boot, before and apart
+from this skill, with no seeded flaws) and the four public sandbox APIs described under [Results](#results-what-has-been-run). Two bugs found in
+the demo during these runs were fixed there. The Beta labels for resilience, k6, REST fuzzing and chaos rest on that one demo alone. The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
+do not count, because the same author wrote the flaws and the checks.
+
+| Feature | Status | Evidence and what is missing |
 |---|---|---|
-| OpenAPI / Swagger in, pytest out (smoke, positive, negative, edge, data-validation, contract, integration) | Stable | The core. Tested in CI on Python 3.11 to 3.13 and run against a real local service. |
-| Report (HTML and JSON), rerun command per finding, `spec_diff.py` breaking-change report | Stable | |
-| Security checks (OWASP API Top 10) | Beta | Detection is shown on seeded flaws in local mocks only, not on real third-party APIs. Expect false positives and read each finding. |
-| Resilience (idempotency, pagination, rate limits) | Beta | |
-| GraphQL, Postman and curl input | Beta | Fewer real-world runs than OpenAPI. |
-| k6 load, stress, spike, soak | Experimental | GET-only by default and capped. Capacity ceilings have not been measured. |
-| Fuzzing | Experimental | REST only, seeded and rate-limited. GraphQL fuzzing is planned. |
-| Chaos (local fault proxy, payload bursts, your own dependency commands) | Experimental | Loopback proxies only. |
-| gRPC | Experimental | Unary calls only, needs the optional `grpcurl`. gRPC load tests (`ghz`) are planned and not generated yet. |
+| OpenAPI / Swagger in, pytest out (smoke, positive, negative, edge, data-validation, contract, integration) | Stable | The core. Required CI on 3.11 to 3.13; run on the Spring Boot demo and the four public sandbox APIs. |
+| HTML report, rerun command per finding | Stable | HTML report produced for every run above, with JSON alongside it where the runner wrote one. |
+| `spec_diff.py` breaking-change report | Experimental | Tested in CI on fixture spec pairs only; not yet run on two real versions of someone else's spec. |
+| Security checks (OWASP API Top 10) | Beta | Run on the Spring Boot demo (no findings) and the public APIs (CORS and header findings that look real, not confirmed with the providers). BOLA, BFLA, mass assignment and injection detection is shown only on seeded flaws the author wrote; VAmPI mass assignment is a known miss. Expect false positives and read each finding. Stable needs real VAmPI or crAPI runs. |
+| Resilience (idempotency, pagination, rate limits) | Beta | Run on the Spring Boot demo only, including the rate-limit tests; the public API runs left them out. |
+| k6 load, stress, spike, soak | Beta | Real k6 runs in an optional CI job (not required to merge). Load, stress, spike and a 30-minute soak ran on the Spring Boot demo with 0 failed requests, on GET endpoints at the default rates. Capacity ceilings have not been measured, and only Linux has been checked. GET-only by default (`--k6-writes` opts in) and capped. |
+| Fuzzing, REST | Beta | Seeded and rate-limited. Found a real 500 on the Spring Boot demo (page number overflow), which was then fixed in the demo. |
+| Fuzzing, GraphQL | Experimental | Opt-in (`--types fuzz`). Run against the GraphQL mock only. |
+| Chaos (local fault proxy, payload bursts, your own dependency commands) | Beta | Run on the Spring Boot demo with a real PostgreSQL stopped and frozen; found a slow-failure problem (`dep-slow`) that was fixed in the demo and rechecked; the second finding, `dep-blackhole`, was not rechecked after the fix. Loopback proxies only; HTTPS through the proxy, remote targets and Windows are not checked. |
+| GraphQL input | Experimental | Generated suites run against a GraphQL mock and a seeded local server, both written for this project. No independent GraphQL API (DVGA or other) has been run. |
+| Postman and curl input | Experimental | Parsed from fixture files only; no real-world collection has been run end to end. |
+| gRPC | Experimental | Unary calls only, needs the optional `grpcurl`, which CI does not install. Run against a local `grpcio` server written for the tests. gRPC load tests (`ghz`) are planned and not generated yet. |
 | Real Petstore, VAmPI, DVGA and crAPI evals | Planned | Only labelled local stand-ins have been run so far. |
 | GitHub Action, MCP server | Planned | Not started. |
 
-Status here means how much evidence there is, not a promise of support. Experimental features can change or be removed between 0.x releases.
+Status means how much evidence there is, not a promise of support. Last reviewed 2026-11-24 against the runs recorded in [docs/evals.md](docs/evals.md).
 
 | Area | What it produces |
 |---|---|
