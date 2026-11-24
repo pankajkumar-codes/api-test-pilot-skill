@@ -21,21 +21,22 @@ Each level is earned by evidence, and a feature moves up only when it meets ever
   an optional tool that CI does not install. It can change or be removed between 0.x releases.
 - **Planned**: not built yet.
 
-"A service not written for this project" so far means the Spring Boot demo and the four public sandbox APIs described under
-[Results](#results-what-has-been-run). The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
+"A service not written for this project" so far means the maintainer's own Spring Boot demo (written earlier to learn Spring Boot, before and apart
+from this skill, with no seeded flaws) and the four public sandbox APIs described under [Results](#results-what-has-been-run). Two bugs found in
+the demo during these runs were fixed there. The Beta labels for resilience, k6, REST fuzzing and chaos rest on that one demo alone. The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
 do not count, because the same author wrote the flaws and the checks.
 
 | Feature | Status | Evidence and what is missing |
 |---|---|---|
 | OpenAPI / Swagger in, pytest out (smoke, positive, negative, edge, data-validation, contract, integration) | Stable | The core. Required CI on 3.11 to 3.13; run on the Spring Boot demo and the four public sandbox APIs. |
-| HTML and JSON report, rerun command per finding | Stable | Produced for every run above. |
+| HTML report, rerun command per finding | Stable | HTML report produced for every run above, with JSON alongside it where the runner wrote one. |
 | `spec_diff.py` breaking-change report | Experimental | Tested in CI on fixture spec pairs only; not yet run on two real versions of someone else's spec. |
-| Security checks (OWASP API Top 10) | Beta | Run on the Spring Boot demo (no findings) and the public APIs (real CORS and header findings). BOLA, BFLA, mass assignment and injection detection is shown only on seeded flaws the author wrote; VAmPI mass assignment is a known miss. Expect false positives and read each finding. Stable needs real VAmPI or crAPI runs. |
+| Security checks (OWASP API Top 10) | Beta | Run on the Spring Boot demo (no findings) and the public APIs (CORS and header findings that look real, not confirmed with the providers). BOLA, BFLA, mass assignment and injection detection is shown only on seeded flaws the author wrote; VAmPI mass assignment is a known miss. Expect false positives and read each finding. Stable needs real VAmPI or crAPI runs. |
 | Resilience (idempotency, pagination, rate limits) | Beta | Run on the Spring Boot demo only, including the rate-limit tests; the public API runs left them out. |
-| k6 load, stress, spike, soak | Beta | Real k6 runs in a CI job of its own. Load, stress, spike and a 30-minute soak ran on the Spring Boot demo with 0 failed requests, on GET endpoints at the default rates. Capacity ceilings have not been measured, and only Linux has been checked. GET-only by default (`--k6-writes` opts in) and capped. |
+| k6 load, stress, spike, soak | Beta | Real k6 runs in an optional CI job (not required to merge). Load, stress, spike and a 30-minute soak ran on the Spring Boot demo with 0 failed requests, on GET endpoints at the default rates. Capacity ceilings have not been measured, and only Linux has been checked. GET-only by default (`--k6-writes` opts in) and capped. |
 | Fuzzing, REST | Beta | Seeded and rate-limited. Found a real 500 on the Spring Boot demo (page number overflow), which was then fixed in the demo. |
 | Fuzzing, GraphQL | Experimental | Opt-in (`--types fuzz`). Run against the GraphQL mock only. |
-| Chaos (local fault proxy, payload bursts, your own dependency commands) | Beta | Run on the Spring Boot demo with a real PostgreSQL stopped and frozen; found a slow-failure problem that was fixed in the demo and rechecked. Loopback proxies only; HTTPS through the proxy, remote targets and Windows are not checked. |
+| Chaos (local fault proxy, payload bursts, your own dependency commands) | Beta | Run on the Spring Boot demo with a real PostgreSQL stopped and frozen; found a slow-failure problem (`dep-slow`) that was fixed in the demo and rechecked; the second finding, `dep-blackhole`, was not rechecked after the fix. Loopback proxies only; HTTPS through the proxy, remote targets and Windows are not checked. |
 | GraphQL input | Experimental | Generated suites run against a GraphQL mock and a seeded local server, both written for this project. No independent GraphQL API (DVGA or other) has been run. |
 | Postman and curl input | Experimental | Parsed from fixture files only; no real-world collection has been run end to end. |
 | gRPC | Experimental | Unary calls only, needs the optional `grpcurl`, which CI does not install. Run against a local `grpcio` server written for the tests. gRPC load tests (`ghz`) are planned and not generated yet. |
