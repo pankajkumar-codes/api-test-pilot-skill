@@ -451,7 +451,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (811 pass and 36 skip on 2026-11-26 (main at a2d6dee plus the file-by-file review changes) when only `requirements-dev.txt` is installed, i.e. without k6 and the FastAPI extras; about seven
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (811 pass and 36 skip on 2026-11-26, main at a2d6dee plus the file-by-file review changes, with `requirements-dev.txt` and `evals/requirements.txt` installed and without k6 and strawberry-graphql; with only `requirements-dev.txt` the FastAPI eval test also skips, giving 810 and 37; about seven
   and a half minutes on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached

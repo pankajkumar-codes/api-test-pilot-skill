@@ -57,7 +57,7 @@ Read from Anthropic's pages. Rules change; re-read them on the day you submit.
   (`examples/sample-report.html`, `examples/spring-boot-demo/report.html`) are over 256 KiB, so expect a reviewer hold on them. Installs copy the whole plugin folder (see "Plugin size" below).
 - Policy risk to answer: the policy says software must not "evade or enable users to circumvent" Claude's safety guardrails. This is a security-testing tool that sends attack-shaped requests only to targets the user confirms; keep the safety gate wording plain and conservative in the listing.
 
-**Claude app skill upload** (Settings, Capabilities, Skills): personal use, no review. Not cold-installed on claude.ai from here (no browser session); the zip was unpacked and run from a clean directory instead.
+**Claude app skill upload** (Settings, Capabilities, Skills): personal use, no review. Not yet installed cold on claude.ai; the zip was unpacked and run from a clean directory instead.
 
 **Other Agent Skills hubs and directories** (for example skills.sh, SkillsMP): not checked. Those hosts are blocked from the build environment (HTTP 403 from the egress proxy), so their current rules and review times are unknown. Check each one's page on the day; most index public GitHub repositories automatically or by pull request.
 

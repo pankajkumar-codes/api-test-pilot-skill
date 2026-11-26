@@ -30,7 +30,7 @@ Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, P
 - Stale figures and wording fixed: the README test count and run time, the GraphQL mock result in `eval-apis.md` (10 of 10), a broken table there,
   the marketplace copy's report format, the evals README's mode count, and leftover phase and pull-request numbers in docs and test comments.
 - Removed generated files that a run recreates: `examples/spring-boot-demo/demo-intake.json` (intake output of the `openapi.json` next to it) and
-  `examples/sample-report.json` and `examples/spring-boot-demo/report.json` (same data as the HTML reports next to them). `.gitignore` also covers `apitest_run/`, `gql_tests/`, `grpc_tests/` and `ids.json`.
+  `examples/sample-report.json` and `examples/spring-boot-demo/report.json` (same data as the HTML reports next to them). `.gitignore` also covers `apitest_run/`, `gql_tests/`, `grpc_tests/`, `ids.json` and a `chaos-plan.md` or `report.md` written at the repository root.
 
 ### Changed (release preparation, 2026-11-23)
 - The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot-skill` and call the skill as
