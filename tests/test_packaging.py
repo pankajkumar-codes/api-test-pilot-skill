@@ -1,4 +1,4 @@
-"""Phase 6: SKILL.md / folder validation, plugin manifests, zip builder, version consistency, doc claims."""
+"""SKILL.md / folder validation, plugin manifests, zip builder, version consistency, doc claims."""
 from __future__ import annotations
 
 import json

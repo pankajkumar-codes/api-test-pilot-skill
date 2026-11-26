@@ -1,6 +1,6 @@
 ---
 name: api-testing
-description: Plan, generate and run API tests from an OpenAPI spec, GraphQL schema, Postman collection or curl examples. Covers functional (positive, negative, edge, integration), contract, security, load/stress/soak and chaos testing. Use when the user wants to test, audit or load-test an HTTP API.
+description: Plan, generate and run API tests from an OpenAPI spec, GraphQL schema, .proto file (gRPC unary), Postman collection or curl examples. Covers functional (positive, negative, edge, integration), contract, security, load/stress/spike/soak, fuzzing and chaos testing. Use when the user wants to test, audit or load-test an HTTP or gRPC API.
 license: MIT
 compatibility: Needs Python 3.11+ and, for generated suites, the pytest and requests packages. k6 is optional (load, stress, spike and soak runs only). No network access is needed to plan or generate; running tests needs access to the target API.
 metadata:
@@ -47,7 +47,7 @@ are `intrusive`: the generated `conftest.py` skips them unless the target is loc
 Spec drift between versions: `python scripts/spec_diff.py old.json new.json`.
 Non-functional (after step 3 only; details in each reference):
 - load/stress/spike/soak: `python scripts/gen_k6.py intake.json -o k6_tests --profiles load` (GET-only, capped, `--quick` first), run with `python scripts/run_k6.py k6_tests/load.js`
-- fuzz: `python scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz` (opt-in, REST only, seeded and rate-limited)
+- fuzz: `python scripts/gen_pytest.py intake.json -o fuzz_tests --types fuzz` (opt-in, REST and GraphQL, seeded and rate-limited)
 - chaos: plan with `python scripts/gen_chaos_plan.py intake.json -o chaos-plan.md --env staging`; run experiments with `python scripts/chaos_run.py intake.json --dry-run` first (proxy faults, payload bursts, your own dependency commands; never guess commands)
 
 ## 5. Run

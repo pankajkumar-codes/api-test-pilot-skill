@@ -495,7 +495,7 @@ def test_chaos_type_is_reported_as_intrusive_with_the_gate_note():
     assert safety_gate.gate_reason("http://example.com", {}) is not None
 
 
-# --------------------------------------------------------------------------- review fixes (PR 10)
+# --------------------------------------------------------------------------- cleanup, signals and partial results
 CANARY = "SECRETCANARY8431"
 
 

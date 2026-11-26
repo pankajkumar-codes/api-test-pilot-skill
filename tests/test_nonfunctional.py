@@ -1,4 +1,4 @@
-"""Phase 3 (non-functional) validation: k6 generator, launcher, safety gate, chaos plans and fuzzing.
+"""Non-functional validation: k6 generator, launcher, safety gate, chaos plans and fuzzing.
 
 What runs where:
   * always: generation, static checks, hostile specs, gate parity (Python vs the generated pytest runtime vs the
@@ -149,7 +149,7 @@ def test_nan_and_inf_never_defeat_the_fuzz_caps(tmp_path, monkeypatch):
 
 
 def test_python_gate_is_never_looser_than_the_pytest_runtime_gate(tmp_path, monkeypatch):
-    """Same rules in both places: where the new gate allows a run, the Phase 2 runtime gate allows it too."""
+    """Same rules in both places: where safety_gate.py allows a run, the pytest runtime gate allows it too."""
     (tmp_path / "apitest_runtime.py").write_text(gen_pytest.runtime_source(), encoding="utf-8")
     rt = _load_runtime(tmp_path)
     for url in GATE_URLS:

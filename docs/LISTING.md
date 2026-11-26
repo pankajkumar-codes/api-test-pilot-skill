@@ -27,8 +27,8 @@ What you get:
 - **Security checks** mapped to the OWASP API Top 10: missing or weak authentication, BOLA and BFLA, injection, mass assignment,
   SSRF, excessive data exposure, CORS and security headers.
 - **k6 scripts** for load, stress, spike and soak runs, GET-only and capped by default.
-- **Seeded fuzzing** for REST and a **fault-injection plan** plus **runnable chaos experiments** (local fault proxy, your own dependency start/stop commands, payload bursts) that measure recovery time.
-- **A Markdown report** with per-endpoint coverage, findings ranked by severity and a repro command for each finding.
+- **Seeded fuzzing** for REST (GraphQL is experimental) and a **fault-injection plan** plus **runnable chaos experiments** (local fault proxy, your own dependency start/stop commands, payload bursts) that measure recovery time.
+- **A self-contained HTML report** (plus JSON) with per-endpoint coverage, findings ranked by severity and a repro command for each finding.
 - **A breaking-change report** between two versions of a spec.
 
 Safety by design: load, stress, spike, soak, chaos and fuzz runs refuse to start unless you confirm the target is non-production
@@ -73,4 +73,4 @@ OpenAPI, GraphQL, OWASP, k6, Swagger, Claude and Anthropic are trademarks of the
 with or endorsed by any of them. Do not use their logos in the icon or screenshots.
 
 ## Screenshots
-None. The skill has no UI. The README shows real terminal output and `examples/sample-report.md` is a real generated report.
+None. The skill has no UI. The README shows real terminal output and `examples/sample-report.html` is a real generated report.

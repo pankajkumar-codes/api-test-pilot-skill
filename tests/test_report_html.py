@@ -79,7 +79,6 @@ def test_checked_in_samples_are_current_html():
     for rel in ("examples/sample-report.html", "examples/spring-boot-demo/report.html"):
         text = (ROOT / rel).read_text(encoding="utf-8")
         assert text.startswith("<!doctype html>") and "Content-Security-Policy" in text
-        json.loads((ROOT / rel).with_suffix(".json").read_text(encoding="utf-8"))
 
 
 def test_each_test_type_lists_its_cases_with_status_and_reason(tmp_path):

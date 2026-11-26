@@ -1,9 +1,9 @@
 # Test plan — {API name}
 
 - Date / author:
-- Spec source: {file}, type {openapi|postman|curl}, parsed with `scripts/intake.py`
+- Spec source: {file}, type {openapi|postman|curl|graphql|grpc}, parsed with `scripts/intake.py`
 - Base URL / environment: {url} ({local|staging|other})
-- Protocol: REST | GraphQL
+- Protocol: REST | GraphQL | gRPC
 
 ## Authentication
 | Scheme | Env var(s) (names only, never values) | Notes |

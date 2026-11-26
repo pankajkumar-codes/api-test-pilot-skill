@@ -1,4 +1,4 @@
-# Fuzzing (REST)
+# Fuzzing (REST and GraphQL)
 
 **Safety gate first.** Fuzzing sends hostile and malformed input, including to write endpoints. Only against a non-production target the user owns or is
 authorized to test; production is never fuzzed. Fuzz tests carry the `intrusive` marker: the generated `conftest.py` skips them unless the target is local, or

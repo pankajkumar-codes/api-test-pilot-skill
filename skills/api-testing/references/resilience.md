@@ -14,7 +14,7 @@
 
 Rules
 - The burst is bounded, sequential and `intrusive` (safety gate). It is **not** a load test. Sustained or concurrent
-  traffic is Phase 3 (k6) and is gated separately.
+  traffic belongs to the k6 profiles (`references/load.md`) and is gated separately.
 - A paced run (`APITEST_RPS`, `APITEST_DELAY_MS`) skips the rate-limit tests (marker `rate_limit`). `run_all.py` runs them in a burst pass without the pacing when the target is this machine; for other targets run `pytest -m rate_limit` without the pacing once a short burst is acceptable there.
 - If no throttling is seen the rate-limit test passes (nothing to verify). Whether throttling should exist is a
   security check: set `APITEST_EXPECT_RATE_LIMIT=yes` and `test_api4_rate_limiting_present` fails when 40 rapid requests are never throttled.

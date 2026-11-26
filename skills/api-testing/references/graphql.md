@@ -11,10 +11,10 @@ and never queries the endpoint. `--url` only records the endpoint (credentials i
 
 ## Intake shape
 Same top-level keys as REST (`source`, `servers`, `security_schemes`, `endpoints`, `warnings`) so auth, planning, reporting and
-the k6 generator (Phase 3) reuse everything: the one endpoint is `POST <path>` with `{query, variables, operationName}`. The extra
+the k6 generator reuse everything: the one endpoint is `POST <path>` with `{query, variables, operationName}`. The extra
 `graphql` block holds `operations` (kind, args with types/required/defaults, return type, scalar selection) and `types`
 (fields, enums, input objects, a `sensitive` flag on password/token/email/role-like fields). Defaults of secret-named arguments are dropped.
-Subscriptions are listed but not tested (need WebSocket/SSE; v2).
+Subscriptions are listed but not tested (they need WebSocket or SSE; not planned yet).
 
 ## Differences from REST that the tests handle
 - Errors arrive as HTTP 200 + `errors`: positive tests assert on the body (`expect_data`: no `errors`, field present, non-null if the
