@@ -164,6 +164,51 @@ def test_required_header_and_query_parameters_are_sent_with_the_create():
                          {"name": "Authorization", "in": "header", "required": True, "schema": {"type": "string"}},
                          {"name": "dry", "in": "query", "required": True, "schema": {"type": "boolean"}}]}
     headers, query = seed_ids.required_params(ep)
-    assert set(headers) == {"Idempotency-Key"} and len(headers["Idempotency-Key"]) == 32
+    assert set(headers) == {"Idempotency-Key"} and len(headers["Idempotency-Key"]) == 36
     assert headers != seed_ids.required_params(ep)[0]   # a fresh key on every create
     assert set(query) == {"dry"}
+
+
+class _StubClient:
+    def __init__(self):
+        self.sent = []
+
+    def send(self, method, path, headers, query, body=None):
+        self.sent.append({"method": method, "path": path, "headers": dict(headers), "query": dict(query)})
+        return 201, b'{"id": "t1"}', {}
+
+
+def test_seed_sends_required_parameters_and_credentials_win_a_name_clash(tmp_path, monkeypatch):
+    spec = {"openapi": "3.0.3", "info": {"title": "t", "version": "1"}, "servers": [{"url": "http://127.0.0.1:1"}],
+            "components": {"securitySchemes": {"tenant": {"type": "apiKey", "in": "header", "name": "X-Tenant"}}},
+            "security": [{"tenant": []}],
+            "paths": {"/things": {"post": {"operationId": "createThing",
+                                           "parameters": [{"name": "Idempotency-Key", "in": "header", "required": True,
+                                                           "schema": {"type": "string"}},
+                                                          {"name": "X-Tenant", "in": "header", "required": True,
+                                                           "schema": {"type": "string", "example": "from-spec"}},
+                                                          {"name": "X-Optional", "in": "header", "required": False,
+                                                           "schema": {"type": "string"}},
+                                                          {"name": "dry", "in": "query", "required": True,
+                                                           "schema": {"type": "boolean", "example": False}}],
+                                           "requestBody": {"content": {"application/json": {"schema": {
+                                               "type": "object", "properties": {"name": {"type": "string"}}}}}},
+                                           "responses": {"201": {"description": "made"}}}},
+                      "/things/{thingId}": {"get": {"operationId": "getThing",
+                                                    "parameters": [{"name": "thingId", "in": "path", "required": True,
+                                                                    "schema": {"type": "string"}}],
+                                                    "responses": {"200": {"description": "ok"}}}}}}
+    path = tmp_path / "spec.json"
+    path.write_text(json.dumps(spec))
+    doc = parse_openapi.build(str(path))
+    env = doc["security_schemes"]["tenant"]["env"][0]
+    monkeypatch.setenv("APITEST_SEND_OPTIONAL_HEADERS", "X-Optional")
+    monkeypatch.setenv(env, "from-env")
+    client = _StubClient()
+    ids, failures = seed_ids.seed(doc, {}, client, dry=False)
+    assert failures == 0 and ids["path"]["thingId"] == "t1"
+    sent = client.sent[0]
+    assert sent["headers"]["X-Tenant"] == "from-env"            # the credential, not the spec's example
+    assert len(sent["headers"]["Idempotency-Key"]) == 36
+    assert "X-Optional" not in sent["headers"]                  # optional headers are not sent while seeding
+    assert set(sent["query"]) == {"dry"}

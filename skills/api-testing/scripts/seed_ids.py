@@ -204,7 +204,7 @@ def required_params(ep: dict) -> tuple[dict, dict]:
     """Required header and query parameters the spec declares (Idempotency-Key and the like). Without them a create
     endpoint answers 400 and no id is recorded. An Idempotency-Key gets a fresh value so a rerun is not a replay."""
     base = gen_common.baseline(ep)
-    headers = {k: (uuid.uuid4().hex if k.lower() == "idempotency-key" else str(v)) for k, v in base["headers"].items()}
+    headers = {k: (str(uuid.uuid4()) if k.lower() == "idempotency-key" else str(v)) for k, v in base["headers"].items()}
     return headers, {k: str(v) for k, v in base["query"].items()}
 
 
