@@ -155,3 +155,15 @@ def test_unique_fields_get_a_run_tag_and_examples_file_values_win(intake, tmp_pa
 def test_tag_respects_max_length_and_email_shape():
     assert seed_ids.tag("a@b.com", None).endswith("@b.com")
     assert len(seed_ids.tag("x" * 10, 12)) <= 12
+
+
+def test_required_header_and_query_parameters_are_sent_with_the_create():
+    ep = {"id": "createThing", "method": "POST", "path": "/things",
+          "parameters": [{"name": "Idempotency-Key", "in": "header", "required": True, "schema": {"type": "string"}},
+                         {"name": "X-Trace", "in": "header", "required": False, "schema": {"type": "string"}},
+                         {"name": "Authorization", "in": "header", "required": True, "schema": {"type": "string"}},
+                         {"name": "dry", "in": "query", "required": True, "schema": {"type": "boolean"}}]}
+    headers, query = seed_ids.required_params(ep)
+    assert set(headers) == {"Idempotency-Key"} and len(headers["Idempotency-Key"]) == 32
+    assert headers != seed_ids.required_params(ep)[0]   # a fresh key on every create
+    assert set(query) == {"dry"}

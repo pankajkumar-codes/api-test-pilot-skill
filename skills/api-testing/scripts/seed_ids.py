@@ -36,6 +36,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -199,6 +200,14 @@ def tag(value: str, max_len: int | None) -> str:
     return out if max_len is None or len(out) <= max_len else value[: max(1, max_len - 7)] + "-" + suffix
 
 
+def required_params(ep: dict) -> tuple[dict, dict]:
+    """Required header and query parameters the spec declares (Idempotency-Key and the like). Without them a create
+    endpoint answers 400 and no id is recorded. An Idempotency-Key gets a fresh value so a rerun is not a replay."""
+    base = gen_common.baseline(ep)
+    headers = {k: (uuid.uuid4().hex if k.lower() == "idempotency-key" else str(v)) for k, v in base["headers"].items()}
+    return headers, {k: str(v) for k, v in base["query"].items()}
+
+
 def create_body(ep: dict):
     body = gen_common.sample_body(ep)
     if not isinstance(body, dict):
@@ -268,7 +277,8 @@ def seed(doc: dict, ids: dict, client: Client | None, dry: bool) -> tuple[dict, 
                 print(f"skipped       {param}: set {', '.join(missing_credentials(doc, ep))}")
                 failures += 1
                 continue
-            status, raw, hdrs = client.send(ep["method"], target, creds[0], creds[1], create_body(ep))
+            extra_h, extra_q = required_params(ep)
+            status, raw, hdrs = client.send(ep["method"], target, {**extra_h, **creds[0]}, {**extra_q, **creds[1]}, create_body(ep))
             new_id = extract_id(status, raw, hdrs, param) if 200 <= status < 300 else None
             if new_id is None:
                 why = "the server could not be reached" if status == 0 else f"{ep['id']} answered {status}" + (
