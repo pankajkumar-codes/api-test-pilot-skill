@@ -32,10 +32,13 @@ Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, P
 - Removed generated files that a run recreates: `examples/spring-boot-demo/demo-intake.json` (intake output of the `openapi.json` next to it) and
   `examples/sample-report.json` and `examples/spring-boot-demo/report.json` (same data as the HTML reports next to them). `.gitignore` also covers `apitest_run/`, `gql_tests/`, `grpc_tests/`, `ids.json` and a `chaos-plan.md` or `report.md` written at the repository root.
 
+### Changed (rename, 2026-11-26)
+- The repository and the marketplace are now named `api-test-pilot`, the same as the plugin. Install with `/plugin marketplace add pankajkumar-codes/api-test-pilot`
+  and `/plugin install api-test-pilot@api-test-pilot`. The k6 `X-Load-Test` header is now `api-test-pilot` and the k6 user agent `api-test-pilot-k6`.
+
 ### Changed (release preparation, 2026-11-23)
-- The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot-skill` and call the skill as
-  `/api-test-pilot:api-testing`. The repository and the marketplace keep the name `api-test-pilot-skill`, the skill keeps `api-testing`, and the k6 header and
-  user agent are unchanged. Nothing was tagged under the old name.
+- The plugin is now named `api-test-pilot` (display name "API Test Pilot"); install with `/plugin install api-test-pilot@api-test-pilot` and call the skill as
+  `/api-test-pilot:api-testing`. The skill keeps the name `api-testing`. Nothing was tagged under the old name.
 - LICENSE names Pankaj Kumar as the copyright holder.
 - `CLAUDE.md` is removed. Its rules already lived in CONTRIBUTING.md and SECURITY.md; CONTRIBUTING.md gains a short "How work is planned" section for the rest,
   and the scripts and TAXONOMY.md point to those files instead.
@@ -365,5 +368,5 @@ Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, P
 - VAmPI mass assignment is not detected (documented in `docs/evals.md`).
 - GraphQL fuzzing, mass-assignment read-back and uniquified create bodies are deferred to a later version.
 
-[Unreleased]: https://github.com/pankajkumar-codes/api-test-pilot-skill/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/pankajkumar-codes/api-test-pilot-skill/releases/tag/v0.1.0
+[Unreleased]: https://github.com/pankajkumar-codes/api-test-pilot/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/pankajkumar-codes/api-test-pilot/releases/tag/v0.1.0
