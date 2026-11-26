@@ -32,6 +32,13 @@ Experimental: gRPC (needs `grpcurl`; `ghz` load tests are not built), GraphQL, P
 - Removed generated files that a run recreates: `examples/spring-boot-demo/demo-intake.json` (intake output of the `openapi.json` next to it) and
   `examples/sample-report.json` and `examples/spring-boot-demo/report.json` (same data as the HTML reports next to them). `.gitignore` also covers `apitest_run/`, `gql_tests/`, `grpc_tests/`, `ids.json` and a `chaos-plan.md` or `report.md` written at the repository root.
 
+### Fixed (localhost run on distributor-saas and spring-boot-demo, 2026-11-26)
+- `seed_ids.py` now sends the header and query parameters the spec marks required. Before, a create endpoint that needs `Idempotency-Key`
+  answered 400 and no id was recorded; a fresh key is used for every create.
+- The report took a plain `assert` failure's title from the first traceback line (`api = <apitest_runtime.Api object ...>`) and rated it
+  HIGH. It now takes the title, severity and OWASP tag from the failure message, as the test wrote them.
+- DECISIONS.md: the dependency floors entry from 2026-11-12 is superseded; the floors are the versions CI runs.
+
 ### Changed (rename, 2026-11-26)
 - The repository and the marketplace are now named `api-test-pilot`, the same as the plugin. Install with `/plugin marketplace add pankajkumar-codes/api-test-pilot`
   and `/plugin install api-test-pilot@api-test-pilot`. The k6 `X-Load-Test` header is now `api-test-pilot` and the k6 user agent `api-test-pilot-k6`.

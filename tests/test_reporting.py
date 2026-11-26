@@ -779,3 +779,19 @@ def test_stages_that_never_ran_say_so_and_are_not_counted_as_good(tmp_path, monk
     assert "| step3_hold | not run | not run |" in text and "| step4_hold | not run | not run |" in text
     assert "The run stopped early: step3_hold, step4_hold did not run" in text
     assert "First bad step: step2_hold" in text and "Last good step: step1_hold" in text
+
+
+def test_a_bare_assert_takes_its_title_and_severity_from_the_message(tmp_path):
+    xml = tmp_path / "r.xml"
+    xml.write_text(
+        '<testsuite><testcase classname="suite.test_security" name="test_api4_rate_limiting_present">'
+        '<failure message="AssertionError: [MEDIUM][API4:2023] 40 rapid requests were never throttled (no 429)&#10;'
+        'assert 429 in [200, 200]">api = &lt;apitest_runtime.Api object at 0x7f00&gt;&#10;&#10;    def test_x(api):&#10;'
+        'E   AssertionError: [MEDIUM][API4:2023] 40 rapid requests were never throttled (no 429)</failure>'
+        '</testcase></testsuite>', encoding="utf-8")
+    out = tmp_path / "rep.html"
+    subprocess.run([sys.executable, str(SCRIPTS / "summarize_results.py"), "--junit", str(xml), "-o", str(out)], check=False)
+    data = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
+    f = data["findings"][0]
+    assert f["severity"] == "MEDIUM" and f["owasp"] == "API4:2023"
+    assert f["title"].startswith("40 rapid requests") and "object at" not in f["title"]

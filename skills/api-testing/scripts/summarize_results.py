@@ -522,6 +522,14 @@ class Report:
             ctype, stem = case_type(c["classname"])
             name = plain(c["name"], 200)
             raw = plain(c["text"] or c["message"], 20_000, keep_newlines=True)
+            if c["status"] == "failed" and c["text"] and c["message"]:
+                # A bare `assert` puts the traceback in the text and the tagged message only in the attribute.
+                # Lead with the message so the title and severity come from it, not from the first traceback line.
+                msg = plain(c["message"], 2_000, keep_newlines=True)
+                text_first = re.sub(r"^(Failed|AssertionError):\s*", "", raw.lstrip().split("\n", 1)[0])
+                msg_first = re.sub(r"^(Failed|AssertionError):\s*", "", msg.lstrip().split("\n", 1)[0])
+                if _tags(msg_first)[0] and not _tags(text_first)[0]:
+                    raw = msg + "\n" + raw
             request = REQUEST_LINE_RE.search(raw)
             ep = self.index.by_test_name(c["name"])
             if ep is None and request and self.index.eps:
