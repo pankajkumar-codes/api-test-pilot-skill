@@ -239,7 +239,7 @@ def test_zip_builder_refuses_an_invalid_skill(tmp_path):
 def test_docs_name_every_release_and_safety_item():
     readme = (ROOT / "README.md").read_text()
     for needle in ("APITEST_TARGET_ENV", "APITEST_AUTHORIZED=yes", "production is always refused", "destructive", "xdist",
-                   "tools/validate_skill.py", "tools/build_skill_zip.py", "/plugin install api-test-pilot@api-test-pilot-skill", "LICENSE"):
+                   "tools/validate_skill.py", "tools/build_skill_zip.py", "/plugin install api-test-pilot@api-test-pilot", "LICENSE"):
         assert needle in readme, needle
     release = (ROOT / "docs/RELEASE.md").read_text()
     assert "outward-facing" in release and "maintainer" in release and "v0.1.0" in release

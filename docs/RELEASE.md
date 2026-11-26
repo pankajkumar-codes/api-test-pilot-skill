@@ -9,7 +9,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 - [ ] `python tools/validate_skill.py` prints `OK` (frontmatter, layout, plugin files, version consistency across
       `SKILL.md` metadata, `plugin.json`, CHANGELOG).
 - [ ] `claude plugin validate ./` passes. The icon is included now; see "Icon" below.
-- [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot@api-test-pilot-skill`
+- [ ] Install from a clean directory: `claude plugin marketplace add ./` then `claude plugin install api-test-pilot@api-test-pilot`
       with a scratch `HOME`; `claude plugin list` shows version 0.1.0.
 - [ ] `python tools/build_skill_zip.py`; unzip into an empty folder, create a fresh virtualenv with `pip install pytest requests`,
       and run the README example (intake, generate, run, report) against `examples/demo_server.py`.
@@ -23,7 +23,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 ## Tag and release (outward-facing, maintainer only)
 - [ ] Repository is public and its visibility, description and topics are set (suggested topics: `agent-skills`, `claude-code`,
       `api-testing`, `openapi`, `graphql`, `pytest`, `k6`, `owasp`).
-- [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot-skill 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
+- [ ] Tag: `git tag -a v0.1.0 -m "api-test-pilot 0.1.0" && git push origin v0.1.0`. (`claude plugin tag` would create
       `api-test-pilot--v0.1.0` (named after the plugin), which is only needed when other plugins depend on a version range.)
 - [ ] GitHub release for `v0.1.0`: notes from CHANGELOG; attach `dist/api-testing-0.1.0.zip` and `dist/SHA256SUMS` (both written by the zip tool), and paste the SHA-256 into the notes.
 - [ ] Bump `version` in `SKILL.md` metadata, `.claude-plugin/plugin.json` and CHANGELOG together for every later release.
@@ -31,7 +31,7 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
 
 ## Marketplace submissions (outward-facing, maintainer only)
 Copy for every listing is in [LISTING.md](LISTING.md). Do not submit before the tag exists and the README install lines work.
-- [ ] **Own marketplace:** nothing to submit. Once the repository is public, `/plugin marketplace add pankajkumar-codes/api-test-pilot-skill` works.
+- [ ] **Own marketplace:** nothing to submit. Once the repository is public, `/plugin marketplace add pankajkumar-codes/api-test-pilot` works.
 - [ ] **Anthropic plugin directory:** see "Marketplace requirements, checked 2026-11-19" below. Submit from the developer portal
       (`claude.ai/directory/manage`, Submit new, Plugin bundle).
 - [ ] **Claude app skill upload:** upload `dist/api-testing-0.1.0.zip` in Settings, Capabilities, Skills (personal use; this is not a public listing).

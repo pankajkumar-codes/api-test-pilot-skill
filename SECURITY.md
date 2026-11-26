@@ -4,7 +4,7 @@
 
 Please report security problems privately, not in a public issue:
 
-1. Open a private advisory: <https://github.com/pankajkumar-codes/api-test-pilot-skill/security/advisories/new>
+1. Open a private advisory: <https://github.com/pankajkumar-codes/api-test-pilot/security/advisories/new>
    (GitHub: Security tab, "Report a vulnerability").
 2. Say what you found, how to reproduce it, and which version or commit you used. A minimal spec or command is ideal.
 

@@ -1,4 +1,4 @@
-# api-test-pilot-skill
+# api-test-pilot
 
 An [Agent Skill](https://agentskills.io/specification) that plans, generates and runs API tests from an OpenAPI spec,
 a GraphQL schema, a `.proto` file, a Postman collection or curl examples. It writes plain pytest and k6 files you can read, edit and keep.
@@ -199,18 +199,18 @@ Pick one. Every route ends with the same folder: `api-testing/` containing `SKIL
 
 **1. Claude Code, as a plugin** (this repository is also a one-plugin marketplace):
 ```
-/plugin marketplace add pankajkumar-codes/api-test-pilot-skill
-/plugin install api-test-pilot@api-test-pilot-skill
+/plugin marketplace add pankajkumar-codes/api-test-pilot
+/plugin install api-test-pilot@api-test-pilot
 ```
 The first line registers the marketplace, the second installs the plugin (the part after `@` is the marketplace name).
-From a shell the same steps are `claude plugin marketplace add pankajkumar-codes/api-test-pilot-skill` and
-`claude plugin install api-test-pilot@api-test-pilot-skill`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
+From a shell the same steps are `claude plugin marketplace add pankajkumar-codes/api-test-pilot` and
+`claude plugin install api-test-pilot@api-test-pilot`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
 The skill then loads automatically when you ask to test an API; to call it by name, use `/api-test-pilot:api-testing`.
 
 **2. Claude Code, as plain files** (works for any checkout, no plugin system needed):
 ```bash
-git clone https://github.com/pankajkumar-codes/api-test-pilot-skill.git
-mkdir -p ~/.claude/skills && cp -r api-test-pilot-skill/skills/api-testing ~/.claude/skills/    # all projects
+git clone https://github.com/pankajkumar-codes/api-test-pilot.git
+mkdir -p ~/.claude/skills && cp -r api-test-pilot/skills/api-testing ~/.claude/skills/    # all projects
 # or, for one project: mkdir -p .claude/skills && cp -r .../skills/api-testing .claude/skills/
 ```
 
@@ -470,7 +470,7 @@ $ echo $?
   results and reports stay on your machine. Credentials are read from environment variables and redacted from reports, which is
   pattern-based, so read a report before you share it. Your agent (for example Claude) processes whatever you paste or let it read under
   that product's own privacy terms, not this project's.
-- **Support.** Open an issue at <https://github.com/pankajkumar-codes/api-test-pilot-skill/issues>. This is a single-maintainer preview with
+- **Support.** Open an issue at <https://github.com/pankajkumar-codes/api-test-pilot/issues>. This is a single-maintainer preview with
   no service level; expect answers when the maintainer has time. Report a security problem privately, see [SECURITY.md](SECURITY.md).
 - **Warranty.** MIT licence, provided as is. Only test APIs you own or are authorized to test; see the safety gate above and [SECURITY.md](SECURITY.md).
 

@@ -6,7 +6,7 @@ compatibility: Needs Python 3.11+ and, for generated suites, the pytest and requ
 metadata:
   author: pankajkumar-codes
   version: "0.1.0"
-  repository: https://github.com/pankajkumar-codes/api-test-pilot-skill
+  repository: https://github.com/pankajkumar-codes/api-test-pilot
 ---
 
 # API Testing

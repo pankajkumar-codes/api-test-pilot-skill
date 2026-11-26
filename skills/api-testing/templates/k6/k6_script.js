@@ -222,7 +222,7 @@ function build(ep, notes) {
     }
     path = path.split('{' + p.name + '}').join(encodeURIComponent(val));
   }
-  const headers = Object.assign({}, ep.headers, { 'X-Load-Test': 'api-test-pilot-skill' });
+  const headers = Object.assign({}, ep.headers, { 'X-Load-Test': 'api-test-pilot' });
   const query = Object.assign({}, ep.query);
   const given = ep.graphql || !ep.opId ? new Map() : examplesFor(ep.opId);
   for (const k of Object.keys(query)) {
@@ -301,7 +301,7 @@ for (const ep of CONFIG.endpoints) {
   if (built) ACTIVE.push(built);
 }
 for (const n of NOTES) {
-  console.warn('[api-test-pilot-skill] ' + n); // env var names only, no values
+  console.warn('[api-test-pilot] ' + n); // env var names only, no values
 }
 if (ACTIVE.length === 0) {
   throw new Error('No endpoint can be tested with the current configuration (see the warnings above).');
@@ -357,7 +357,7 @@ export const options = {
   },
   thresholds: thresholds,
   setupTimeout: '10m', // the baseline probe sends each endpoint once, at most MAX_RPS per second
-  userAgent: 'api-test-pilot-skill-k6',
+  userAgent: 'api-test-pilot-k6',
   insecureSkipTLSVerify: false,
   summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   tags: { testtype: CONFIG.profile },
