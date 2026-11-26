@@ -41,7 +41,7 @@ do not count, because the same author wrote the flaws and the checks.
 | Postman and curl input | Experimental | Parsed from fixture files only; no real-world collection has been run end to end. |
 | gRPC | Experimental | Unary calls only, needs the optional `grpcurl`, which CI does not install. Run against a local `grpcio` server written for the tests. gRPC load tests (`ghz`) are planned and not generated yet. |
 | Real Petstore, VAmPI, DVGA and crAPI evals | Planned | Only labelled local stand-ins have been run so far. |
-| GitHub Action, MCP server | Planned | Not started. |
+| GitHub Action, MCP server | Planned | Not started. The MCP server is planned for v0.2 with a gate the agent cannot answer for (see DECISIONS.md, v0.2). |
 
 Status means how much evidence there is, not a promise of support. Last reviewed 2026-11-24 against the runs recorded in [docs/evals.md](docs/evals.md).
 

@@ -91,3 +91,6 @@ Order agreed 2026-11-14. Release steps (history cleanup, public repo, tag, marke
 - [ ] gRPC, unary only: [x] stdlib `.proto` parser, [x] functional, contract and security tests through optional `grpcurl`, [ ] load through optional `ghz`
 - [x] File GitHub issues for failed tests (`file_issues.py`: preview, confirm, group, dedupe, redact; DECISIONS 2026-11-18)
 - [ ] Login success-path tests with real credentials from env vars
+
+## v0.2 (planned)
+- [ ] MCP server as a thin wrapper over the existing scripts; every gated run needs the user-written target allowlist and MCP elicitation, no fallback; plan/generate-only by default (DECISIONS 2026-11-24). Security review against that entry before release.
