@@ -612,10 +612,34 @@ class Runner:
                 f"payload bursts were sent to {len(eps)} of {len(eps) + untried} write endpoints; {untried} not tried "
                 "(--payload-endpoints N or all, within the run budget)"))
 
+    def drop_broken_probes(self) -> list[str]:
+        """Leave out a probe that already answers 5xx before any fault, as long as another probe is healthy.
+
+        One endpoint with a bug of its own (the functional tests report it) would otherwise fail the baseline and
+        stop every experiment. Timeouts and refused connections are not dropped: those mean the target itself is unwell.
+        """
+        if len(self.probes) < 2:
+            return []
+        broken = []
+        for p in self.probes:
+            one = Load(self.base, [p], self.headers, 1, self.args.timeout_s)
+            if all(one.one()[1] == "5xx" for _ in range(2)):
+                broken.append(p)
+        if not broken or len(broken) == len(self.probes):
+            return []
+        self.probes = [p for p in self.probes if p not in broken]
+        return broken
+
     # ---- orchestration
     def run(self, experiments: list[str], deps: dict[str, dict]) -> None:
         a = self.args
         base = Result("test_chaos_baseline")
+        dropped = self.drop_broken_probes()
+        for p in dropped:
+            note = (f"probe {p.split('?')[0]} left out: it answered 5xx before any fault was injected "
+                    "(an endpoint bug, not a resilience result; the functional tests report it)")
+            base.lines.append(note)
+            print(note, flush=True)
         l = self.load().start()
         time.sleep(a.baseline_s)
         l.stop()

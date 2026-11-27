@@ -353,6 +353,38 @@ def test_runner_stops_when_the_baseline_is_unhealthy(tmp_path):
     assert [e["status"] for e in data["experiments"]] == ["failed", "skipped"]
 
 
+def test_a_probe_that_is_already_broken_is_left_out_not_a_failed_baseline(tmp_path):
+    # Petstore's /store/inventory answers 500 once odd orders exist; that alone must not stop every experiment
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            code = 500 if self.path.startswith("/broken") else 200
+            self.send_response(code)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    srv = Upstream(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "res"
+        r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
+                     "--probe", "/health", "--baseline-s", "2", "--fault-s", "2", "--out", str(out)])
+        assert "probe /broken left out" in r.stdout and "not healthy before any fault" not in r.stdout
+        data = json.loads((out / "chaos.json").read_text())
+        assert data["experiments"][0]["status"] == "passed"
+        assert data["experiments"][1]["status"] != "skipped"
+        # every probe broken: still the unhealthy-baseline finding
+        r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
+                     "--probe", "/broken2", "--baseline-s", "2", "--out", str(tmp_path / "res2")])
+        assert r.returncode == 1 and "not healthy before any fault" in r.stdout
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_dep_proxy_spec_is_validated(tmp_path, upstream):
     srv, port = echo_server()
     try:

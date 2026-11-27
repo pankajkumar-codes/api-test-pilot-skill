@@ -43,6 +43,10 @@ Changes merged after the 0.1.0 tag go here.
 - `run_k6.py --docker` (and `run_all.py --k6-docker`) ran k6 but wrote no summary on Linux and WSL: the k6 image runs as its own user,
   which cannot write the mounted results folder, so the report said `0 k6 summaries`. The container now runs as the host user, and
   `run_k6.py` warns when k6 leaves no summary.
+- Chaos stopped every experiment when one of its health probes already answered 5xx before any fault (one HIGH "target not healthy",
+  all experiments skipped). On the full Petstore run `/store/inventory` returns 500 once an order without a status exists, which the
+  functional tests create. A probe that answers 5xx twice before the baseline is now left out, with a note in the baseline result, as long
+  as another probe is healthy. If every probe fails, or the failures are timeouts or refused connections, the baseline still fails.
 - Seen on the full DVGA run (`run_all.py --types all,fuzz --k6 --chaos`):
   - `--types all,fuzz` was refused for a GraphQL schema ("Not available for GraphQL yet: all"). It now means every default type plus fuzz.
   - A query named like a delete (`deleteAllPastes`, which DVGA puts in Query) now needs `APITEST_ALLOW_DESTRUCTIVE=yes` like a delete

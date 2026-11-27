@@ -103,7 +103,8 @@ What was not done on this target, so you can judge the numbers:
   at that rate on a small machine. It is not a capacity limit.
 - The rate-limit tests ran without pacing, the rest at 40 req/s, because the skill skips its burst probes when a rate cap is set.
 - Writes and intrusive probes ran only because the database was disposable. HTTPS and authentication were not covered (the demo has none).
-- Chaos cases show no request or response bodies in the report (they are not captured through HTTP).
+- Chaos cases show no request or response bodies in the report (they are not captured through HTTP). A health probe that already answers
+  5xx before any fault is left out of the chaos run and named in the baseline result; the functional tests report that endpoint.
 
 ### Four public sandbox APIs (read-only)
 
