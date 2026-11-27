@@ -167,6 +167,39 @@ def test_same_login_failure_helper(petstore_suite):
     assert "boolean SQL injection" in str(ei.value)
     rt.expect_injection_safe(hit, "path_username[3]", FakeApi(200), ep)   # the API answers 200 for anything: no signal
     rt.expect_injection_safe(hit, "path_username[0]", FakeApi(404), ep)   # traversal payloads are not tautologies
+    # an injection 5xx says nothing when the endpoint's normal request fails too
+    rt._VALID_INPUT_5XX.clear()
+    crash = R(500, "{}", "x")
+    ep_post = types.SimpleNamespace(method="POST", path="/pet", path_params={})
+    with pytest.raises(pytest.skip.Exception):
+        rt.expect_injection_safe(crash, "body_name[0]", FakeApi(500), ep_post)
+    rt._VALID_INPUT_5XX.clear()
+    with pytest.raises(BaseException) as ei:
+        rt.expect_injection_safe(crash, "body_name[0]", FakeApi(200), ep_post)
+    assert "server error" in str(ei.value)
+
+    # BOLA on a write: HIGH only when the victim's object visibly changed
+    class SeqApi:
+        def __init__(self, *answers):
+            self.answers = list(answers)
+
+        def send(self, ep, **kw):
+            status, text = self.answers.pop(0)
+            r = R(status, text, "x")
+            r._sent_body = {"email": "new@example.com"}
+            return r
+
+    write = types.SimpleNamespace(method="PUT", path="/users/{u}/email", body={"email": "new@example.com"})
+    read = types.SimpleNamespace(method="GET", path="/users/{u}")
+    rt.expect_victim_write_denied(SeqApi((200, '{"email": "v@x"}'), (204, ""), (200, '{"email": "v@x"}')), write, read)
+    with pytest.raises(BaseException) as ei:
+        rt.expect_victim_write_denied(SeqApi((200, '{"email": "v@x"}'), (204, ""), (200, '{"email": "new@example.com"}')), write, read)
+    assert "[HIGH]" in str(ei.value) and "changed the victim's" in str(ei.value)
+    with pytest.raises(BaseException) as ei:
+        rt.expect_victim_write_denied(SeqApi((204, "")), write, None)
+    assert "[MEDIUM]" in str(ei.value) and "check by hand" in str(ei.value)
+    rt.expect_victim_write_denied(SeqApi((200, '{"email": "v@x"}'), (403, "no")), write, read)
+
     # a handled 400 that names the target type is not a leak; a Java exception or stack frame is
     assert not rt.DB_ERROR_RE.search("Input error: couldn't convert `1 OR 1=1` to type `class java.lang.Long`")
     assert rt.DB_ERROR_RE.search("java.lang.NumberFormatException: For input string")
@@ -248,3 +281,12 @@ def test_real_mode_prints_counts_and_the_report_path(tmp_path, monkeypatch, caps
     assert re.search(r"petstore/real: \d+ passed, \d+ failed, \d+ skipped of \d+ generated tests", err)
     assert "Result: " in err
     assert "report: " in err and "report.md" in err
+
+
+def test_reset_style_endpoints_are_recognised():
+    import gen_common as gc
+    assert gc.resets_state({"method": "GET", "path": "/createdb", "id": "populate_db"})
+    assert gc.resets_state({"method": "POST", "path": "/admin/reset-db", "id": "x"})
+    assert gc.resets_state({"method": "GET", "path": "/init", "id": "x", "summary": "Creates and populates the database with dummy data"})
+    for path in ("/users/reset-password", "/pets", "/database/stats", "/books/create"):
+        assert not gc.resets_state({"method": "GET", "path": path, "id": "x", "summary": "Returns things"}), path

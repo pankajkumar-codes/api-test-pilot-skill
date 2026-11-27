@@ -11,6 +11,22 @@ Changes merged after the 0.1.0 tag go here.
 - `evals/run_evals.py --real` printed only the target name (for example `[petstore]`) and exited, so a finished run looked like it had done
   nothing. It now prints the passed/failed/skipped counts, the report's verdict line, the first 20 failing tests and the report path. Found
   on the first real Swagger Petstore run (container `swaggerapi/petstore3:1.0.29`, pinned digest matched on pull).
+- False findings and misses seen on the first real Petstore and VAmPI runs:
+  - A handled 400 that names `java.lang.Long` was reported as a leaked stack trace (10 HIGH on Petstore). Only Java exception names and stack
+    frames count now.
+  - An injection payload that gets a 5xx is no longer reported as HIGH injection when the endpoint's normal request also gets a 5xx; the
+    positive test reports that crash once (41 HIGH on Petstore were one server bug per endpoint).
+  - A login answered with 200 and a failure body counted as a successful login, which also hid the user enumeration check. A 2xx login now
+    counts only when it hands out a token-like field or a cookie. VAmPI's enumeration is now found.
+  - Boolean SQL injection in path values was missed (VAmPI `GET /users/v1/x' OR '1'='1` returns a record). A tautology that finds a record an
+    unknown value does not find is now HIGH.
+  - BOLA on writes: an accepted write to another user's object is HIGH only when a read of that object shows the change (or the delete took).
+    Without a way to read it back it is MEDIUM, "check by hand". Fixed VAmPI ignores the path and updates the caller, which was reported as BOLA.
+  - Endpoints that recreate or wipe the data (`GET /createdb`, `/reset-db`, summary "creates and populates the database") are marked
+    `resets_state`: their tests run after all others and only with `APITEST_ALLOW_DESTRUCTIVE=yes`. VAmPI's wiped the test user mid-run.
+  - When the server stops answering (a read timeout, then a plain GET of the base URL also times out), the run reports one HIGH
+    (API4 unrestricted resource consumption) and skips the remaining tests at once instead of letting each one time out.
+- `evals/run_evals.py -k EXPR` passes a pytest `-k` expression in real mode, to leave out a test that takes the target down.
 
 ### Planned
 - v0.2: an MCP server over the same scripts. Every gated run needs both a target allowlist the user writes and an MCP elicitation answer, with no
