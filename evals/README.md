@@ -42,7 +42,7 @@ so a second run on the same container gives different counts: for numbers you re
 **Containers: bind to loopback and pin the image.** VAmPI and DVGA are intentionally vulnerable (SQL and OS command injection among others),
 so every `docker run` below publishes the port on `127.0.0.1` only (`-p 127.0.0.1:PORT:PORT`), never on all interfaces, and uses a pinned image
 (`name:tag@sha256:digest`; VAmPI publishes only `latest`, so it is pinned by digest alone). The digests are the ones Docker Hub's API reported
-on 2026-11-12; they were **not** pulled or verified in the build sandbox (no Docker daemon). After `docker pull`, check that the digest it prints
+on 2026-11-12; all three matched when the images were pulled for the real runs on 2026-11-27. After `docker pull`, check that the digest it prints
 matches, and when you bump an image, re-pin it. Stop and remove the containers when done (`docker rm -f petstore vampi-vuln vampi-fixed dvga`).
 
 ### 1. Swagger Petstore (spec: `evals/specs/petstore-openapi.yaml`)

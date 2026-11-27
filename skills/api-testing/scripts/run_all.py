@@ -3,7 +3,7 @@
 
 Usage:
   python run_all.py <spec> [--out DIR] [--base-url URL] [--types all,fuzz] [--assume-bearer [--public-paths GLOBS]]
-                    [--tenant-param NAME] [--expect-rate-limit] [--check-env] [--k6 [PROFILES] [--k6-docker]]
+                    [--tenant-param NAME] [--expect-rate-limit] [--check-env] [--k6 [PROFILES] [--k6-docker] [--k6-writes]]
                     [--chaos [--chaos-experiments LIST] [--dependency-config FILE --allow-hooks]] [-- <extra pytest arguments>]
 
 Steps: intake, generate the suites, run them in two passes, build the report, print what to set to run the skipped tests.

@@ -8,7 +8,7 @@
 >
 > **Real Swagger Petstore, VAmPI and DVGA runs: done on 2026-11-27, one run each** (see [the last section](#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27)).
 > crAPI has not been run. The sections before it are the mock and stand-in evals, still labelled "mock-based, real target not run".
-> The 2026-11-19 recheck of the offline evals (`python evals/run_evals.py --target all` on commit 4c8b12f): 27 flaws FOUND, 1 MISSED (VAmPI mass assignment), 4 clean variants.
+> The 2026-11-27 recheck of the offline evals (`python evals/run_evals.py --target all` on commit b82f8c2): 27 flaws FOUND, 1 MISSED (VAmPI mass assignment), 4 clean variants.
 
 ## Phase 2: generator validation against local mock servers (2026-11-12)
 
@@ -150,7 +150,7 @@ mocks, so a "found" here means the check works on that flaw, not that it would f
 | `trace`: stack trace in error bodies | API8 | `test_api8_errors_do_not_leak_internals` | yes | `test_security::test_api8_errors_do_not_leak_internals` |
 | `crash`: quote in a name causes a database error (500) | API8/injection | `test_injection_addPet\[body_name\[0\]\]` | yes | `test_security::test_injection_addPet[body_name[0]]` |
 
-Clean variant: 325 passed, 0 failed, 7 skipped
+Clean variant: 328 passed, 0 failed, 8 skipped (b82f8c2)
 
 
 #### VAmPI (mock of the documented vulnerabilities) (mock-based, real target not run)
@@ -169,7 +169,7 @@ Clean variant: 325 passed, 0 failed, 7 skipped
 Known gaps (flaw not detected today):
 - `mass`: the register response does not echo the stored fields and no documented read endpoint exposes `admin`; the spec has a user read endpoint (`GET /users/v1/{username}`), but its path does not pair with `POST /users/v1/register`, and its documented response has no `admin` field, so a read-back cannot see the flag
 
-Clean variant: 232 passed, 1 failed, 10 skipped
+Clean variant: 237 passed, 1 failed, 11 skipped (b82f8c2)
 - known limitation, fails on the clean target: `test_api_views_users_login_user_response_contract` (login needs real credentials; the suite never sends spec-example passwords, so its success-path contract check gets a 400)
 
 
@@ -183,7 +183,7 @@ Clean variant: 232 passed, 1 failed, 10 skipped
 | `bola`: items of other users readable | API1 (BOLA) | `test_api1_bola_getItem` | yes | `test_security::test_api1_bola_getItem` |
 | `noauth`: no authentication | API2 | `rejects_missing_credentials` | yes | `test_negative::test_createItem_rejects_missing_credentials` |
 
-Clean variant: 91 passed, 0 failed, 5 skipped
+Clean variant: 91 passed, 0 failed, 6 skipped (b82f8c2)
 
 
 #### GraphQL shop API (mock; DVGA stand-in) (mock-based, real target not run)
@@ -305,7 +305,7 @@ against the providers beyond what the report shows. Reports and specs: `examples
 ## Real targets: Swagger Petstore, VAmPI and DVGA (2026-11-27)
 
 First runs against the real third-party apps, run locally in Docker. **One run each**, on the maintainer's machine (WSL2, Python 3.14, Docker;
-k6 v2.4 in the `grafana/k6` container), skill at main `c120e7e`. The builder's cloud run on `d010eb7` (same detection code) matched
+k6 v2.4 in the `grafana/k6` container), skill at main `c120e7e`. A second run in a cloud sandbox on `d010eb7` (same detection code) matched
 the security-eval counts for Petstore and vulnerable VAmPI; fixed VAmPI differed by one test (232/10/7) and the full runs differed more (for
 example Petstore 374 tests, HIGH 11), so treat the counts as one run, not a stable figure. Either way it is the same code and author, not an independent check. Images, pinned by digest and matched on pull:
 `swaggerapi/petstore3:1.0.29@sha256:97e5aa17…`, `erev0s/vampi@sha256:0a5a224b…` (fixed: `vulnerable=0`, vulnerable: `vulnerable=1`, both with

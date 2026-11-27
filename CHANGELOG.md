@@ -14,6 +14,17 @@ Changes merged after the 0.1.0 tag go here.
   `run_all.py` and `summarize_results.py -o report.html` make, and prints its path. No new dependency.
 
 ### Fixed
+- Launch audit of the whole repository (2026-11-27):
+  - The chaos plan from `gen_chaos_plan.py` still said executable fault injection was "deferred to v2"; it now points to `chaos_run.py`.
+  - The GraphQL parser's subscription warning said "v2"; subscriptions are not planned yet.
+  - README: the test count names the commit it was measured on; the oldest-supported dependency versions are gone (the floors are
+    the versions CI runs, DECISIONS 2026-11-26); `APITEST_TOKEN_CMD` is used by `run_k6.py` too; the plugin install is described as checked from a
+    local checkout, since the GitHub address belongs to the repository the code moves to.
+  - PLAN.md, eval-apis.md, `docs/LISTING.md` and `evals/README.md` no longer say the real Petstore, VAmPI and DVGA runs or the image digest checks
+    are still to do; the listing copy's "Safety by design" is now "Safety gate", and GraphQL fuzzing is no longer called experimental there.
+  - The mock eval counts in `docs/evals.md` were rerun.
+  - `.gitignore` covers `dvga-introspection.json` and `seeded.json`, which `evals/README.md` writes at the repository root; the `run_all.py`
+    usage line lists `--k6-writes`.
 - `evals/run_evals.py --real` printed only the target name (for example `[petstore]`) and exited, so a finished run looked like it had done
   nothing. It now prints the passed/failed/skipped counts, the report's verdict line, the first 20 failing tests and the report path. Found
   on the first real Swagger Petstore run (container `swaggerapi/petstore3:1.0.29`, pinned digest matched on pull).

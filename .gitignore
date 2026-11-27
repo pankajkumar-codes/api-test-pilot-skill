@@ -24,3 +24,5 @@ grpc_tests/
 ids.json
 /chaos-plan.md
 /report.md
+dvga-introspection.json
+seeded.json

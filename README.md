@@ -193,7 +193,7 @@ checked: nothing imports it, and the other features run the same whether it is i
 | Docker | only for running a local emulator or demo services yourself | docker.com |
 
 `grpcio` is **not** needed: the gRPC tests call `grpcurl` as a program. Generating and reporting work offline; running tests needs network
-access to the target API. Tested with Python 3.11 to 3.13, and with the oldest supported pytest 8.0, requests 2.31 and PyYAML 6.0.
+access to the target API. Tested with Python 3.11 to 3.13 and the dependency versions in `requirements-dev.txt` (the newest releases); older versions are not tested.
 
 Step by step:
 1. Install Python 3.11 or newer and check it: `python --version`.
@@ -216,7 +216,7 @@ Pick one. Every route ends with the same folder: `api-testing/` containing `SKIL
 ```
 The first line registers the marketplace, the second installs the plugin (the part after `@` is the marketplace name).
 From a shell the same steps are `claude plugin marketplace add pankajkumar-codes/api-test-pilot` and
-`claude plugin install api-test-pilot@api-test-pilot`. The repository is public, so these work from any machine (checked with Claude Code on a clean profile).
+`claude plugin install api-test-pilot@api-test-pilot`. They work from any machine once the repository at that address is public. The install was checked from a local checkout (`claude plugin marketplace add ./`) on a clean profile; check the GitHub address again after the move to the new repository.
 The skill then loads automatically when you ask to test an API; to call it by name, use `/api-test-pilot:api-testing`.
 
 **2. Claude Code, as plain files** (works for any checkout, no plugin system needed):
@@ -340,7 +340,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_SEND_OPTIONAL_HEADERS` | comma list of headers the spec marks optional but the server needs, for example `Idempotency-Key,If-Match`. Sent on every operation that declares them: `Idempotency-Key` gets a fresh unique value per call, others get `*` or the value after `=` (`If-Match=\"v1\"`) |
 | `APITEST_TENANT_WRITES` | `yes` also calls write operations against the other tenant in the tenant isolation matrix (default: reads only). The control call in your own tenant reads the record first and retries once with its current ETag if the server answers 412 or 428; if it is still refused, the test skips and says why, instead of reporting a false pass or failure |
 | `APITEST_ROLE_MATRIX`, `APITEST_TOKEN_<ROLE>` | JSON file `{"createFiling": {"allow": ["owner"], "deny": ["billing"]}}` and one token per role, for the role (BFLA) matrix. Do not name a role `cmd` (`APITEST_TOKEN_CMD` is the token command). Role calls send only the role's token, so `APITEST_COOKIES` and the token command are not used: cookie-session APIs cannot be role-tested yet |
-| `APITEST_TOKEN_CMD`, `APITEST_TOKEN_CMD_B` | a command (split into arguments, run without a shell) that prints a fresh token. Run when a call that carries credentials gets 401, at most once per 5 s and 100 times per run, then the call is sent again. For tokens that expire during a long run. Used by the generated pytest suites only (not k6, fuzz runs or GraphQL suites). A test that expects a 401 with the default token can have it hidden by the retry when this is set. The output is never printed |
+| `APITEST_TOKEN_CMD`, `APITEST_TOKEN_CMD_B` | a command (split into arguments, run without a shell) that prints a fresh token. Run when a call that carries credentials gets 401, at most once per 5 s and 100 times per run, then the call is sent again. For tokens that expire during a long run. Used by the generated pytest suites and by `run_k6.py` (see the k6 notes above), not by fuzz runs or GraphQL suites. A test that expects a 401 with the default token can have it hidden by the retry when this is set. The output is never printed |
 | `APITEST_LOGIN_EMAIL`, `APITEST_LOGIN_USERNAME`, `APITEST_LOGIN_PASSWORD`, `APITEST_LOGIN_OTP` | a real account for sign-in style operations (POST to a path with login, sign-in, authenticate, token, session or auth): the values go into body fields of that kind (email, username, password, otp). Kept out of reports like other secrets |
 | `APITEST_COOKIES` | `name=value; name2=value2` cookies sent with every call made with the default credentials (also on operations with no security scheme, never on the no-credentials and bad-credentials probes), for example an HttpOnly refresh token |
 | `APITEST_IDS_FILE` | JSON file `{"path": {"business_id": "..."}, "victim": {...}}` with the same ids, instead of many variables (a variable wins over the file). The run ends with a list of the variables that would unskip the most tests |
@@ -466,7 +466,7 @@ $ echo $?
 
 ## What has and has not been validated
 
-- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (811 pass and 36 skip on 2026-11-26, main at a2d6dee plus the file-by-file review changes, with `requirements-dev.txt` and `evals/requirements.txt` installed and without k6 and strawberry-graphql; with only `requirements-dev.txt` the FastAPI eval test also skips, giving 810 and 37; about seven
+- Unit, generator, hostile-spec, safety-gate and reporting tests: `python -m pytest tests` (823 pass and 36 skip on 2026-11-27, main at b82f8c2, Python 3.13, with `requirements-dev.txt` and `evals/requirements.txt` installed and without k6 and strawberry-graphql; with only `requirements-dev.txt` the FastAPI eval test also skips; about seven
   and a half minutes on 4 cores; with k6 on the path the generated k6 scripts are executed too and it takes several minutes longer).
   Run on Python 3.11, 3.12 and 3.13 (the CI workflow runs the same three).
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached

@@ -27,20 +27,20 @@ What you get:
 - **Security checks** mapped to the OWASP API Top 10: missing or weak authentication, BOLA and BFLA, injection, mass assignment,
   SSRF, excessive data exposure, CORS and security headers.
 - **k6 scripts** for load, stress, spike and soak runs, GET-only and capped by default.
-- **Seeded fuzzing** for REST (GraphQL is experimental) and a **fault-injection plan** plus **runnable chaos experiments** (local fault proxy, your own dependency start/stop commands, payload bursts) that measure recovery time.
+- **Seeded fuzzing** for REST and GraphQL and a **fault-injection plan** plus **runnable chaos experiments** (local fault proxy, your own dependency start/stop commands, payload bursts) that measure recovery time.
 - **A self-contained HTML report** (plus JSON) with per-endpoint coverage, findings ranked by severity and a repro command for each finding.
 - **A breaking-change report** between two versions of a spec.
 
-Safety by design: load, stress, spike, soak, chaos and fuzz runs refuse to start unless you confirm the target is non-production
+Safety gate: load, stress, spike, soak, chaos and fuzz runs refuse to start unless you confirm the target is non-production
 and that you are authorized to test it. Production targets are refused, credentials are read from environment variables only and
 redacted from every report, and specs and results are treated as untrusted input.
 
 Requirements: Python 3.11+, `pytest` and `requests` for the generated suites, and k6 only for load tests. Planning and generating work offline.
 
 Honest limits: this is a preview with one maintainer. REST and GraphQL are the core; gRPC is optional and needs `grpcurl`. The safety gate is a
-consent prompt (environment variables you set), not an enforcement mechanism. Evals ran against local mocks and a local Spring Boot service only:
-27 of 28 seeded flaws found, where the flaws and the mocks were written by the same author, and VAmPI mass assignment is a known miss. Runs against
-the real Petstore, VAmPI, DVGA and crAPI are not yet done, and no detection rate on a real API is claimed.
+consent prompt (environment variables you set), not an enforcement mechanism. Evals ran against local mocks, a local Spring Boot service and,
+once each, the Swagger Petstore reference server and the intentionally vulnerable VAmPI and DVGA, run locally. Against the mocks 27 of 28 seeded flaws were found, where the flaws and
+the mocks were written by the same author; VAmPI mass assignment was missed on the mock and on the real app. crAPI has not been run, and no detection rate on a real API is claimed.
 
 ## Install lines
 ```
@@ -65,8 +65,8 @@ Plain files: copy `skills/api-testing/` to `~/.claude/skills/`. Claude app: uplo
 
 ## Claims allowed in listing copy
 Allowed: open-source Agent Skill that generates pytest and k6 API tests from OpenAPI, GraphQL, Postman or curl; safety gate for heavy runs;
-tested on Python 3.11 to 3.13; evals against local mocks only.
-Not allowed until it is true: detection rates on real APIs, "production-tested", "enforces" or "guarantees" safety, naming the real Petstore, VAmPI, DVGA or crAPI as validated.
+tested on Python 3.11 to 3.13; evaluated on local mocks and once each on the Petstore reference server and the intentionally vulnerable VAmPI and DVGA.
+Not allowed until it is true: detection rates on real APIs, "production-tested", "enforces" or "guarantees" safety, calling Petstore, VAmPI or DVGA "validated" (one run each is a record, not a validation) or naming crAPI at all.
 
 ## Trademarks (add to any listing that has room)
 OpenAPI, GraphQL, OWASP, k6, Swagger, Claude and Anthropic are trademarks of their owners. API Test Pilot is an independent project, not affiliated
