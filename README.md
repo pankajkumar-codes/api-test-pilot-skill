@@ -24,7 +24,7 @@ Each level is earned by evidence, and a feature moves up only when it meets ever
 "A service not written for this project" so far means the maintainer's own Spring Boot demo (written earlier to learn Spring Boot, before and apart
 from this skill, with no seeded flaws) and the four public sandbox APIs described under [Results](#results-what-has-been-run). Two bugs found in
 the demo during these runs were fixed there. Since 2026-11-27 it also includes one run each against the real Swagger Petstore, VAmPI and DVGA
-(intentionally vulnerable demo apps, run locally). The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
+(the Petstore reference server and two intentionally vulnerable apps, run locally). The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
 do not count, because the same author wrote the flaws and the checks.
 
 | Feature | Status | Evidence and what is missing |
@@ -127,13 +127,13 @@ the run did not have. So this run says little about writes and nothing about loa
 positives; those were fixed in the skill, and the failures that remain are the API's behaviour or mistakes in the hand-written specs (the cookie mismatch,
 the strict `page` rules). Whether the CORS and header findings matter for a public demo API is your call. Three of the four specs were written by hand.
 
-### Intentionally vulnerable demo apps (local Docker, one run each)
+### Third-party demo apps (local Docker, one run each)
 
 Swagger Petstore 1.0.29, VAmPI (vulnerable and fixed) and DVGA 2.2.0, pinned by image digest, run on 2026-11-27 with main at `c120e7e` on the
 maintainer's machine. On vulnerable VAmPI the security suite found boolean SQL injection, BOLA on books, changing another user's password and the
 `_debug` endpoint returning every password; it **missed mass assignment**. On DVGA, fuzzing found SQL error text returned to the client. A full run
 (all test types, fuzz, k6 load, stress and spike, chaos) took 18 to 24 minutes per app. These runs also found 14 bugs in the skill, all fixed.
-These are demo apps with known flaws, so this is not a detection rate. Counts, what was excluded and what was missed: [docs/evals.md](docs/evals.md#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27).
+Petstore is a reference sample server and VAmPI and DVGA are built with known flaws, so this is not a detection rate. Counts, what was excluded and what was missed: [docs/evals.md](docs/evals.md#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27).
 
 ### Seeded flaws and tests of the skill itself
 - On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 5 findings, and data exposure, 1 finding). The other 3 failures come from

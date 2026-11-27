@@ -305,12 +305,13 @@ against the providers beyond what the report shows. Reports and specs: `examples
 ## Real targets: Swagger Petstore, VAmPI and DVGA (2026-11-27)
 
 First runs against the real third-party apps, run locally in Docker. **One run each**, on the maintainer's machine (WSL2, Python 3.14, Docker;
-k6 v2.4 in the `grafana/k6` container), skill at main `c120e7e`. The builder's cloud run on `d010eb7` (same detection code) gave the same
-counts; that is the same code and the same author, not an independent check. Images, pinned by digest and matched on pull:
+k6 v2.4 in the `grafana/k6` container), skill at main `c120e7e`. The builder's cloud run on `d010eb7` (same detection code) matched
+the security-eval counts for Petstore and vulnerable VAmPI; fixed VAmPI differed by one test (232/10/7) and the full runs differed more (for
+example Petstore 374 tests, HIGH 11), so treat the counts as one run, not a stable figure. Either way it is the same code and author, not an independent check. Images, pinned by digest and matched on pull:
 `swaggerapi/petstore3:1.0.29@sha256:97e5aa17…`, `erev0s/vampi@sha256:0a5a224b…` (fixed: `vulnerable=0`, vulnerable: `vulnerable=1`, both with
-`tokentimetolive=3600`) and `dolevf/dvga:2.2.0@sha256:040aa33c…`. Eval commands: [evals/README.md](../evals/README.md); the full runs used the `run_all.py` line shown above their table.
+`tokentimetolive=3600`) and `dolevf/dvga:2.2.0@sha256:040aa33c…` (shortened here; the full digests are in [evals/README.md](../evals/README.md)). Eval commands: [evals/README.md](../evals/README.md); the full runs used the `run_all.py` line shown above their table.
 
-These are demo apps built with known flaws. The tables list what the suites found; they are **not a detection rate**, and nothing here is "production-tested".
+Petstore is the reference sample server; VAmPI and DVGA are intentionally vulnerable apps. The tables list what the suites found; they are **not a detection rate**, and nothing here is "production-tested".
 The checks were also fixed against these same apps the same day (PRs #121 to #124, listed below), so treat the results as a first record, not a benchmark.
 
 ### Security evals (`evals/run_evals.py --real`)
@@ -339,12 +340,16 @@ The checks were also fixed against these same apps the same day (PRs #121 to #12
 | VAmPI fixed | 283 | 251 | 9 | 23 | HIGH 1, MEDIUM 8 | 24 min |
 | DVGA | 348 | 299 | 37 | 12 | HIGH 4, MEDIUM 46, LOW 1 | 18 min |
 
+The HIGH counts for Petstore and DVGA each include one HIGH `test_chaos_baseline` failure. That is the skill bug fixed in PR #124 (see Chaos
+below), not a finding about the target. Without it Petstore has the 6 HIGH explained above, and DVGA has the 2 fuzz findings below plus one
+crossed k6 error-rate threshold (DVGA's capacity; this split is read from the terminal output, not from that run's `report.json`).
+
 - **k6.** Petstore and VAmPI: load, stress and spike with 0% failed requests (VAmPI about 27,500 requests, p95 under 15 ms), apart from the two
   Petstore endpoints that were already answering 500. DVGA, a single Flask process on SQLite, could not keep up: load 0.9% failed with p95 7.5 s,
   stress and spike about 50% failed. That is DVGA's limit, not a capacity figure; expect the same on any small single-process server.
   A 31-minute soak on Petstore (2 req/s, 3,683 requests) had 0 failures, p95 6.7 ms.
 - **Fuzz.** On DVGA it found SQLite error text (`sqlite3.IntegrityError ... [SQL: INSERT INTO users ...]`) returned to the client from fuzzed
-  `createUser` and `search` inputs (the 4 HIGH). On VAmPI one 500 on a password with a lone surrogate character.
+  `createUser` (4 cases) and `search` (1 case) inputs: two HIGH findings, one per fuzzed operation. On VAmPI one 500 on a password with a lone surrogate character.
 - **Chaos.** VAmPI: 19 of 20 passed, 1 skipped. Petstore and DVGA: **no chaos result.** Both baselines failed because of skill bugs, not the
   targets: on Petstore one probe (`/store/inventory`) was already answering 500, and on DVGA chaos started while the server was still working
   through the k6 backlog. Both are fixed in PR #124 (a broken probe is left out and shown as a skipped case; chaos waits up to 120 s after k6)
@@ -355,7 +360,7 @@ PR #121: `run_evals.py --real` printed no result. PR #122: a handled 400 naming 
 41 HIGH injection findings that were one server crash per endpoint; a 2xx login with a failure body counted as a success (hid user enumeration);
 boolean SQL injection in path values missed; BOLA on writes not confirmed; `/createdb` called by fuzz, k6 and chaos (wiped the test users);
 k6 in Docker wrote no summary; GraphQL `all,fuzz` refused; side-effect GraphQL queries load-tested; a hanging server made every later test time out.
-PR #123: eval runs also write the HTML report. PR #124: the two chaos problems above, and fuzz stops an endpoint after 3 timeouts in a row
-(DVGA's `systemUpdate` took 10 minutes of the pytest pass).
+PR #124: the two chaos problems above, and fuzz stops an endpoint after 3 timeouts in a row
+(DVGA's `systemUpdate` took 10 minutes of the pytest pass). Not a bug fix: PR #123 made eval runs also write the HTML report.
 
 Not run: crAPI; chaos on Petstore and DVGA after the fix; any second run to check the counts are stable.
