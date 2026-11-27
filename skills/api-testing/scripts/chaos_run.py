@@ -686,6 +686,9 @@ def pick_probes(doc: dict, explicit: list[str]) -> list[str]:
         if gen_common.resets_state(ep):   # a /createdb probe would wipe the data on every call
             continue
         out.append(ep["path"])
+    eps = doc.get("endpoints") or []
+    if not out and (doc.get("source") or {}).get("type") == "graphql" and eps and re.fullmatch(r"/[A-Za-z0-9._~/-]{0,200}", eps[0]["path"]):
+        out.append(eps[0]["path"] + "?query=%7B__typename%7D")   # GraphQL over GET; a server without it fails the baseline, which says so
     return out[:3]
 
 

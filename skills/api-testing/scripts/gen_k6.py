@@ -320,6 +320,16 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
     return out
 
 
+ACTION_WORDS = {"delete", "remove", "destroy", "drop", "purge", "reset", "clear", "revoke", "cancel", "terminate", "wipe", "update",
+                "create", "add", "set", "insert", "upload", "import", "exec", "execute", "send", "restart", "shutdown", "kill"}
+
+
+def _looks_like_an_action(name: str) -> bool:
+    """Some schemas put side effects in queries (DVGA: `systemUpdate`, `deleteAllPastes`); a load test must not repeat them."""
+    words = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])", name)
+    return any(w.lower() in ACTION_WORDS for w in words)
+
+
 def graphql_endpoints(doc: dict, only: list[str] | None, notes: list[str]) -> list[dict]:
     import gen_graphql
     sc = gen_graphql.Schema(doc)
@@ -336,6 +346,10 @@ def graphql_endpoints(doc: dict, only: list[str] | None, notes: list[str]) -> li
                 notes.append(f"mutation {gen_common.doc_safe(name)[:40]}: mutations are never load-tested")
             continue
         if only is not None and op["id"] not in only and name not in only:
+            continue
+        if only is None and _looks_like_an_action(name):
+            notes.append(f"query {gen_common.doc_safe(name)[:40]}: named like an action (delete, update, reset ...); never load-tested "
+                         "(name it in --endpoints to include it)")
             continue
         if not GQL_NAME_RE.match(name) or any(not GQL_NAME_RE.match(a["name"]) or not GQL_TYPE_RE.match(a["type"]) for a in op["args"]):
             notes.append("query with an unusual name skipped")

@@ -16,6 +16,11 @@ from gen_common import Expr, Module, ident, py, var_type
 GQL_TYPES = ("smoke", "positive", "negative", "edge", "security", "contract", "integration", "data-validation", "resilience", "fuzz")
 OPT_IN = {"fuzz"}  # intrusive: chosen by name, never part of `all`
 DESTRUCTIVE_RE = re.compile(r"^(delete|remove|destroy|drop|purge|reset|clear|revoke|cancel|terminate|wipe)", re.I)
+
+
+def is_destructive(op: dict) -> bool:
+    """A mutation, or a query some schemas misuse for a side effect (DVGA's `deleteAllPastes` is a query), named like a delete."""
+    return op.get("kind") in ("mutation", "query") and bool(DESTRUCTIVE_RE.match(op.get("name", "")))
 PAGING_ARGS = {"first", "last", "limit", "count", "take", "size", "offset", "skip", "page", "pagesize", "per_page"}
 INJECTION = ["' OR '1'='1", "1; SELECT 1", '{"$ne": null}', "$(id)", "../../../../etc/passwd", "<script>apitest</script>", "{{7*7}}"]
 WRONG_TYPE = {"Int": "not-an-int", "Float": "not-a-float", "String": {"nested": True}, "Boolean": "maybe",
@@ -192,7 +197,7 @@ def positive(sc: Schema, mod: Module) -> None:
     for op in sc.ops:
         if op["kind"] == "subscription":
             continue
-        pre = "    gr.require_destructive()\n" if op["kind"] == "mutation" and DESTRUCTIVE_RE.match(op["name"]) else ""
+        pre = "    gr.require_destructive()\n" if is_destructive(op) else ""
         name = mod.unique(f"test_{op['kind']}_{op['name']}_succeeds")
         nn = ", nonnull=True" if op["return_non_null"] else ""
         mod.add(f"def {name}(gql):\n    op = OPS[{op['id']!r}]\n{pre}    resp = gql.run(op)\n"
@@ -241,7 +246,7 @@ def negative(sc: Schema, mod: Module) -> None:
         table = mod.unique("INVALID_" + ident(op["id"]))
         rows = ",\n".join(f"    ({c[0]!r}, {_kw(c[1])})" for c in cases)
         mod.add(f"{table} = [\n{rows},\n]\n", is_test=False)
-        pre = "    gr.require_destructive()\n" if op["kind"] == "mutation" and DESTRUCTIVE_RE.match(op["name"]) else ""
+        pre = "    gr.require_destructive()\n" if is_destructive(op) else ""
         mod.add(f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
                 f"def {mod.unique('test_' + op['kind'] + '_' + op['name'] + '_rejects_invalid_input')}(gql, label, kw):\n"
                 f"    op = OPS[{op['id']!r}]\n{pre}    resp = gql.run(op, **kw)\n    gr.expect_graphql_error(resp, label)\n")
@@ -354,7 +359,7 @@ def security(sc: Schema, mod: Module) -> list[str]:
                     "    resp = gql.run(op, victim=True)  # ids of ANOTHER user's objects: APITEST_GQL_VICTIM_<ARG>\n"
                     f"    gr.expect_denied_gql(resp, {op['name']!r}, \"API1:2023 BOLA\", \"user A can fetch an object owned by another user\")\n")
     for op in sc.ops:
-        if op["kind"] == "subscription" or (op["kind"] == "mutation" and DESTRUCTIVE_RE.match(op["name"])):
+        if op["kind"] == "subscription" or (is_destructive(op)):
             continue
         strs = [a for a in op["args"] if a["named"] == "String" and not a["list"]][:3]
         cases = [(f"{a['name']}[{i}]", {"override": {a["name"]: pl}}) for a in strs for i, pl in enumerate(INJECTION)]
@@ -463,7 +468,7 @@ def data_validation(sc: Schema, mod: Module) -> list[str]:
         table = mod.unique("VALIDATION_" + ident(op["id"]))
         rows = ",\n".join(f"    ({c[0]!r}, {_kw(c[1])})" for c in cases)
         mod.add(f"{table} = [\n{rows},\n]\n", is_test=False)
-        pre = "    gr.require_destructive()\n" if op["kind"] == "mutation" and DESTRUCTIVE_RE.match(op["name"]) else ""
+        pre = "    gr.require_destructive()\n" if is_destructive(op) else ""
         mod.add(f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
                 f"def {mod.unique('test_' + op['kind'] + '_' + op['name'] + '_validates_input')}(gql, label, kw):\n"
                 f"    op = OPS[{op['id']!r}]\n{pre}    resp = gql.run(op, **kw)\n    gr.expect_graphql_error(resp, label)\n")
@@ -597,7 +602,7 @@ def fuzz(sc: Schema, mod: Module) -> list[str]:
         if op["kind"] == "subscription":
             continue
         table[op["id"]] = {"optional": [a["name"] for a in op["args"] if not a["required"]],
-                           "destructive": op["kind"] == "mutation" and bool(DESTRUCTIVE_RE.match(op["name"]))}
+                           "destructive": is_destructive(op)}
     if not table:
         return ["graphql fuzz: the schema has no query or mutation to fuzz"]
     for spec in table.values():
@@ -624,7 +629,11 @@ MODULES = {
 
 def generate(doc: dict, out: Path, types: list[str], base_url_override: str | None = None) -> dict:
     import gen_pytest as gp
-    chosen = [t for t in GQL_TYPES if t not in OPT_IN] if types == ["all"] else types
+    chosen: list[str] = []
+    for t in types:   # "all" means every type except the opt-in ones, so "all,fuzz" adds fuzz to the default set
+        for x in ([g for g in GQL_TYPES if g not in OPT_IN] if t == "all" else [t]):
+            if x not in chosen:
+                chosen.append(x)
     unsupported = [t for t in chosen if t not in GQL_TYPES]
     if unsupported:
         raise _common.IntakeError(f"GraphQL suites support: {', '.join(GQL_TYPES)} (fuzz is opt-in), all. Not available for GraphQL yet: {', '.join(unsupported)}")

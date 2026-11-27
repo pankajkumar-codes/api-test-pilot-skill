@@ -33,6 +33,14 @@ Changes merged after the 0.1.0 tag go here.
 - `run_k6.py --docker` (and `run_all.py --k6-docker`) ran k6 but wrote no summary on Linux and WSL: the k6 image runs as its own user,
   which cannot write the mounted results folder, so the report said `0 k6 summaries`. The container now runs as the host user, and
   `run_k6.py` warns when k6 leaves no summary.
+- Seen on the full DVGA run (`run_all.py --types all,fuzz --k6 --chaos`):
+  - `--types all,fuzz` was refused for a GraphQL schema ("Not available for GraphQL yet: all"). It now means every default type plus fuzz.
+  - A query named like a delete (`deleteAllPastes`, which DVGA puts in Query) now needs `APITEST_ALLOW_DESTRUCTIVE=yes` like a delete
+    mutation does.
+  - k6 load-tested queries with side effects (`systemUpdate` stalls DVGA; `deleteAllPastes`), which took the server down for the spike
+    profile. Queries named like an action (delete, update, reset, create ...) are no longer load-tested unless named in `--endpoints`.
+  - Chaos stopped with "no probe" on every GraphQL API (there is no parameterless GET). It now probes `GET <path>?query={__typename}`;
+    a server without GraphQL over GET fails the baseline, and the experiment says so.
 - `evals/run_evals.py -k EXPR` passes a pytest `-k` expression in real mode, to leave out a test that takes the target down.
 
 ### Planned
