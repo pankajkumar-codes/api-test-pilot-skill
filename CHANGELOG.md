@@ -45,8 +45,10 @@ Changes merged after the 0.1.0 tag go here.
   `run_k6.py` warns when k6 leaves no summary.
 - Chaos stopped every experiment when one of its health probes already answered 5xx before any fault (one HIGH "target not healthy",
   all experiments skipped). On the full Petstore run `/store/inventory` returns 500 once an order without a status exists, which the
-  functional tests create. A probe that answers 5xx twice before the baseline is now left out, with a note in the baseline result, as long
-  as another probe is healthy. If every probe fails, or the failures are timeouts or refused connections, the baseline still fails.
+  functional tests create. A probe that answers 5xx twice before the baseline is now left out and shown in the report as its own
+  skipped case (`test_chaos_probe_<path>`), as long as at least half the probes answer normally. Otherwise nothing is left out and the
+  baseline fails, naming the broken probes, so a target that is mostly down behind one static route is not reported as resilient.
+  Timeouts and refused connections are never left out.
 - `run_all.py --k6 ... --chaos` started chaos the moment the last k6 profile ended. DVGA (one Flask process on SQLite) was still working
   through the spike backlog, so every chaos probe timed out and all experiments were skipped. After k6, chaos now waits up to 120 s for
   the target to answer (`--wait-for-target-s 120`); a 5xx counts as an answer, so a broken probe is never waited on.

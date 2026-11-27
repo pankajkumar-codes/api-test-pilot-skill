@@ -612,34 +612,48 @@ class Runner:
                 f"payload bursts were sent to {len(eps)} of {len(eps) + untried} write endpoints; {untried} not tried "
                 "(--payload-endpoints N or all, within the run budget)"))
 
-    def drop_broken_probes(self) -> list[str]:
-        """Leave out a probe that already answers 5xx before any fault, as long as another probe is healthy.
+    def drop_broken_probes(self) -> tuple[list[str], list[str]]:
+        """Leave out probes that already answer 5xx before any fault, while at least half the probes answer normally.
 
-        One endpoint with a bug of its own (the functional tests report it) would otherwise fail the baseline and
-        stop every experiment. Timeouts and refused connections are not dropped: those mean the target itself is unwell.
+        One endpoint with a bug of its own (the functional tests report it) would otherwise fail the baseline and stop
+        every experiment. A probe that times out or is refused is never dropped: that means the target itself is unwell.
+        When fewer than half answer normally, nothing is dropped and the baseline fails as before, so a target that is
+        mostly down but keeps a static route alive is not reported as resilient. Two GETs per probe up front, so a hanging
+        probe costs two client timeouts. Returns (dropped, broken); broken is set only when nothing was dropped.
         """
         if len(self.probes) < 2:
-            return []
-        broken = []
+            return [], []
+        broken, healthy = [], 0
         for p in self.probes:
             one = Load(self.base, [p], self.headers, 1, self.args.timeout_s)
-            if all(one.one()[1] == "5xx" for _ in range(2)):
+            kinds = [one.one()[1] for _ in range(2)]
+            if kinds == ["5xx", "5xx"]:
                 broken.append(p)
-        if not broken or len(broken) == len(self.probes):
-            return []
+            elif None in kinds:
+                healthy += 1
+        if not broken:
+            return [], []
+        if healthy * 2 < len(self.probes):
+            return [], broken
         self.probes = [p for p in self.probes if p not in broken]
-        return broken
+        return broken, []
 
     # ---- orchestration
     def run(self, experiments: list[str], deps: dict[str, dict]) -> None:
         a = self.args
         base = Result("test_chaos_baseline")
-        dropped = self.drop_broken_probes()
+        dropped, broken = self.drop_broken_probes()
         for p in dropped:
-            note = (f"probe {p.split('?')[0]} left out: it answered 5xx before any fault was injected "
+            shown = p.split("?")[0]
+            note = (f"probe {shown} left out: it answered 5xx before any fault was injected "
                     "(an endpoint bug, not a resilience result; the functional tests report it)")
             base.lines.append(note)
-            print(note, flush=True)
+            # its own skipped case, so the report says a probe was left out and why
+            slug = re.sub(r"[^A-Za-z0-9]+", "_", shown).strip("_") or "root"
+            self.add(Result(f"test_chaos_probe_{slug}").skip(note))
+        if broken:
+            base.lines.append("probes answering 5xx before any fault: " + ", ".join(p.split("?")[0] for p in broken)
+                              + " (fewer than half the probes answer normally, so none were left out)")
         l = self.load().start()
         time.sleep(a.baseline_s)
         l.stop()
