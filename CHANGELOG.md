@@ -28,6 +28,9 @@ Changes merged after the 0.1.0 tag go here.
     `APITEST_HANG_WAIT_S` seconds (default 60) for it to come back. If it does, that request is MEDIUM (API4, the service was unavailable
     for everyone) and the run goes on; DVGA's `systemUpdate` pauses for 20 to 50 s. If not, the run reports one HIGH (API4 unrestricted
     resource consumption) and skips the remaining tests at once instead of letting each one time out.
+- `run_k6.py --docker` (and `run_all.py --k6-docker`) ran k6 but wrote no summary on Linux and WSL: the k6 image runs as its own user,
+  which cannot write the mounted results folder, so the report said `0 k6 summaries`. The container now runs as the host user, and
+  `run_k6.py` warns when k6 leaves no summary.
 - `evals/run_evals.py -k EXPR` passes a pytest `-k` expression in real mode, to leave out a test that takes the target down.
 
 ### Planned

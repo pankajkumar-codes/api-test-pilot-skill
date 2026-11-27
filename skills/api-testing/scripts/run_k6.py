@@ -85,8 +85,10 @@ def docker_command(image: str, script: Path, results: Path, env_names: list[str]
     """k6 in a container. Variables are passed by name only (`-e NAME`), so values never appear on the command line.
     Host networking reaches a target on the host's localhost; it works on Linux (Docker Desktop needs the
     `host.docker.internal` address in --base-url instead)."""
-    cmd = ["docker", "run", "--rm", "-i", "--network", "host",
-           "-v", f"{script.resolve().parent}:/scripts:ro", "-v", f"{results.resolve()}:/results"]
+    cmd = ["docker", "run", "--rm", "-i", "--network", "host"]
+    if hasattr(os, "getuid"):  # the image runs as its own user, which cannot write a host folder it does not own; run as the host user
+        cmd += ["--user", f"{os.getuid()}:{os.getgid()}"]
+    cmd += ["-v", f"{script.resolve().parent}:/scripts:ro", "-v", f"{results.resolve()}:/results"]
     for var, path in (files or {}).items():  # read-only mounts; the variable then holds the path inside the container
         cmd += ["-v", f"{path.resolve()}:/inputs/{var}.json:ro", "-e", f"{var}=/inputs/{var}.json"]
     for name in env_names:
@@ -452,6 +454,9 @@ def main(argv: list[str] | None = None) -> int:
             src = getattr(server, "token_source", None)
             if src is not None:
                 print(f"token refreshed {src.refreshes} time(s) during the run (minimum gap {src.min_gap:g} s, limit {src.max_refreshes})")
+    if code != 5 and not summary.exists():
+        print(f"warning: k6 wrote no summary ({summary}), so the report will not include this run. Check the k6 output above; with "
+              "--docker the results folder must be writable by the container.", file=sys.stderr)
     if code == 99:
         families = crossed_families(summary)
         code = threshold_exit_code(families)
