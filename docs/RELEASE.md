@@ -17,8 +17,8 @@ maintainer's explicit go-ahead each time. Run the "Before tagging" block as ofte
       the GitHub secret scan on the branch.
 - [ ] CHANGELOG: the heading reads `## [0.1.0] - 2026-11-19 (preview)`; change the date if you tag on another day (and the string in `tests/test_packaging.py`); "Known gaps" still accurate. Tag and release it as a **preview** (GitHub: tick "Set as a pre-release").
 - [ ] PLAN.md Phase 6 boxes ticked for what is actually done; DECISIONS.md updated.
-- [ ] Optional but recommended: person runs the real Petstore, VAmPI and DVGA evals (`evals/README.md`) and records results in
-      `docs/evals.md`. Until then every doc says "mock-based, real target not run" for them; keep it that way.
+- [x] Real Petstore, VAmPI and DVGA evals run once (2026-11-27, `c120e7e`) and recorded in `docs/evals.md`. The mock sections keep
+      the label "mock-based, real target not run". Still open: rerun chaos on Petstore and DVGA after PR #124; crAPI.
 
 ## Tag and release (outward-facing, maintainer only)
 - [ ] Repository is public and its visibility, description and topics are set (suggested topics: `agent-skills`, `claude-code`,

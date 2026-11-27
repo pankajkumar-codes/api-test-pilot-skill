@@ -23,7 +23,8 @@ Each level is earned by evidence, and a feature moves up only when it meets ever
 
 "A service not written for this project" so far means the maintainer's own Spring Boot demo (written earlier to learn Spring Boot, before and apart
 from this skill, with no seeded flaws) and the four public sandbox APIs described under [Results](#results-what-has-been-run). Two bugs found in
-the demo during these runs were fixed there. The Beta labels for resilience, k6, REST fuzzing and chaos rest on that one demo alone. The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
+the demo during these runs were fixed there. Since 2026-11-27 it also includes one run each against the real Swagger Petstore, VAmPI and DVGA
+(intentionally vulnerable demo apps, run locally). The mocks, the seeded FastAPI, gateway, GraphQL and gRPC apps and the Petstore, VAmPI and DVGA stand-ins
 do not count, because the same author wrote the flaws and the checks.
 
 | Feature | Status | Evidence and what is missing |
@@ -31,19 +32,19 @@ do not count, because the same author wrote the flaws and the checks.
 | OpenAPI / Swagger in, pytest out (smoke, positive, negative, edge, data-validation, contract, integration) | Stable | The core. Required CI on 3.11 to 3.13; run on the Spring Boot demo and the four public sandbox APIs. |
 | HTML report, rerun command per finding | Stable | HTML report produced for every run above, with JSON alongside it where the runner wrote one. |
 | `spec_diff.py` breaking-change report | Experimental | Tested in CI on fixture spec pairs only; not yet run on two real versions of someone else's spec. |
-| Security checks (OWASP API Top 10) | Beta | Run on the Spring Boot demo (no findings) and the public APIs (CORS and header findings that look real, not confirmed with the providers). BOLA, BFLA, mass assignment and injection detection is shown only on seeded flaws the author wrote; VAmPI mass assignment is a known miss. Expect false positives and read each finding. Stable needs real VAmPI or crAPI runs. |
+| Security checks (OWASP API Top 10) | Beta | Run on the Spring Boot demo (no findings) and the public APIs (CORS and header findings that look real, not confirmed with the providers). One run on real VAmPI found its SQL injection, BOLA, password-change and password-leak flaws and **missed mass assignment**; the checks were fixed against VAmPI the same day. Expect false positives and read each finding. Stable needs repeat runs on VAmPI or crAPI with no fixes in between. |
 | Resilience (idempotency, pagination, rate limits) | Beta | Run on the Spring Boot demo only, including the rate-limit tests; the public API runs left them out. |
-| k6 load, stress, spike, soak | Beta | Real k6 runs in an optional CI job (not required to merge). Load, stress, spike and a 30-minute soak ran on the Spring Boot demo with 0 failed requests, on GET endpoints at the default rates. Capacity ceilings have not been measured, and only Linux has been checked. GET-only by default (`--k6-writes` opts in) and capped. |
+| k6 load, stress, spike, soak | Beta | Real k6 runs in an optional CI job (not required to merge). Load, stress, spike and a 30-minute soak ran on the Spring Boot demo with 0 failed requests, on GET endpoints at the default rates. Also run on real Petstore and VAmPI (0% failed) and DVGA, which a single Flask process on SQLite could not keep up with (about 50% failed under stress). Capacity ceilings have not been measured, and only Linux has been checked. GET-only by default (`--k6-writes` opts in) and capped. |
 | Fuzzing, REST | Beta | Seeded and rate-limited. Found a real 500 on the Spring Boot demo (page number overflow), which was then fixed in the demo. |
-| Fuzzing, GraphQL | Experimental | Opt-in (`--types fuzz`). Run against the GraphQL mock only. |
-| Chaos (local fault proxy, payload bursts, your own dependency commands) | Beta | Run on the Spring Boot demo with a real PostgreSQL stopped and frozen; found a slow-failure problem (`dep-slow`) that was fixed in the demo and rechecked; the second finding, `dep-blackhole`, was not rechecked after the fix. Loopback proxies only; HTTPS through the proxy, remote targets and Windows are not checked. |
-| GraphQL input | Experimental | Generated suites run against a GraphQL mock and a seeded local server, both written for this project. No independent GraphQL API (DVGA or other) has been run. |
+| Fuzzing, GraphQL | Beta | Opt-in (`--types fuzz`). One run on real DVGA found SQL error text returned to the client; before that, the GraphQL mock only. |
+| Chaos (local fault proxy, payload bursts, your own dependency commands) | Beta | Run on the Spring Boot demo with a real PostgreSQL stopped and frozen; found a slow-failure problem (`dep-slow`) that was fixed in the demo and rechecked; the second finding, `dep-blackhole`, was not rechecked after the fix. Not yet rerun on Petstore and DVGA after the 2026-11-27 fixes (both runs stopped at the baseline because of skill bugs, now fixed). Loopback proxies only; HTTPS through the proxy, remote targets and Windows are not checked. |
+| GraphQL input | Beta | One end-to-end run on real DVGA 2.2.0 (security eval and full run). Before that, a GraphQL mock and a seeded local server written for this project. |
 | Postman and curl input | Experimental | Parsed from fixture files only; no real-world collection has been run end to end. |
 | gRPC | Experimental | Unary calls only, needs the optional `grpcurl`, which CI does not install. Run against a local `grpcio` server written for the tests. gRPC load tests (`ghz`) are planned and not generated yet. |
-| Real Petstore, VAmPI, DVGA and crAPI evals | Planned | Only labelled local stand-ins have been run so far. |
+| Real Petstore, VAmPI and DVGA evals | Done once | One run each on 2026-11-27, recorded in [docs/evals.md](docs/evals.md#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27). crAPI is planned. |
 | GitHub Action, MCP server | Planned | Not started. The MCP server is planned for v0.2 with a gate the agent cannot answer for (see DECISIONS.md, v0.2). |
 
-Status means how much evidence there is, not a promise of support. Last reviewed 2026-11-24 against the runs recorded in [docs/evals.md](docs/evals.md).
+Status means how much evidence there is, not a promise of support. Last reviewed 2026-11-27 against the runs recorded in [docs/evals.md](docs/evals.md).
 
 | Area | What it produces |
 |---|---|
@@ -62,9 +63,9 @@ Scope: gRPC streaming is not covered. **Not part of this skill at all:** UI acce
 Full list of test types: [TAXONOMY.md](TAXONOMY.md).
 
 > **Version 0.1.0 is the first version.** The code is public and tested, but no release tag has been cut and it is not yet listed in any
-> skill marketplace; that is the remaining release work, see [docs/RELEASE.md](docs/RELEASE.md). The third-party eval targets
-> (Petstore, VAmPI, DVGA, crAPI) have **not** been run for real, only against labelled mock stand-ins written by the same author, so the detection numbers
-> show that the checks work on those seeded flaws and nothing more. Read [docs/evals.md](docs/evals.md) before you trust them.
+> skill marketplace; that is the remaining release work, see [docs/RELEASE.md](docs/RELEASE.md). The detection numbers
+> for seeded flaws (27 of 28) come from mock stand-ins written by the same author and show that the checks work on those flaws and nothing more.
+> Real Petstore, VAmPI and DVGA were run once each on 2026-11-27 (below); crAPI has not been run. Read [docs/evals.md](docs/evals.md) before you trust any number.
 
 ## Results: what has been run
 
@@ -126,12 +127,20 @@ the run did not have. So this run says little about writes and nothing about loa
 positives; those were fixed in the skill, and the failures that remain are the API's behaviour or mistakes in the hand-written specs (the cookie mismatch,
 the strict `page` rules). Whether the CORS and header findings matter for a public demo API is your call. Three of the four specs were written by hand.
 
+### Intentionally vulnerable demo apps (local Docker, one run each)
+
+Swagger Petstore 1.0.29, VAmPI (vulnerable and fixed) and DVGA 2.2.0, pinned by image digest, run on 2026-11-27 with main at `c120e7e` on the
+maintainer's machine. On vulnerable VAmPI the security suite found boolean SQL injection, BOLA on books, changing another user's password and the
+`_debug` endpoint returning every password; it **missed mass assignment**. On DVGA, fuzzing found SQL error text returned to the client. A full run
+(all test types, fuzz, k6 load, stress and spike, chaos) took 18 to 24 minutes per app. These runs also found 14 bugs in the skill, all fixed.
+These are demo apps with known flaws, so this is not a detection rate. Counts, what was excluded and what was missed: [docs/evals.md](docs/evals.md#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27).
+
 ### Seeded flaws and tests of the skill itself
 - On the demo API in [`examples/`](examples) with two seeded flaws, the skill found both (BOLA, 5 findings, and data exposure, 1 finding). The other 3 failures come from
   using a non-admin token on an admin endpoint; the [sample report](examples/sample-report.html) shows all 9.
 - 28 flaws were seeded across local targets (13 REST flaws in mock stand-ins for Petstore and VAmPI, 5 in a seeded FastAPI app run as a real local server,
   10 in a GraphQL mock). The matching generated test failed on 27 of them (the gap is VAmPI mass assignment) and the clean variants passed apart from one listed limitation.
-  The third-party eval targets (Petstore, VAmPI, DVGA, crAPI) have **not** been run for real.
+  Real Petstore, VAmPI and DVGA runs are described above; crAPI has not been run.
 - The repository's own tests run on Python 3.11, 3.12 and 3.13 in CI.
 
 What this does not show: detection rates on real third-party APIs, behaviour under production load, or anything about APIs that need OAuth flows
@@ -463,7 +472,7 @@ $ echo $?
 - Detection of seeded flaws: 27 of 28 found; the gap (VAmPI mass assignment) is documented. Targets that could not be reached
   from the build sandbox ran as labelled mocks; see [docs/evals.md](docs/evals.md).
 - Real runs: one local Spring Boot service (all test types, k6 and chaos) and four public sandbox APIs read-only, as described under Results. No real-API detection rates are claimed, and nothing here is "production-tested".
-- **Not yet done:** runs against the real Petstore, VAmPI and DVGA, which you can do with [evals/README.md](evals/README.md).
+- Real Petstore, VAmPI and DVGA: one run each (2026-11-27, `c120e7e`), see Results. **Not yet done:** crAPI, a second run of each, and chaos on Petstore and DVGA after the fixes.
 - **Not yet done, and not claimed:**
   - gRPC load tests through `ghz` are not generated or run; gRPC unary tests are covered, against a local `grpcio` server and real grpcurl 1.9.1.
   - The API gateway and GraphQL example apps in `examples/aws-local/` are local stand-ins written for the tests. The AWS emulator has not been run against them.
