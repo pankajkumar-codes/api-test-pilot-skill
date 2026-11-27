@@ -249,6 +249,7 @@ def test_driver_runs_k6_and_chaos_after_the_tests_and_reports_them(tmp_path, ser
     assert (tmp_path / "k6-runs.txt").read_text().count("run") == 1
     assert (out / "k6_tests" / "load.js").exists() and (out / "results" / "load-summary.json").exists()
     assert (out / "results" / "chaos" / "chaos.xml").exists()
+    assert "--wait-for-target-s 120" in p.stdout, "after k6, chaos waits for a server still working through the backlog"
     data = json.loads((out / "report.json").read_text())
     assert [k["profile"] for k in data["k6"]] == ["load"]
     assert any(c["type"] == "chaos" for c in data["cases"]), "the chaos results are in the report"

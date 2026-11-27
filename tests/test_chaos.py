@@ -353,6 +353,52 @@ def test_runner_stops_when_the_baseline_is_unhealthy(tmp_path):
     assert [e["status"] for e in data["experiments"]] == ["failed", "skipped"]
 
 
+def test_a_probe_that_is_already_broken_is_left_out_not_a_failed_baseline(tmp_path):
+    # Petstore's /store/inventory answers 500 once odd orders exist; that alone must not stop every experiment
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            code = 500 if self.path.startswith("/broken") else 200
+            self.send_response(code)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+    srv = Upstream(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        out = tmp_path / "res"
+        t0 = time.monotonic()
+        r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
+                     "--probe", "/health", "--baseline-s", "2", "--fault-s", "2", "--wait-for-target-s", "60", "--out", str(out)])
+        assert time.monotonic() - t0 < 50, "a 5xx is an answer: the wait for the target does not sit on a broken probe"
+        assert "probe /broken left out" in r.stdout and "not healthy before any fault" not in r.stdout
+        data = json.loads((out / "chaos.json").read_text())
+        status = {e["name"]: e["status"] for e in data["experiments"]}
+        assert status == {"test_chaos_probe_broken": "skipped", "test_chaos_baseline": "passed", "test_chaos_proxy_5xx": "passed"}
+        xml = (out / "chaos.xml").read_text()
+        assert 'name="test_chaos_probe_broken"' in xml and "left out: it answered 5xx" in xml
+        rep = tmp_path / "report.md"
+        assert summarize_results.main(["--junit", str(out / "chaos.xml"), "-o", str(rep)]) == 0
+        assert "left out: it answered 5xx" in rep.read_text(), "the report says a probe was left out and why"
+        # every probe broken: still the unhealthy-baseline finding
+        r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
+                     "--probe", "/broken2", "--baseline-s", "2", "--out", str(tmp_path / "res2")])
+        assert r.returncode == 1 and "not healthy before any fault" in r.stdout
+        # fewer than half answer normally: nothing is left out, the baseline fails and names the broken probes
+        r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
+                     "--probe", "/broken2", "--probe", "/broken3", "--probe", "/health", "--baseline-s", "2",
+                     "--out", str(tmp_path / "res3")])
+        assert r.returncode == 1 and "left out" not in r.stdout
+        xml = (tmp_path / "res3" / "chaos.xml").read_text()
+        assert "not healthy before any fault" in xml and "/broken, /broken2, /broken3" in xml
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
 def test_dep_proxy_spec_is_validated(tmp_path, upstream):
     srv, port = echo_server()
     try:

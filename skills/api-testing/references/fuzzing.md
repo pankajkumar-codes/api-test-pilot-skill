@@ -20,7 +20,7 @@ nesting; malformed raw JSON (truncated, trailing comma, BOM, NaN, invalid UTF-8,
 Highest-value payloads come first, so a small budget still covers them.
 
 **Findings** (each with severity and a redacted curl repro; response bodies are never printed):
-5xx on malformed input (MEDIUM), connection reset or hang/timeout (MEDIUM), stack trace/database error/file content in a response (HIGH), sensitive fields in an error body (MEDIUM),
+5xx on malformed input (MEDIUM), connection reset or hang/timeout (MEDIUM; after 3 timeouts or dropped connections in a row the endpoint gets no more cases), stack trace/database error/file content in a response (HIGH), sensitive fields in an error body (MEDIUM),
 CRLF reflected into a header (HIGH), slow answers over `APITEST_FUZZ_SLOW_MS` (MEDIUM, possible ReDoS). A 4xx is the correct answer to bad input and is never a finding.
 
 ## Limits (env vars can lower the hard caps, never raise them)

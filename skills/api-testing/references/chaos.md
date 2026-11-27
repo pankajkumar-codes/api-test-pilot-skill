@@ -57,7 +57,7 @@ arguments and `user:password@` in URLs masked; do not put secrets in commands an
 ## Findings the runner reports
 No recovery within `--max-recovery-s` (HIGH); API stopped accepting connections during a dependency fault (HIGH); requests hang instead of failing fast
 (`--fail-fast-ms`, MEDIUM); the API answered 5xx on bad input or on a path-only fault (MEDIUM); unhealthy right after a payload burst (HIGH).
-A skipped experiment says why. If the baseline is unhealthy nothing is injected.
+A skipped experiment says why. If the baseline is unhealthy nothing is injected. A probe that already answers 5xx before the baseline is left out, and shown as its own skipped case `test_chaos_probe_<path>`, while at least half the probes answer normally, so one broken endpoint does not stop the whole run. With fewer healthy probes nothing is left out and the baseline fails, naming the broken ones. Each probe gets two GETs before the baseline, so a hanging probe costs two `--timeout-s`. `run_all.py` passes `--wait-for-target-s 120` when k6 ran first, so a server still busy with the k6 backlog gets time to answer; a 5xx counts as an answer.
 
 ## Bounds (hard ceilings in code)
 Probe rate 50/s; probe timeout and settle wait 60 s; fault 120 s; dependency outage 60 s; whole run 30 min (checked between steps); payload 1 MiB; burst 100; latency 10 s; proxies on 127.0.0.1 only, upstream
