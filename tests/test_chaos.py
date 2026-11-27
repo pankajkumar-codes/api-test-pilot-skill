@@ -370,8 +370,10 @@ def test_a_probe_that_is_already_broken_is_left_out_not_a_failed_baseline(tmp_pa
     try:
         base = f"http://127.0.0.1:{srv.server_address[1]}"
         out = tmp_path / "res"
+        t0 = time.monotonic()
         r = run_cli([intake_for(tmp_path, post=False), "--base-url", base, "--experiments", "proxy-5xx", "--probe", "/broken",
-                     "--probe", "/health", "--baseline-s", "2", "--fault-s", "2", "--out", str(out)])
+                     "--probe", "/health", "--baseline-s", "2", "--fault-s", "2", "--wait-for-target-s", "60", "--out", str(out)])
+        assert time.monotonic() - t0 < 50, "a 5xx is an answer: the wait for the target does not sit on a broken probe"
         assert "probe /broken left out" in r.stdout and "not healthy before any fault" not in r.stdout
         data = json.loads((out / "chaos.json").read_text())
         assert data["experiments"][0]["status"] == "passed"

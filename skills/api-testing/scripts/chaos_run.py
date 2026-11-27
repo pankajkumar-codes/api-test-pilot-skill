@@ -839,7 +839,8 @@ def main(argv: list[str] | None = None) -> int:
             while time.monotonic() < deadline and runner.dep_proxy.snapshot().get("connections", 0) == 0:
                 time.sleep(0.5)
         deadline = time.monotonic() + min(a.wait_for_target_s, 300)
-        while time.monotonic() < deadline and runner.load().one()[1] is not None:   # wait for the API to answer
+        # wait for the API to answer at all; a 5xx is an answer (a broken probe is dropped next, not waited on)
+        while time.monotonic() < deadline and runner.load().one()[1] in ("timeout", "conn"):
             time.sleep(1)
         runner.run(names, deps)
     except PermissionError as exc:

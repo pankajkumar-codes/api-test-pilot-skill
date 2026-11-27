@@ -161,6 +161,9 @@ def run_chaos(args: argparse.Namespace, py: str, intake: Path, results: Path) ->
     cmd += ["--base-url", args.base_url] if args.base_url else []
     cmd += ["--experiments", args.chaos_experiments] if args.chaos_experiments else []
     cmd += ["--dependency-config", args.dependency_config, "--allow-hooks"] if args.dependency_config else []
+    if args.k6:
+        # a small server can still be working through the k6 backlog when chaos starts (DVGA was, after the spike profile)
+        cmd += ["--wait-for-target-s", "120"]
     (chaos_out / "chaos.xml").unlink(missing_ok=True)  # same reason: only a file this run wrote may reach the report
     code = run(cmd)
     if code == GATE_REFUSED:

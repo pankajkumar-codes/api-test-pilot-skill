@@ -47,6 +47,11 @@ Changes merged after the 0.1.0 tag go here.
   all experiments skipped). On the full Petstore run `/store/inventory` returns 500 once an order without a status exists, which the
   functional tests create. A probe that answers 5xx twice before the baseline is now left out, with a note in the baseline result, as long
   as another probe is healthy. If every probe fails, or the failures are timeouts or refused connections, the baseline still fails.
+- `run_all.py --k6 ... --chaos` started chaos the moment the last k6 profile ended. DVGA (one Flask process on SQLite) was still working
+  through the spike backlog, so every chaos probe timed out and all experiments were skipped. After k6, chaos now waits up to 120 s for
+  the target to answer (`--wait-for-target-s 120`); a 5xx counts as an answer, so a broken probe is never waited on.
+- Fuzzing sent all 40 cases to an operation that hangs (DVGA's `systemUpdate` holds the server 20 to 50 s), so the full DVGA pytest pass
+  took 10 minutes. After 3 requests in a row that time out or lose the connection, an endpoint gets no more cases, and the report says how many were not sent.
 - Seen on the full DVGA run (`run_all.py --types all,fuzz --k6 --chaos`):
   - `--types all,fuzz` was refused for a GraphQL schema ("Not available for GraphQL yet: all"). It now means every default type plus fuzz.
   - A query named like a delete (`deleteAllPastes`, which DVGA puts in Query) now needs `APITEST_ALLOW_DESTRUCTIVE=yes` like a delete

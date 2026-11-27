@@ -42,6 +42,7 @@ HARD_MAX_RPS_LOCAL = 100.0   # a loopback target cannot be hurt by the request r
 MIN_SHARE = 20               # cases that fit the whole hostile-input pass (at most 9 NUL cases + 10 other values); below this the pass is cut at its tail
 MAX_NEST = 100
 MAX_FINDINGS_SHOWN = 10
+MAX_TIMEOUTS_IN_A_ROW = 3   # an endpoint that hangs or drops the connection this often in a row gets no more cases
 
 STRINGS: list[tuple[str, Any]] = [
     ("empty", ""), ("space", " "), ("word_null", "null"), ("word_true", "true"), ("minus_one", "-1"), ("zero", "0"),
@@ -418,22 +419,32 @@ def run_cases(title: str, cases: list[dict], send: Any, cfg: Config, extra_judge
     findings: list[dict] = []
     seen: set[tuple] = set()
     sent = 0
+    hung_in_a_row = 0
     _state["per"].setdefault(title, 0)
     for case in cases:
+        if hung_in_a_row >= MAX_TIMEOUTS_IN_A_ROW:
+            # each further case would wait out the full timeout too (DVGA's systemUpdate holds the server 20-50 s)
+            findings.append({"kind": "timeout", "sev": "MEDIUM", "case": "(stopped)", "repro": "",
+                             "msg": f"stopped after {hung_in_a_row} requests in a row timed out or lost the connection; "
+                                    f"{len(cases) - sent} case(s) not sent"})
+            break
         _pace(cfg, title)
         sent += 1
         try:
             resp = send(case)
         except requests.exceptions.Timeout as exc:
+            hung_in_a_row += 1
             findings.append({"kind": "timeout", "sev": "MEDIUM", "case": case["label"], "msg": "request hung or timed out",
                              "repro": _repro(exc)})
             continue
         except requests.exceptions.ConnectionError as exc:
+            hung_in_a_row += 1
             findings.append({"kind": "connection", "sev": "MEDIUM", "case": case["label"],
                              "msg": "connection dropped or reset: the server may have crashed", "repro": _repro(exc)})
             continue
         except (requests.exceptions.RequestException, UnicodeError, ValueError, TypeError):
             continue  # the client library wouldn't build the request; not a server problem
+        hung_in_a_row = 0
         verdicts = judge(resp, cfg) + (extra_judge(resp) if extra_judge else [])
         for kind, sev, msg in verdicts:
             key = (kind, resp.status_code, case["label"].split("=")[0])

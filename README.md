@@ -105,6 +105,7 @@ What was not done on this target, so you can judge the numbers:
 - Writes and intrusive probes ran only because the database was disposable. HTTPS and authentication were not covered (the demo has none).
 - Chaos cases show no request or response bodies in the report (they are not captured through HTTP). A health probe that already answers
   5xx before any fault is left out of the chaos run and named in the baseline result; the functional tests report that endpoint.
+- Fuzzing stops sending to an endpoint after 3 requests in a row time out or lose the connection, so an operation that hangs is reported once instead of holding the run.
 
 ### Four public sandbox APIs (read-only)
 

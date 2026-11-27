@@ -119,3 +119,39 @@ def test_loopback_run_stays_fast(run):
     # 30 endpoints at the 5/s non-local default would take minutes; this loose bound is only a sanity check
     import re
     assert float(re.search(r"in ([\d.]+)s", proc.stdout).group(1)) < 90
+
+
+def test_an_endpoint_that_keeps_hanging_is_not_sent_the_rest_of_its_cases(fz):
+    import requests
+    sent = []
+
+    def send(case):
+        sent.append(case["label"])
+        raise requests.exceptions.ReadTimeout("read timed out")
+
+    cases = [{"label": f"c{i}", "send": {}} for i in range(40)]
+    with pytest.raises(pytest.fail.Exception) as exc:
+        fz.run_cases("query hang", cases, send, fz.config(local=True))
+    assert len(sent) == fz.MAX_TIMEOUTS_IN_A_ROW
+    assert f"stopped after {fz.MAX_TIMEOUTS_IN_A_ROW} requests in a row timed out or lost the connection; 37 case(s) not sent" in str(exc.value)
+
+
+def test_a_timeout_between_answers_does_not_stop_the_endpoint(fz):
+    import requests
+    sent = []
+
+    import datetime
+
+    def send(case):
+        sent.append(case["label"])
+        if len(sent) % 2:
+            raise requests.exceptions.ReadTimeout("read timed out")
+        r = requests.Response()
+        r.status_code, r._content, r.elapsed = 400, b"{}", datetime.timedelta(milliseconds=3)
+        r.request = requests.Request("POST", "http://127.0.0.1:1/graphql").prepare()
+        return r
+
+    cases = [{"label": f"c{i}", "send": {}} for i in range(8)]
+    with pytest.raises(pytest.fail.Exception):
+        fz.run_cases("query flaky", cases, send, fz.config(local=True))
+    assert len(sent) == 8
