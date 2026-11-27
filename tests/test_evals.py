@@ -290,3 +290,19 @@ def test_reset_style_endpoints_are_recognised():
     assert gc.resets_state({"method": "GET", "path": "/init", "id": "x", "summary": "Creates and populates the database with dummy data"})
     for path in ("/users/reset-password", "/pets", "/database/stats", "/books/create"):
         assert not gc.resets_state({"method": "GET", "path": path, "id": "x", "summary": "Returns things"}), path
+
+
+def test_reset_style_endpoints_are_kept_out_of_fuzz_k6_and_chaos(tmp_path):
+    # VAmPI's GET /createdb wiped the test users when the fuzz suite, k6 and a chaos probe called it
+    import chaos_run
+    import gen_k6
+    doc = parse_openapi.build(str(SPECS / "vampi-openapi.yaml"))
+    gen_pytest.generate(doc, tmp_path, ["all", "fuzz"])
+    fuzz = (tmp_path / "test_fuzz.py").read_text()
+    assert "'resets': True" in fuzz and "marks=pytest.mark.resets_state" in fuzz
+    notes: list[str] = []
+    paths = [e["path"] for e in gen_k6.rest_endpoints(doc, True, None, notes)]
+    assert "/createdb" not in paths and "/users/v1" in paths
+    assert any("/createdb" in n and "never load-tested" in n for n in notes)
+    probes = chaos_run.pick_probes(doc, [])
+    assert probes and "/createdb" not in probes

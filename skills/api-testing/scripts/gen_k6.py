@@ -271,6 +271,9 @@ def rest_endpoints(doc: dict, include_writes: bool, only: list[str] | None, note
         if method == "DELETE":
             notes.append(f"{label}: DELETE is never load-tested")
             continue
+        if gen_common.resets_state(ep):
+            notes.append(f"{label}: looks like it recreates or wipes the data; never load-tested")
+            continue
         write = method in gen_common.BODY_METHODS
         if method not in ("GET", "HEAD") and not write:
             continue

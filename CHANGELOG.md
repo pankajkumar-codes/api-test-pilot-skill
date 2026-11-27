@@ -24,6 +24,8 @@ Changes merged after the 0.1.0 tag go here.
     Without a way to read it back it is MEDIUM, "check by hand". Fixed VAmPI ignores the path and updates the caller, which was reported as BOLA.
   - Endpoints that recreate or wipe the data (`GET /createdb`, `/reset-db`, summary "creates and populates the database") are marked
     `resets_state`: their tests run after all others and only with `APITEST_ALLOW_DESTRUCTIVE=yes`. VAmPI's wiped the test user mid-run.
+    The fuzz suite marks them the same way, k6 never load-tests them, and chaos never uses them as a health probe or a payload target
+    (on the first full VAmPI run all three called `/createdb`, which wiped the test users).
   - When the server stops answering (a read timeout, then a plain GET of the base URL also times out), the run waits up to
     `APITEST_HANG_WAIT_S` seconds (default 60) for it to come back. If it does, that request is MEDIUM (API4, the service was unavailable
     for everyone) and the run goes on; DVGA's `systemUpdate` pauses for 20 to 50 s. If not, the run reports one HIGH (API4 unrestricted

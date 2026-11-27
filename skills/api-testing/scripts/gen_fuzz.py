@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from gen_common import Module, params_in, py, supported_body
+from gen_common import Module, params_in, py, resets_state, supported_body
 
 NAME_RE = re.compile(r"^[A-Za-z0-9_.\-\[\]]{1,64}$")
 
@@ -23,7 +23,10 @@ def generate(doc: dict, mod: Module) -> list[str]:
         if ep["method"] in ("HEAD", "OPTIONS", "TRACE", "CONNECT"):
             continue
         query = [p["name"] for p in params_in(ep, "query") if isinstance(p.get("name"), str) and NAME_RE.match(p["name"])]
-        rows.append((ep["id"], {"query": query[:20], "method": ep["method"]}))
+        spec = {"query": query[:20], "method": ep["method"]}
+        if resets_state(ep):
+            spec["resets"] = True
+        rows.append((ep["id"], spec))
     if not rows:
         notes.append("fuzz: no endpoint to fuzz")
         return notes
@@ -34,7 +37,9 @@ def generate(doc: dict, mod: Module) -> list[str]:
     mod.add('''@pytest.mark.intrusive
 @pytest.mark.parametrize("ep_id", [
     # A DELETE is fuzzed with the id the other tests read, so it is marked destructive and conftest runs it after them.
-    pytest.param(i, marks=pytest.mark.destructive) if FUZZ_SPECS[i]["method"] == "DELETE" else i
+    # An endpoint that recreates or wipes the data (a /createdb or /reset-db) is marked resets_state: it runs last, and only when allowed.
+    pytest.param(i, marks=pytest.mark.resets_state) if FUZZ_SPECS[i].get("resets")
+    else pytest.param(i, marks=pytest.mark.destructive) if FUZZ_SPECS[i]["method"] == "DELETE" else i
     for i in sorted(FUZZ_SPECS, key=lambda i: (FUZZ_SPECS[i]["method"] == "GET", i))])   # writes first
 def test_fuzz(api, ep_id):
     """Seeded, bounded fuzzing of one endpoint: no 5xx, hangs, crashes, leaks or header injection."""
