@@ -278,7 +278,7 @@ def _injection(eps: list[dict], mod: Module) -> None:
         mod.add("@pytest.mark.intrusive\n"
                 f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
                 f"def {mod.unique('test_injection_' + ep['id'])}(api, label, kw):\n"
-                f"    resp = api.send({_ref(ep)}, **kw)\n    rt.expect_injection_safe(resp, label)\n")
+                f"    resp = api.send({_ref(ep)}, **kw)\n    rt.expect_injection_safe(resp, label, api, {_ref(ep)})\n")
 
 
 def _render_kw(kw: dict) -> str:

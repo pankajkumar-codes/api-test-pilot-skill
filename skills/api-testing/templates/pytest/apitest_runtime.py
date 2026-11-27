@@ -1031,13 +1031,32 @@ def expect_ssrf_blocked(resp: requests.Response, url: str) -> None:
         fail(resp, f"internal URL {url} was accepted: verify the server never fetches it", "MEDIUM", "API7:2023 SSRF")
 
 
-def expect_injection_safe(resp: requests.Response, label: str) -> None:
+def expect_injection_safe(resp: requests.Response, label: str, api: Any = None, ep: Any = None) -> None:
+    if api is not None and ep is not None:
+        expect_tautology_not_matched(api, ep, resp, label)
     if resp.status_code >= 500:
         fail(resp, f"{label}: payload caused a server error", "HIGH", "A03 injection")
     if DB_ERROR_RE.search(resp.text) or TRAVERSAL_RE.search(resp.text):
         fail(resp, f"{label}: response leaks internals (database error, stack trace or file content)", "HIGH", "A03 injection")
     if "<script>apitest" in resp.text and "html" in resp.headers.get("Content-Type", ""):
         fail(resp, f"{label}: payload reflected unescaped in an HTML response", "MEDIUM", "A03 injection")
+
+
+def expect_tautology_not_matched(api: Any, ep: Any, resp: requests.Response, label: str) -> None:
+    """A path value like `x' OR '1'='1` must not find a record that an unknown value does not find.
+
+    Boolean SQL injection gives no error text: the lookup just matches. So when the tautology gets a 2xx
+    on a read, ask again with a value that cannot exist; a 4xx there means the payload changed the query.
+    """
+    m = re.fullmatch(r"path_(.+)\[[23]\]", label)
+    if not m or resp.request.method != "GET" or not 200 <= resp.status_code < 300:
+        return
+    name = m.group(1)
+    meta = (ep.path_params or {}).get(name) or {}
+    baseline = api.send(ep, path={name: api.missing_id(meta.get("type", "string"), meta.get("format"))})
+    if 400 <= baseline.status_code < 500:
+        fail(resp, f"{label}: the payload found a record ({resp.status_code}) where an unknown value gets "
+                   f"{baseline.status_code} (boolean SQL injection)", "HIGH", "A03 injection")
 
 
 def expect_no_error_leak(resp: requests.Response) -> None:

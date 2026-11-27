@@ -147,6 +147,26 @@ def test_same_login_failure_helper(petstore_suite):
     with pytest.raises(BaseException) as ei:  # a body that is not JSON gives no way to tell, so a 2xx still counts
         rt.expect_same_login_failure(R(200, "Logged in user session: 42", "bob"), R(400, "x", "zz"), "bob")
     assert "succeeded" in str(ei.value)
+    # boolean SQL injection: the tautology finds a record that an unknown value does not
+    class FakeApi:
+        def __init__(self, status):
+            self.status = status
+
+        @staticmethod
+        def missing_id(kind="string", fmt=None):
+            return "does-not-exist-1"
+
+        def send(self, ep, **kw):
+            return R(self.status, "{}", "x")
+
+    ep = types.SimpleNamespace(path_params={"username": {"type": "string"}})
+    hit = R(200, '{"username": "name1"}', "x")
+    hit.request.method = "GET"
+    with pytest.raises(BaseException) as ei:
+        rt.expect_injection_safe(hit, "path_username[3]", FakeApi(404), ep)
+    assert "boolean SQL injection" in str(ei.value)
+    rt.expect_injection_safe(hit, "path_username[3]", FakeApi(200), ep)   # the API answers 200 for anything: no signal
+    rt.expect_injection_safe(hit, "path_username[0]", FakeApi(404), ep)   # traversal payloads are not tautologies
     # a handled 400 that names the target type is not a leak; a Java exception or stack frame is
     assert not rt.DB_ERROR_RE.search("Input error: couldn't convert `1 OR 1=1` to type `class java.lang.Long`")
     assert rt.DB_ERROR_RE.search("java.lang.NumberFormatException: For input string")
