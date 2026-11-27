@@ -894,7 +894,7 @@ def expect_contract(resp: requests.Response, ep: Endpoint) -> None:
 # --------------------------------------------------------------------------- security expectations
 DB_ERROR_RE = re.compile(
     r"(SQL syntax|SQLSTATE|ORA-\d{4,5}|psycopg|pg_query|mysql_|sqlite3?\.|MongoError|MongoServerError|"
-    r"Traceback \(most recent|java\.lang\.|System\.NullReference|node_modules|at \S+ \(\S+:\d+:\d+\)|"
+    r"Traceback \(most recent|java\.lang\.\w*(?:Exception|Error)\b|System\.NullReference|node_modules|at \S+ \(\S+:\d+:\d+\)|"
     r"\bat \w[\w.$]*\(\w+\.java:\d+\))", re.I)
 TRAVERSAL_RE = re.compile(r"root:[x*]:0:0|\[boot loader\]|ami-id|instance-id|SSH-\d")
 
@@ -913,7 +913,7 @@ def expect_same_login_failure(existing: requests.Response, unknown: requests.Res
     for r in (existing, unknown):
         if r.status_code == 429:
             pytest.skip("throttled (429) before the two logins could be compared")
-        if 200 <= r.status_code < 400:
+        if 200 <= r.status_code < 400 and login_issued_credentials(r):
             fail(r, "a login with a throwaway password succeeded", "HIGH", "API2:2023 broken authentication")
     owasp = "API2:2023 broken authentication"
     if existing.status_code != unknown.status_code:
@@ -928,6 +928,35 @@ def expect_same_login_failure(existing: requests.Response, unknown: requests.Res
     if a != b:
         fail(existing, "failed login message differs for an existing and an unknown username (user enumeration): "
                        f"{a[:120]!r} vs {b[:120]!r}", "MEDIUM", owasp)
+
+
+CREDENTIAL_KEY_RE = re.compile(r"token|jwt|session|bearer", re.I)
+
+
+def login_issued_credentials(resp: requests.Response) -> bool:
+    """A 2xx login only counts as a success when it hands out something to log in with.
+
+    Some APIs answer a wrong password with 200 and {"status": "fail"}; that is a refusal, not a login.
+    A cookie, or a JSON field named like a token with a value, is a credential. A body that is not JSON
+    gives no way to tell, so it still counts as a success.
+    """
+    if resp.headers.get("Set-Cookie"):
+        return True
+    try:
+        body = resp.json()
+    except ValueError:
+        return True
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if CREDENTIAL_KEY_RE.search(str(k)) and isinstance(v, str) and v:
+                    return True
+                stack.append(v)
+        elif isinstance(node, list):
+            stack.extend(node)
+    return False
 
 
 def unknown_name(resp: requests.Response) -> str:

@@ -134,6 +134,23 @@ def test_same_login_failure_helper(petstore_suite):
     assert "enumeration" in str(ei.value)
     with pytest.raises(pytest.skip.Exception):
         rt.expect_same_login_failure(R(429, "slow down", "bob"), R(400, "x", "zz"), "bob")
+    # VAmPI answers a wrong password with 200 and {"status": "fail"}: a refusal, so only the enumeration check may fire
+    fail_a = '{"status": "fail", "message": "Password is not correct for the given username."}'
+    fail_b = '{"status": "fail", "message": "Username does not exist"}'
+    with pytest.raises(BaseException) as ei:
+        rt.expect_same_login_failure(R(200, fail_a, "bob"), R(200, fail_b, "zz"), "bob")
+    assert "enumeration" in str(ei.value) and "succeeded" not in str(ei.value)
+    rt.expect_same_login_failure(R(200, '{"status": "fail", "message": "bad"}', "bob"), R(200, '{"status": "fail", "message": "bad"}', "zz"), "bob")
+    with pytest.raises(BaseException) as ei:
+        rt.expect_same_login_failure(R(200, '{"auth_token": "eyJ.x.y"}', "bob"), R(400, "x", "zz"), "bob")
+    assert "succeeded" in str(ei.value)
+    with pytest.raises(BaseException) as ei:  # a body that is not JSON gives no way to tell, so a 2xx still counts
+        rt.expect_same_login_failure(R(200, "Logged in user session: 42", "bob"), R(400, "x", "zz"), "bob")
+    assert "succeeded" in str(ei.value)
+    # a handled 400 that names the target type is not a leak; a Java exception or stack frame is
+    assert not rt.DB_ERROR_RE.search("Input error: couldn't convert `1 OR 1=1` to type `class java.lang.Long`")
+    assert rt.DB_ERROR_RE.search("java.lang.NumberFormatException: For input string")
+    assert rt.DB_ERROR_RE.search("at com.example.Foo.bar(Foo.java:42)")
 
 
 # ------------------------------------------------------------------ the driver and the mocks
