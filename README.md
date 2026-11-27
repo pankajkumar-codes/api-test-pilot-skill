@@ -336,6 +336,7 @@ The skill and the generated code never set these for you. `localhost`, `127.x.x.
 | `APITEST_PATH_<NAME>`, `APITEST_VICTIM_<NAME>` | existing ids for path parameters, and ids owned by another user (for BOLA checks) |
 | `APITEST_UNIQUE_BODIES=no`, `APITEST_RUN_ID` | stop tagging unique-looking create fields (`email`, `username`, `slug` ...) with a run id, or pin its 4-character prefix to reproduce a run (a rerun then repeats the same values) |
 | `APITEST_RPS`, `APITEST_DELAY_MS` | cap the request rate or pause between requests on shared targets |
+| `APITEST_HANG_WAIT_S` | seconds to wait for a server that stopped answering before the remaining tests are skipped (default 60) |
 | `APITEST_FUZZ_CASES`, `APITEST_FUZZ_RPS`, `APITEST_FUZZ_SEED` | size, rate and seed of the fuzz run. The request budget is split between endpoints; the rate defaults to 50/s against a loopback target and 5/s elsewhere |
 | `APITEST_FUZZ_ENDPOINTS` | fuzz only these operation ids, e.g. `createPet,listPets`; the run ends with a budget summary per endpoint |
 
@@ -383,7 +384,7 @@ Exit codes, for scripts and CI: pytest exits 0 when every test passed, 1 when an
 Notes on running generated suites:
 - Tests that delete or overwrite data are marked `destructive`, need `APITEST_ALLOW_DESTRUCTIVE=yes`, and run last. That includes the fuzzed DELETE in an `all,fuzz` suite, which goes after every other test because it uses the same id.
 - Endpoints that recreate or wipe the data (for example `GET /createdb`) are marked `resets_state`: their tests run after everything else and need `APITEST_ALLOW_DESTRUCTIVE=yes`.
-- If the server stops answering mid-run (a request times out and a plain GET of the base URL then times out too), that request is reported once as HIGH and the remaining tests are skipped straight away.
+- If the server stops answering mid-run (a request times out and a plain GET of the base URL then times out too), the run waits up to `APITEST_HANG_WAIT_S` seconds (default 60). If the server comes back, that request is reported as MEDIUM and the run continues; if not, it is reported once as HIGH and the remaining tests are skipped straight away.
   With `pytest-xdist` each worker orders its own share, so use `-p no:xdist` (or `-n 0`) when that order matters to you.
 - Be polite to shared targets: `APITEST_DELAY_MS=300` (or `--apitest-delay-ms 300`) pauses between requests, `APITEST_RPS=5`
   (or `--apitest-rps 5`) caps the rate; with both, the slower limit applies. A failed connect is retried (GET/HEAD/OPTIONS only,

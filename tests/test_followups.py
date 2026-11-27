@@ -419,3 +419,35 @@ def test_burst_size_bad_value_fails_with_one_clear_message(monkeypatch, bad, rt_
     with pytest.raises(pytest.fail.Exception) as exc:
         rt.burst_size(30)
     assert "APITEST_RATE_BURST must be a whole number from 1 to 1000" in str(exc.value)
+
+
+def test_a_server_that_stops_answering_is_waited_for_then_reported(rt, monkeypatch):
+    import requests
+    monkeypatch.setattr(rt.time, "sleep", lambda s: None)
+
+    def timeout(*a, **kw):
+        raise requests.exceptions.ReadTimeout()
+
+    def make_api(answers):
+        api = rt.Api("http://127.0.0.1:9", {}, timeout=2, retries=0)
+        monkeypatch.setattr(api.session, "request", timeout)
+        replies = iter(answers)
+        monkeypatch.setattr(api, "_still_answering", lambda: next(replies))
+        return api
+
+    rt.SERVER_HUNG.clear()
+    # comes back after a pause: MEDIUM, and later tests still run
+    monkeypatch.setenv("APITEST_HANG_WAIT_S", "10")
+    with pytest.raises(pytest.fail.Exception) as exc:
+        make_api([False, False, True]).get("/slow")
+    assert "only recovered" in str(exc.value) and "MEDIUM" in str(exc.value) and not rt.SERVER_HUNG
+
+    # never comes back within the wait: HIGH once, then every later request skips at once
+    monkeypatch.setenv("APITEST_HANG_WAIT_S", "0")
+    api = make_api([False])
+    with pytest.raises(pytest.fail.Exception) as exc:
+        api.get("/down")
+    assert "had not recovered" in str(exc.value) and "HIGH" in str(exc.value) and rt.SERVER_HUNG
+    with pytest.raises(pytest.skip.Exception):
+        api.get("/next")
+    rt.SERVER_HUNG.clear()

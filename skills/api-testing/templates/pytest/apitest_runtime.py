@@ -1079,6 +1079,11 @@ def expect_injection_safe(resp: requests.Response, label: str, api: Any = None, 
 
 
 _VALID_INPUT_5XX: dict[str, bool] = {}
+def hang_wait_seconds() -> float:
+    """How long to wait for a server that stopped answering before calling it down for good (APITEST_HANG_WAIT_S, default 60)."""
+    return _env_number("APITEST_HANG_WAIT_S", 60.0)
+
+
 SERVER_HUNG: list[str] = []   # the request after which the server stopped answering; later requests skip at once
 
 
@@ -1405,6 +1410,15 @@ class Api:
         except requests.exceptions.RequestException as exc:
             return not isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError))
 
+    def _wait_until_answering(self) -> float | None:
+        """Seconds until the server answered again, or None if it did not within APITEST_HANG_WAIT_S."""
+        start = time.monotonic()
+        while time.monotonic() - start < hang_wait_seconds():
+            time.sleep(2.0)
+            if self._still_answering():
+                return time.monotonic() - start
+        return None
+
     def _request(self, method: str, url: str, transient: str = "skip", **kw: Any) -> requests.Response:
         """Every request goes through here and is paced. A failure to CONNECT is retried (safe methods only) and then ends the
         test as "target unreachable" (a skip, or a failure for smoke tests or APITEST_UNREACHABLE=fail). An error after the
@@ -1427,10 +1441,16 @@ class Api:
                                          requests.exceptions.ChunkedEncodingError))
                             and not isinstance(exc, requests.exceptions.SSLError)):
                         if isinstance(exc, requests.exceptions.Timeout) and not self._still_answering():
-                            SERVER_HUNG.append(f"{method.upper()} {_redact_url(url)}")
-                            fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering after this request "
-                                       "(a plain GET of the base URL now times out too). One request can take the service down; "
-                                       "the remaining tests are skipped", "HIGH", "API4:2023 unrestricted resource consumption")
+                            waited = self._wait_until_answering()
+                            if waited is None:
+                                SERVER_HUNG.append(f"{method.upper()} {_redact_url(url)}")
+                                fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering after this request "
+                                           f"and had not recovered {hang_wait_seconds():.0f} s later (a plain GET of the base URL "
+                                           "times out too). One request can take the service down; the remaining tests are skipped",
+                                     "HIGH", "API4:2023 unrestricted resource consumption")
+                            fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering anyone after this request "
+                                       f"and only recovered about {waited:.0f} s later. One request can make the service unavailable "
+                                       "for everyone", "MEDIUM", "API4:2023 unrestricted resource consumption")
                         fail(None, f"{method.upper()} {_redact_url(url)}: the server accepted the connection but gave no complete "
                                    f"response ({type(exc).__name__}): it dropped, reset or hung on this request", "MEDIUM")
                     raise
