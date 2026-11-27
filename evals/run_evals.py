@@ -212,7 +212,8 @@ class EvalError(RuntimeError):
     """A problem the person can fix; reported as one line, exit code 2."""
 
 
-def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: dict, work: Path, real: bool) -> dict:
+def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: dict, work: Path, real: bool,
+                 select: str | None = None) -> dict:
     cfg = TARGETS[name]
     work.mkdir(parents=True, exist_ok=True)
     intake, suite, junit, report = work / "intake.json", work / "suite", work / "junit.xml", work / "report.md"
@@ -230,7 +231,8 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     env.update(extra_env)
     env["APITEST_BASE_URL"] = base_url
     # pytest exits 1 when tests fail; that is a result here, not an error
-    pt = sh(["-m", "pytest", str(suite), "-q", "-p", "no:cacheprovider", "--tb=short", f"--junitxml={junit}"], env=env, check=False)
+    pt = sh(["-m", "pytest", str(suite), "-q", "-p", "no:cacheprovider", "--tb=short", f"--junitxml={junit}",
+             *(["-k", select] if select else [])], env=env, check=False)
     if not junit.exists() and pt.returncode == 4 and real:  # preflight refusal (remote target without APITEST_TARGET_ENV)
         raise EvalError((pt.stderr or pt.stdout).strip().removeprefix("ERROR:").strip())
     if not junit.exists():
@@ -279,7 +281,7 @@ def print_real_summary(name: str, res: dict, shown: int = 20) -> None:
     print(f"  report: {res['report']}", file=sys.stderr)
 
 
-def run_target(name: str, variants: list[str], real_url: str | None, spec_override: str | None) -> dict:
+def run_target(name: str, variants: list[str], real_url: str | None, spec_override: str | None, select: str | None = None) -> dict:
     cfg = TARGETS[name]
     out: dict = {"target": name, "title": cfg["title"], "mode": "real" if real_url else ("real-local" if cfg["kind"] == "fastapi" else "mock"),
                  "variants": {}}
@@ -287,7 +289,7 @@ def run_target(name: str, variants: list[str], real_url: str | None, spec_overri
         spec = Path(spec_override) if spec_override else cfg.get("spec")
         if spec is None:
             sys.exit(f"{name}: pass --spec (the seeded app serves /openapi.json)")
-        res = out["variants"]["real"] = run_pipeline(name, "real", real_url, Path(spec), {}, OUT / name / "real", True)
+        res = out["variants"]["real"] = run_pipeline(name, "real", real_url, Path(spec), {}, OUT / name / "real", True, select)
         print_real_summary(name, res)
         return out
     for v in variants:
@@ -337,6 +339,8 @@ def main() -> int:
     ap.add_argument("--base-url", help="REAL mode: URL of a target you started and are allowed to test")
     ap.add_argument("--real", action="store_true", help="REAL mode marker (requires --base-url)")
     ap.add_argument("--spec", help="REAL mode: spec file or URL-downloaded file to use instead of the vendored one")
+    ap.add_argument("-k", dest="k", metavar="EXPR",
+                    help="REAL mode: pytest -k expression, e.g. \"not email_100k_chars\" to leave out a test that hangs the target")
     ap.add_argument("--markdown", action="store_true", help="print the result tables as Markdown")
     ap.add_argument("--json", help="write the raw results to this file")
     ap.add_argument("--list", action="store_true", help="list targets, flaws and the real-target commands")
@@ -350,6 +354,8 @@ def main() -> int:
     names = list(TARGETS) if a.target == "all" else [a.target]
     if a.base_url and len(names) != 1:
         ap.error("real mode needs exactly one --target")
+    if a.k and not a.real:
+        ap.error("-k only applies in real mode: the mock scores count on every test running")
     for n in names:
         if n not in TARGETS:
             ap.error(f"unknown target {n}")
@@ -363,7 +369,7 @@ def main() -> int:
         variants = a.variant or ["clean", *TARGETS[n]["flaws"]]
         print(f"[{n}]", file=sys.stderr)
         try:
-            results.append(run_target(n, variants, a.base_url, a.spec))
+            results.append(run_target(n, variants, a.base_url, a.spec, a.k))
         except EvalError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2

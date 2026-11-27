@@ -517,6 +517,8 @@ def test_docker_command_passes_variable_names_never_values(rest_doc, tmp_path):
                         env=clean_env(APITEST_BEARERAUTH_TOKEN="s3cret-value"))
     assert proc.returncode == 0 and "docker run --rm -i --network host" in proc.stdout
     assert "-e APITEST_BEARERAUTH_TOKEN" in proc.stdout and "s3cret-value" not in proc.stdout + proc.stderr
+    if hasattr(os, "getuid"):  # the container writes the summary as the host user
+        assert f"--user {os.getuid()}:{os.getgid()}" in proc.stdout
     assert "--docker" in proc.stdout.split("Rerun with:")[1]
     bad = run_launcher(out / "load.js", "--base-url", "http://localhost:9", "--docker", "--docker-image", "x; rm -rf /", "--dry-run")
     assert bad.returncode == 2

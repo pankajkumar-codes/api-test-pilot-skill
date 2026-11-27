@@ -58,8 +58,9 @@ worth a manual look: it is either a real flaw of that build or a false positive 
 
 ### 2. VAmPI (spec: `evals/specs/vampi-openapi.yaml`), vulnerable and fixed
 ```
-docker run -d --name vampi-vuln -p 127.0.0.1:5000:5000 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
-docker run -d --name vampi-fixed -p 127.0.0.1:5001:5000 -e vulnerable=0 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12   # README: `vulnerable=0` turns the flaws off
+# tokens expire after 60 s by default; tokentimetolive keeps the one you export valid for the whole run
+docker run -d --name vampi-vuln -p 127.0.0.1:5000:5000 -e tokentimetolive=3600 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12
+docker run -d --name vampi-fixed -p 127.0.0.1:5001:5000 -e vulnerable=0 -e tokentimetolive=3600 erev0s/vampi@sha256:0a5a224b6e14ae7da6a6ea265178ff71286ff903aec74adee98f660bb0e4ca12   # README: `vulnerable=0` turns the flaws off
 curl -s localhost:5000/createdb ; curl -s localhost:5001/createdb
 # register your own users on each instance and log in (never reuse a real password):
 curl -s -X POST localhost:5000/users/v1/register -H 'Content-Type: application/json' -d '{"username":"evaluser","password":"evalpass1","email":"eval@example.com"}'
@@ -67,9 +68,12 @@ export APITEST_BEARERAUTH_TOKEN=$(curl -s -X POST localhost:5000/users/v1/login 
   -d '{"username":"evaluser","password":"evalpass1"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["auth_token"])')
 export APITEST_ASSUME_NON_ADMIN=yes APITEST_ALLOW_DESTRUCTIVE=yes APITEST_PATH_USERNAME=evaluser APITEST_VICTIM_USERNAME=<another registered user>
 export APITEST_PATH_BOOK_TITLE=<a book you added> APITEST_VICTIM_BOOK_TITLE=<a book owned by the other user> APITEST_KNOWN_USERNAME=<an existing user>
-python evals/run_evals.py --target vampi --real --base-url http://localhost:5000
+python evals/run_evals.py --target vampi --real --base-url http://localhost:5000 -k "not email_100k_chars"
 # repeat against :5001 with a token from that instance; the fixed instance is the false-positive baseline
 ```
+On the vulnerable instance the 100,000-character email edge case sets off VAmPI's RegexDoS: the server stops answering for good. The suite
+then reports one HIGH (API4, "the server stopped answering after this request") and skips the rest, so leave that case out with `-k` to
+measure everything else. `GET /createdb` is recognised as an endpoint that recreates the data; its tests run after all others.
 Expected (README, "List of Vulnerabilities"): SQL injection, unauthorized password change, BOLA, mass assignment, excessive data exposure
 through the debug endpoint, user/password enumeration, RegexDoS, no rate limiting, weak JWT key. The skill is not expected to cover RegexDoS
 or the weak JWT key, and mass assignment is a known gap (see `docs/evals.md`).

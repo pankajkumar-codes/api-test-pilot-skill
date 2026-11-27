@@ -11,6 +11,44 @@ Changes merged after the 0.1.0 tag go here.
 - `evals/run_evals.py --real` printed only the target name (for example `[petstore]`) and exited, so a finished run looked like it had done
   nothing. It now prints the passed/failed/skipped counts, the report's verdict line, the first 20 failing tests and the report path. Found
   on the first real Swagger Petstore run (container `swaggerapi/petstore3:1.0.29`, pinned digest matched on pull).
+- False findings and misses seen on the first real Petstore and VAmPI runs:
+  - A handled 400 that names `java.lang.Long` was reported as a leaked stack trace (10 HIGH on Petstore). Only Java exception names
+    (`java.lang.reflect.InvocationTargetException` too) and stack frames count now.
+  - An injection payload that gets a 5xx is no longer reported as HIGH injection when the endpoint's normal request also gets a 5xx; the
+    positive test reports that crash once (41 HIGH on Petstore were one server bug per endpoint). A database error or file content in that
+    5xx is still HIGH: the leak checks run first.
+  - A login answered with 200 and a failure body counted as a successful login, which also hid the user enumeration check. A 2xx login now
+    counts as refused only when the body says so (`status`/`result` fail, error or denied; `success`/`ok` false; an `error` or `errors`
+    key); any other 2xx is still a success, whatever the token field is called. VAmPI's enumeration is now found.
+  - Boolean SQL injection in path values was missed (VAmPI `GET /users/v1/x' OR '1'='1` returns a record). A tautology that finds a record an
+    unknown value does not find, and still finds one placed after an unknown value, is now HIGH. The second request keeps a lenient id
+    parser (`parseInt("1 OR 1=1")` reads 1) from being reported. The check looks at the payload sent, not at the case's position.
+  - BOLA on writes: an accepted write to another user's object is HIGH when a read of that object shows the change, the delete took, the
+    read is refused to the caller (a write-only BOLA), or, for a password write, the victim can then log in with the password just set.
+    Otherwise it is MEDIUM, "check by hand". Fixed VAmPI ignores the path and updates the caller, which was reported as BOLA; vulnerable
+    VAmPI's password change on the victim stays HIGH through the victim login.
+  - Endpoints that recreate or wipe the data (`GET /createdb`, `/reset-db`, a summary whose object is the database, such as "creates and
+    populates the database"; "creates a user in the database" does not count) are marked
+    `resets_state`: their tests run after all others and only with `APITEST_ALLOW_DESTRUCTIVE=yes`. VAmPI's wiped the test user mid-run.
+    The fuzz suite marks them the same way, k6 never load-tests them, and chaos never uses them as a health probe or a payload target
+    (on the first full VAmPI run all three called `/createdb`, which wiped the test users).
+  - When the server stops answering (a read timeout, then a plain GET of the base URL also times out), the run waits up to
+    `APITEST_HANG_WAIT_S` seconds (default 60) for it to come back. If it does, that request is MEDIUM (API4, the service was unavailable
+    for everyone) and the run goes on; DVGA's `systemUpdate` pauses for 20 to 50 s. If not, the run reports one HIGH (API4 unrestricted
+    resource consumption) and skips the remaining tests at once instead of letting each one time out.
+- `run_k6.py --docker` (and `run_all.py --k6-docker`) ran k6 but wrote no summary on Linux and WSL: the k6 image runs as its own user,
+  which cannot write the mounted results folder, so the report said `0 k6 summaries`. The container now runs as the host user, and
+  `run_k6.py` warns when k6 leaves no summary.
+- Seen on the full DVGA run (`run_all.py --types all,fuzz --k6 --chaos`):
+  - `--types all,fuzz` was refused for a GraphQL schema ("Not available for GraphQL yet: all"). It now means every default type plus fuzz.
+  - A query named like a delete (`deleteAllPastes`, which DVGA puts in Query) now needs `APITEST_ALLOW_DESTRUCTIVE=yes` like a delete
+    mutation does.
+  - k6 load-tested queries with side effects (`systemUpdate` stalls DVGA; `deleteAllPastes`), which took the server down for the spike
+    profile. Queries named like an action (delete, update, reset, create ...) are no longer load-tested unless named in `--endpoints`.
+  - Chaos stopped with "no probe" on every GraphQL API (there is no parameterless GET). It now probes `GET <path>?query={__typename}`;
+    a server without GraphQL over GET fails the baseline, and the experiment says so.
+- `evals/run_evals.py -k EXPR` passes a pytest `-k` expression in real mode, to leave out a test that takes the target down. Mock mode
+  refuses it, since the mock scores need every test.
 
 ### Planned
 - v0.2: an MCP server over the same scripts. Every gated run needs both a target allowlist the user writes and an MCP elicitation answer, with no

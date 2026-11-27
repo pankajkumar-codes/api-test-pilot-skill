@@ -141,15 +141,39 @@ def _api2(doc: dict, eps: list[dict], mod: Module) -> None:
                 '    rt.expect_denied(resp, "API2:2023 broken authentication", "expired token was accepted")\n')
 
 
+def _victim_read(ep: dict, eps: list[dict]) -> dict | None:
+    """A GET that shows the object a write changes: same path, or the write path with trailing static segments
+    dropped (PUT /users/{u}/email -> GET /users/{u}), with exactly the same path parameters."""
+    names = [p["name"] for p in path_params(ep)]
+    segs = ep["path"].rstrip("/").split("/")
+    while segs and len(segs) > 1:
+        path = "/".join(segs)
+        for cand in eps:
+            if cand["method"] == "GET" and cand["path"].rstrip("/") == path and [p["name"] for p in path_params(cand)] == names:
+                return cand
+        if segs[-1].startswith("{"):
+            break
+        segs = segs[:-1]
+    return None
+
+
 def _api1(eps: list[dict], mod: Module) -> None:
     for ep in eps:
         if not (path_params(ep) and ep.get("auth_required") and ep["method"] in ("GET", "PUT", "PATCH", "DELETE")):
             continue
-        pre = "    rt.require_destructive()\n" if ep["method"] != "GET" else ""
+        name = mod.unique('test_api1_bola_' + ep['id'])
+        if ep["method"] == "GET":
+            mod.add("@pytest.mark.intrusive\n"
+                    f"def {name}(api):\n    ep = {_ref(ep)}\n"
+                    "    resp = api.send(ep, victim=True)  # ids of ANOTHER user's objects from APITEST_VICTIM_<PARAM>\n"
+                    '    rt.expect_denied(resp, "API1:2023 BOLA", "user A can reach an object owned by another user")\n')
+            continue
+        read = _victim_read(ep, eps)
+        login = next((e for e in eps if e["method"] == "POST" and LOGIN_PATH_RE.search(e["path"]) and has_json_body(e)), None)
+        # a write that is "accepted" may have changed the caller's own record instead; read the victim's object to tell
         mod.add("@pytest.mark.intrusive\n"
-                f"def {mod.unique('test_api1_bola_' + ep['id'])}(api):\n    ep = {_ref(ep)}\n{pre}"
-                "    resp = api.send(ep, victim=True)  # ids of ANOTHER user's objects from APITEST_VICTIM_<PARAM>\n"
-                '    rt.expect_denied(resp, "API1:2023 BOLA", "user A can reach an object owned by another user")\n')
+                f"def {name}(api):\n    ep = {_ref(ep)}\n    rt.require_destructive()\n"
+                f"    rt.expect_victim_write_denied(api, ep, {_ref(read) if read else 'None'}, {_ref(login) if login else 'None'})\n")
 
 
 def _readbacks(doc: dict) -> dict[str, dict]:
@@ -278,7 +302,7 @@ def _injection(eps: list[dict], mod: Module) -> None:
         mod.add("@pytest.mark.intrusive\n"
                 f'@pytest.mark.parametrize("label,kw", {table}, ids=[c[0] for c in {table}])\n'
                 f"def {mod.unique('test_injection_' + ep['id'])}(api, label, kw):\n"
-                f"    resp = api.send({_ref(ep)}, **kw)\n    rt.expect_injection_safe(resp, label)\n")
+                f"    resp = api.send({_ref(ep)}, **kw)\n    rt.expect_injection_safe(resp, label, api, {_ref(ep)})\n")
 
 
 def _render_kw(kw: dict) -> str:

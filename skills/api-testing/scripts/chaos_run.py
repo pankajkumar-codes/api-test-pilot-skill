@@ -514,7 +514,8 @@ class Runner:
         if safety_gate.env_true("APITEST_READ_ONLY"):
             self.add(Result("test_chaos_payload").skip("read-only mode (APITEST_READ_ONLY=yes): POST/PUT/PATCH bursts are not sent"))
             return
-        eps = [e for e in self.doc.get("endpoints", []) if e["method"] in ("POST", "PUT", "PATCH") and gen_common.has_json_body(e)]
+        eps = [e for e in self.doc.get("endpoints", []) if e["method"] in ("POST", "PUT", "PATCH") and gen_common.has_json_body(e)
+               and not gen_common.resets_state(e)]
         if isinstance(a.payload_endpoints, list):   # operation ids named by the user
             eps = [e for e in eps if e["id"] in a.payload_endpoints]
             limit = HARD_MAX_PAYLOAD_ENDPOINTS
@@ -682,7 +683,12 @@ def pick_probes(doc: dict, explicit: list[str]) -> list[str]:
     for ep in doc.get("endpoints", []):
         if ep["method"] != "GET" or gen_common.path_params(ep) or gen_common.baseline(ep)["query"] or "{" in ep["path"]:
             continue
+        if gen_common.resets_state(ep):   # a /createdb probe would wipe the data on every call
+            continue
         out.append(ep["path"])
+    eps = doc.get("endpoints") or []
+    if not out and (doc.get("source") or {}).get("type") == "graphql" and eps and re.fullmatch(r"/[A-Za-z0-9._~/-]{0,200}", eps[0]["path"]):
+        out.append(eps[0]["path"] + "?query=%7B__typename%7D")   # GraphQL over GET; a server without it fails the baseline, which says so
     return out[:3]
 
 

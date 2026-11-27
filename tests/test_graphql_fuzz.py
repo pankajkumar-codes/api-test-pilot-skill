@@ -31,6 +31,8 @@ def suite(tmp_path_factory, doc):
 def test_fuzz_is_opt_in_and_ships_its_runtime(doc, suite, tmp_path):
     res = gen_pytest.generate(doc, tmp_path / "all", ["all"])
     assert "fuzz" not in res["counts"] and not (tmp_path / "all" / "gql_fuzz.py").exists()
+    both = gen_pytest.generate(doc, tmp_path / "both", ["all", "fuzz"])   # what run_all.py --types all,fuzz asks for
+    assert "fuzz" in both["counts"] and set(res["counts"]) < set(both["counts"])
     for name in ("fuzz_runtime.py", "gql_fuzz.py", "test_graphql_fuzz.py"):
         assert (suite / name).exists()
     text = (suite / "test_graphql_fuzz.py").read_text()
@@ -105,3 +107,23 @@ def test_endpoint_list_and_budget_summary_work_for_graphql(suite):
     assert "Fuzz budget" in out and "of 1 fuzzed endpoint" in out and "nope" in out
     # the budget is split between the one chosen operation only, so it gets the full case count
     assert "min 40, median 40, max 40" in out
+
+
+def test_side_effect_queries_are_gated_and_kept_out_of_load(tmp_path):
+    # DVGA puts deleteAllPastes and systemUpdate in Query: neither may be repeated by k6, and the delete needs the destructive switch
+    import chaos_run
+    import gen_k6
+    sdl = tmp_path / "side.graphql"
+    sdl.write_text("type Paste { id: ID! title: String }\n"
+                   "type Query { pastes: [Paste] deleteAllPastes: Boolean systemUpdate: String getRunStatus: String }\n")
+    d = parse_graphql.build(str(sdl))
+    out = tmp_path / "suite"
+    gen_pytest.generate(d, out, ["all", "fuzz"])
+    positive = (out / "test_graphql_positive.py").read_text()
+    head, _, rest = positive.partition("def test_query_deleteAllPastes")
+    assert rest and "gr.require_destructive()" in rest.split("\ndef ")[0]
+    assert "'query.deleteAllPastes': {'optional': [], 'destructive': True" in (out / "test_graphql_fuzz.py").read_text()
+    notes: list[str] = []
+    tags = [e["tag"] for e in gen_k6.graphql_endpoints(d, None, notes)]
+    assert "gql_pastes" in tags and "gql_getRunStatus" in tags and "gql_deleteAllPastes" not in tags and "gql_systemUpdate" not in tags
+    assert chaos_run.pick_probes(d, []) == [d["endpoints"][0]["path"] + "?query=%7B__typename%7D"]

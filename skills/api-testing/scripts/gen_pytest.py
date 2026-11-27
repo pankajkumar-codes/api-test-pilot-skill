@@ -144,6 +144,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "session_end: calls an endpoint that probably ends the caller's session (sign-out, revoke, password change); runs last")
     config.addinivalue_line("markers", "rate_limit: sends a quick burst to see the API throttle; skips when APITEST_RPS or APITEST_DELAY_MS paces the run")
     config.addinivalue_line("markers", "destructive: deletes or overwrites existing data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs last")
+    config.addinivalue_line("markers", "resets_state: calls an endpoint that recreates or wipes the server's data; needs APITEST_ALLOW_DESTRUCTIVE=yes and runs after everything else")
 
 
 def pytest_sessionstart(session):
@@ -157,7 +158,14 @@ def pytest_sessionstart(session):
 
 def pytest_collection_modifyitems(config, items):
     """Run the tests that delete or overwrite existing data last, so they cannot remove the ids other tests rely on."""
+    for item in items:
+        if item.get_closest_marker("resets_state") and not rt.env_true("APITEST_ALLOW_DESTRUCTIVE"):
+            item.add_marker(pytest.mark.skip(reason="calls an endpoint that recreates or wipes the server's data; "
+                                                    "set APITEST_ALLOW_DESTRUCTIVE=yes on a target whose data you can lose"))
+
     def rank(item):
+        if item.get_closest_marker("resets_state"):
+            return 4    # last of all: it can delete the accounts and records every other test uses
         if item.get_closest_marker("session_end"):
             return 3    # after everything else: these invalidate the token the other tests use (see APITEST_TOKEN_CMD for long runs)
         if not item.get_closest_marker("destructive"):
@@ -336,13 +344,17 @@ def generate(doc: dict, out: Path, types: list[str], base_url_override: str | No
         files["fuzz_runtime.py"] = (SKILL_DIR / "templates" / "pytest" / "fuzz_runtime.py").read_text(encoding="utf-8")
     notes: list[str] = []
     for ep in doc["endpoints"]:
+        if gen_common.resets_state(ep):
+            notes.append(f"{ep['method']} {ep['path']}: looks like it recreates or wipes the data; its tests run last and only "
+                         "with APITEST_ALLOW_DESTRUCTIVE=yes")
         if not supported_body(ep):
             notes.append(f"{ep['method']} {ep['path']}: request body type "
                          f"{(ep.get('request_body') or {}).get('content_type')} is not generated (JSON and form only)")
     counts: dict[str, int] = {}
     for t in chosen:
         fname, title, fn = REST_TYPES[t]
-        mod = Module(title, TAXONOMY_NAME[t], rerun, {e["id"] for e in doc["endpoints"] if gen_common.ends_session(e)})
+        mod = Module(title, TAXONOMY_NAME[t], rerun, {e["id"] for e in doc["endpoints"] if gen_common.ends_session(e)},
+                     {e["id"] for e in doc["endpoints"] if gen_common.resets_state(e)})
         extra = fn(doc, mod)
         if isinstance(extra, list):
             notes += extra

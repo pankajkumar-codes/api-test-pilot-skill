@@ -894,7 +894,7 @@ def expect_contract(resp: requests.Response, ep: Endpoint) -> None:
 # --------------------------------------------------------------------------- security expectations
 DB_ERROR_RE = re.compile(
     r"(SQL syntax|SQLSTATE|ORA-\d{4,5}|psycopg|pg_query|mysql_|sqlite3?\.|MongoError|MongoServerError|"
-    r"Traceback \(most recent|java\.lang\.|System\.NullReference|node_modules|at \S+ \(\S+:\d+:\d+\)|"
+    r"Traceback \(most recent|java\.lang\.[\w.$]*(?:Exception|Error)\b|System\.NullReference|node_modules|at \S+ \(\S+:\d+:\d+\)|"
     r"\bat \w[\w.$]*\(\w+\.java:\d+\))", re.I)
 TRAVERSAL_RE = re.compile(r"root:[x*]:0:0|\[boot loader\]|ami-id|instance-id|SSH-\d")
 
@@ -913,7 +913,7 @@ def expect_same_login_failure(existing: requests.Response, unknown: requests.Res
     for r in (existing, unknown):
         if r.status_code == 429:
             pytest.skip("throttled (429) before the two logins could be compared")
-        if 200 <= r.status_code < 400:
+        if 200 <= r.status_code < 400 and not login_was_refused(r):
             fail(r, "a login with a throwaway password succeeded", "HIGH", "API2:2023 broken authentication")
     owasp = "API2:2023 broken authentication"
     if existing.status_code != unknown.status_code:
@@ -928,6 +928,30 @@ def expect_same_login_failure(existing: requests.Response, unknown: requests.Res
     if a != b:
         fail(existing, "failed login message differs for an existing and an unknown username (user enumeration): "
                        f"{a[:120]!r} vs {b[:120]!r}", "MEDIUM", owasp)
+
+
+REFUSAL_WORDS = {"fail", "failed", "failure", "error", "denied", "invalid", "unauthorized", "unauthorised", "forbidden", "rejected"}
+
+
+def login_was_refused(resp: requests.Response) -> bool:
+    """A 2xx login counts as a refusal only when the body says so outright.
+
+    Some APIs answer a wrong password with 200 and {"status": "fail"}. Token field names vary too much to
+    guess (token, access/refresh, key, apiKey, sid ...), so everything that does not plainly refuse stays a success.
+    """
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict):
+        return False
+    for k in ("status", "result", "outcome"):
+        if isinstance(body.get(k), str) and body[k].strip().lower() in REFUSAL_WORDS:
+            return True
+    for k in ("success", "ok", "authenticated", "logged_in", "loggedIn"):
+        if body.get(k) is False:
+            return True
+    return any(body.get(k) for k in ("error", "errors"))
 
 
 def unknown_name(resp: requests.Response) -> str:
@@ -949,6 +973,64 @@ def expect_denied(resp: requests.Response, owasp: str, what: str, severity: str 
     if resp.status_code >= 500:
         fail(resp, f"{what}: server error instead of a refusal", "MEDIUM", owasp)
     fail(resp, f"{what}: request was accepted ({resp.status_code})", severity, owasp)
+
+
+def _record(body: Any) -> Any:
+    return body["data"] if isinstance(body, dict) and isinstance(body.get("data"), dict) else body
+
+
+PASSWORD_KEY_RE = re.compile(r"pass(word|wd)?|secret|pin", re.I)
+LOGIN_USER_KEYS = ("username", "user_name", "userName", "login", "email", "user")
+
+
+def _victim_login_works(api: Any, ep: Endpoint, login_ep: Endpoint | None, sent: Any) -> bool:
+    """After a password write aimed at the victim: can the victim now log in with the password just set?"""
+    if login_ep is None or not isinstance(sent, dict) or not isinstance(login_ep.body, dict):
+        return False
+    new_pw = next((v for k, v in sent.items() if PASSWORD_KEY_RE.search(str(k)) and isinstance(v, str)), None)
+    user_key = next((k for k in LOGIN_USER_KEYS if k in login_ep.body), None)
+    pw_key = next((k for k in login_ep.body if PASSWORD_KEY_RE.search(str(k))), None)
+    if new_pw is None or user_key is None or pw_key is None or not ep.path_params:
+        return False
+    name, meta = next(iter(ep.path_params.items()))
+    victim = api.pid(name, meta.get("default"), victim=True)
+    r = api.send(login_ep, auth="none", body={**login_ep.body, user_key: victim, pw_key: new_pw})
+    return 200 <= r.status_code < 300 and not login_was_refused(r)
+
+
+def expect_victim_write_denied(api: Any, ep: Endpoint, read_ep: Endpoint | None, login_ep: Endpoint | None = None) -> None:
+    """A write to another user's object must be refused. A 2xx alone is not proof: some APIs ignore the path and
+    change the caller's own record. So the victim's object is read before and after, and only a visible change
+    (or a delete that took) is the HIGH finding. Without a way to read it back, an accepted write is MEDIUM."""
+    owasp, what = "API1:2023 BOLA", "user A can reach an object owned by another user"
+    before = api.send(read_ep, victim=True) if read_ep is not None else None
+    resp = api.send(ep, victim=True)  # ids of ANOTHER user's objects from APITEST_VICTIM_<PARAM>
+    if 400 <= resp.status_code < 500:
+        return
+    if resp.status_code >= 500:
+        fail(resp, f"{what}: server error instead of a refusal", "MEDIUM", owasp)
+    sent = sent_body(resp, ep)
+    if isinstance(sent, dict) and any(PASSWORD_KEY_RE.search(str(k)) for k in sent) and _victim_login_works(api, ep, login_ep, sent):
+        fail(resp, f"{what}: the victim's password was changed ({resp.status_code}); logging in as the victim with it works", "HIGH", owasp)
+    if before is not None and before.status_code in (401, 403):
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) although reading the victim's object is refused "
+                   f"({before.status_code})", "HIGH", owasp)
+    if before is None or not 200 <= before.status_code < 300:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) and the victim's object cannot be read back to "
+                   "confirm it changed; check by hand", "MEDIUM", owasp)
+    after = api.send(read_ep, victim=True)
+    if ep.method == "DELETE":
+        if after.status_code in (404, 410):
+            fail(resp, f"{what}: the victim's object was deleted ({resp.status_code}, then {after.status_code} on read)", "HIGH", owasp)
+        return
+    old, new = _record(json_of(before)), _record(json_of(after))
+    visible = [k for k in sent if isinstance(old, dict) and k in old] if isinstance(sent, dict) else []
+    if not visible:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) but none of the written fields show on a read "
+                   "of the victim's object; check by hand", "MEDIUM", owasp)
+    changed = sorted(k for k in visible if isinstance(new, dict) and new.get(k) != old.get(k))
+    if changed:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) and changed the victim's {changed}", "HIGH", owasp)
 
 
 def expect_not_assigned(resp: requests.Response, injected: dict) -> None:
@@ -1002,13 +1084,65 @@ def expect_ssrf_blocked(resp: requests.Response, url: str) -> None:
         fail(resp, f"internal URL {url} was accepted: verify the server never fetches it", "MEDIUM", "API7:2023 SSRF")
 
 
-def expect_injection_safe(resp: requests.Response, label: str) -> None:
-    if resp.status_code >= 500:
-        fail(resp, f"{label}: payload caused a server error", "HIGH", "A03 injection")
+def expect_injection_safe(resp: requests.Response, label: str, api: Any = None, ep: Any = None) -> None:
     if DB_ERROR_RE.search(resp.text) or TRAVERSAL_RE.search(resp.text):
         fail(resp, f"{label}: response leaks internals (database error, stack trace or file content)", "HIGH", "A03 injection")
     if "<script>apitest" in resp.text and "html" in resp.headers.get("Content-Type", ""):
         fail(resp, f"{label}: payload reflected unescaped in an HTML response", "MEDIUM", "A03 injection")
+    if api is not None and ep is not None:
+        expect_tautology_not_matched(api, ep, resp, label)
+    if resp.status_code >= 500:
+        if api is not None and ep is not None and _fails_on_valid_input(api, ep):
+            pytest.skip(f"{label}: the endpoint also returns 5xx for its normal request, so this 5xx says nothing "
+                        "about injection (the positive test reports the crash)")
+        fail(resp, f"{label}: payload caused a server error", "HIGH", "A03 injection")
+
+
+def hang_wait_seconds() -> float:
+    """How long to wait for a server that stopped answering before calling it down for good (APITEST_HANG_WAIT_S, default 60)."""
+    return _env_number("APITEST_HANG_WAIT_S", 60.0)
+
+
+SERVER_HUNG: list[str] = []   # the request after which the server stopped answering; later requests skip at once
+_VALID_INPUT_5XX: dict[str, bool] = {}
+
+
+def _fails_on_valid_input(api: Any, ep: Any) -> bool:
+    """Whether the endpoint's own baseline request gets a 5xx (asked once per endpoint and run)."""
+    key = f"{ep.method} {ep.path}"
+    if key not in _VALID_INPUT_5XX:
+        _VALID_INPUT_5XX[key] = api.send(ep).status_code >= 500
+    return _VALID_INPUT_5XX[key]
+
+
+TAUTOLOGY_RE = re.compile(r"^(.*?)((?:'\s*OR\s*'1'\s*=\s*'1)|(?:\s+OR\s+1\s*=\s*1))$", re.I)
+
+
+def expect_tautology_not_matched(api: Any, ep: Any, resp: requests.Response, label: str) -> None:
+    """A path value like `x' OR '1'='1` must not find a record that an unknown value does not find.
+
+    Boolean SQL injection gives no error text: the lookup just matches. So when a tautology in the path gets a 2xx
+    on a read, ask with a value that cannot exist (must be refused) and with the same tautology after that value
+    (must still match). The second request tells a real tautology from a lenient id parser: `parseInt("1 OR 1=1")`
+    reads 1 and finds record 1, but finds nothing for `<missing> OR 1=1`.
+    """
+    m = re.fullmatch(r"path_(.+)\[\d+\]", label)
+    if not m or resp.request.method != "GET" or not 200 <= resp.status_code < 300:
+        return
+    segment = urllib.parse.unquote(urllib.parse.urlsplit(resp.request.url).path.rstrip("/").rsplit("/", 1)[-1])
+    t = TAUTOLOGY_RE.match(segment)
+    if not t:
+        return
+    name = m.group(1)
+    meta = (ep.path_params or {}).get(name) or {}
+    missing = str(api.missing_id(meta.get("type", "string"), meta.get("format")))
+    baseline = api.send(ep, path={name: missing})
+    if not 400 <= baseline.status_code < 500:
+        return
+    confirm = api.send(ep, path={name: RawPath(urllib.parse.quote(missing + t.group(2), safe=""))})
+    if 200 <= confirm.status_code < 300:
+        fail(resp, f"{label}: the payload found a record ({resp.status_code}) where an unknown value gets "
+                   f"{baseline.status_code}, and still does after an unknown value (boolean SQL injection)", "HIGH", "A03 injection")
 
 
 def expect_no_error_leak(resp: requests.Response) -> None:
@@ -1301,11 +1435,30 @@ class Api:
                 time.sleep(wait)
         self._last_sent = time.monotonic()
 
+    def _still_answering(self) -> bool:
+        """After a read timeout: does the server still answer anything at all? Any HTTP status counts as an answer."""
+        try:
+            self.session.get(self.base_url + "/", timeout=min(self.timeout, 5.0), allow_redirects=False)
+            return True
+        except requests.exceptions.RequestException as exc:
+            return not isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError))
+
+    def _wait_until_answering(self) -> float | None:
+        """Seconds until the server answered again, or None if it did not within APITEST_HANG_WAIT_S."""
+        start = time.monotonic()
+        while time.monotonic() - start < hang_wait_seconds():
+            time.sleep(2.0)
+            if self._still_answering():
+                return time.monotonic() - start
+        return None
+
     def _request(self, method: str, url: str, transient: str = "skip", **kw: Any) -> requests.Response:
         """Every request goes through here and is paced. A failure to CONNECT is retried (safe methods only) and then ends the
         test as "target unreachable" (a skip, or a failure for smoke tests or APITEST_UNREACHABLE=fail). An error after the
         connection was made (drop, reset, hang, truncated body) is a finding: the test fails with a clear message, for every
         method. transient="raise" hands any exception to the caller untouched (fuzzing classifies them itself)."""
+        if SERVER_HUNG:
+            pytest.skip(f"not run: the server stopped answering after {SERVER_HUNG[0]} (see that failure)")
         attempts = 1 + (max(self.retries, 0) if method.upper() in RETRY_METHODS and transient == "skip" else 0)
         for attempt in range(attempts):
             self._pace()
@@ -1320,6 +1473,17 @@ class Api:
                     if (isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
                                          requests.exceptions.ChunkedEncodingError))
                             and not isinstance(exc, requests.exceptions.SSLError)):
+                        if isinstance(exc, requests.exceptions.Timeout) and not self._still_answering():
+                            waited = self._wait_until_answering()
+                            if waited is None:
+                                SERVER_HUNG.append(f"{method.upper()} {_redact_url(url)}")
+                                fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering after this request "
+                                           f"and had not recovered {hang_wait_seconds():.0f} s later (a plain GET of the base URL "
+                                           "times out too). One request can take the service down; the remaining tests are skipped",
+                                     "HIGH", "API4:2023 unrestricted resource consumption")
+                            fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering anyone after this request "
+                                       f"and only recovered about {waited:.0f} s later. One request can make the service unavailable "
+                                       "for everyone", "MEDIUM", "API4:2023 unrestricted resource consumption")
                         fail(None, f"{method.upper()} {_redact_url(url)}: the server accepted the connection but gave no complete "
                                    f"response ({type(exc).__name__}): it dropped, reset or hung on this request", "MEDIUM")
                     raise
