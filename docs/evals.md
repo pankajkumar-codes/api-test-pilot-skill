@@ -6,10 +6,8 @@
 > that shows each check works on the flaw it was written for. It is not an independent evaluation, and it says nothing about detection on
 > real third-party APIs. No such rate is claimed anywhere in this repository.
 >
-> **Real Swagger Petstore, VAmPI, DVGA and crAPI runs: not yet run.** The build environment has no Docker daemon (checked again 2026-11-19:
-> `docker ps` cannot reach `/var/run/docker.sock`), so the containers could not be started, and the public Petstore host was not reachable when last checked (2026-11-12).
-> The steps to run them on your machine are in [evals/README.md](../evals/README.md); when you do, record the exact numbers, including
-> misses, in a new section here. Until then the labels "mock-based, real target not run" stay.
+> **Real Swagger Petstore, VAmPI and DVGA runs: done on 2026-11-27, one run each** (see [the last section](#real-targets-swagger-petstore-vampi-and-dvga-2026-11-27)).
+> crAPI has not been run. The sections before it are the mock and stand-in evals, still labelled "mock-based, real target not run".
 > The 2026-11-19 recheck of the offline evals (`python evals/run_evals.py --target all` on commit 4c8b12f): 27 flaws FOUND, 1 MISSED (VAmPI mass assignment), 4 clean variants.
 
 ## Phase 2: generator validation against local mock servers (2026-11-12)
@@ -303,3 +301,66 @@ The earlier fuzz finding (`page=2147483647` returned 500) was fixed in the demo,
 HTTPBin 413 (139, 8, 266), Webhook.site 55 (2, 0, 53); total 1038 (186 pass, 21 fail, 831 skip). The failures are CORS reflecting any origin with credentials (JSONPlaceholder, HTTPBin), missing HSTS and
 `X-Powered-By` headers, ReqRes accepting invalid `page` and `per_page` values, and HTTPBin's `/cookies/set` and `/cookies/delete` answering 302 where the hand-written spec says 200. No finding was checked
 against the providers beyond what the report shows. Reports and specs: `examples/public-sandbox/`. These runs show nothing about writes (skipped by design), load or real-API detection rates.
+
+## Real targets: Swagger Petstore, VAmPI and DVGA (2026-11-27)
+
+First runs against the real third-party apps, run locally in Docker. **One run each**, on the maintainer's machine (WSL2, Python 3.14, Docker;
+k6 v2.4 in the `grafana/k6` container), skill at main `c120e7e`. The builder's cloud run on `d010eb7` (same detection code) matched
+the security-eval counts for Petstore and vulnerable VAmPI; fixed VAmPI differed by one test (232/10/7) and the full runs differed more (for
+example Petstore 374 tests, HIGH 11), so treat the counts as one run, not a stable figure. Either way it is the same code and author, not an independent check. Images, pinned by digest and matched on pull:
+`swaggerapi/petstore3:1.0.29@sha256:97e5aa17…`, `erev0s/vampi@sha256:0a5a224b…` (fixed: `vulnerable=0`, vulnerable: `vulnerable=1`, both with
+`tokentimetolive=3600`) and `dolevf/dvga:2.2.0@sha256:040aa33c…` (shortened here; the full digests are in [evals/README.md](../evals/README.md)). Eval commands: [evals/README.md](../evals/README.md); the full runs used the `run_all.py` line shown above their table.
+
+Petstore is the reference sample server; VAmPI and DVGA are intentionally vulnerable apps. The tables list what the suites found; they are **not a detection rate**, and nothing here is "production-tested".
+The checks were also fixed against these same apps the same day (PRs #121 to #124, listed below), so treat the results as a first record, not a benchmark.
+
+### Security evals (`evals/run_evals.py --real`)
+| Target | Tests | Passed | Failed | Skipped | Findings |
+|---|---|---|---|---|---|
+| Petstore | 336 | 191 | 96 | 49 | HIGH 6, MEDIUM 88, LOW 2 |
+| VAmPI fixed | 249 | 231 | 11 | 7 | HIGH 1 |
+| VAmPI vulnerable | 248 | 228 | 13 | 7 | HIGH 4, MEDIUM 8, LOW 1 |
+| DVGA (GraphQL) | 324 | 285 | 33 | 6 | MEDIUM 32, LOW 1 |
+
+- **Vulnerable VAmPI**, found: boolean SQL injection on the username path, BOLA on books, changing another user's password (confirmed by logging in
+  as the victim with the new password), and `/users/v1/_debug` returning every password (HIGH); user enumeration at login (MEDIUM).
+  **Missed: mass assignment** (registering with `admin: true`), the same gap as in the mock eval. The RegexDoS on the email field hangs the whole
+  server, so the 100,000-character email case was excluded with `-k "not email_100k_chars"`.
+- **Fixed VAmPI**: the one HIGH is the same `_debug` endpoint, which the fixed mode still serves.
+- **Petstore**, the 6 HIGH checked by hand: 4 are `garbage credentials were not rejected` on pet endpoints. That is true against the spec, but the
+  reference server checks no credentials at all, by design. 2 are smoke tests getting 500 on `/store/inventory` and `/user/user1`: real crashes,
+  triggered by records the suite itself wrote earlier (an order without `status`, a user without `username`). None is an injection or data leak.
+- **DVGA**: no HIGH in the security eval; the MEDIUMs are mostly inputs of the wrong type accepted without an error and resolvers failing on
+  arguments the schema marks optional. `systemUpdate` stalls the whole server for 20 to 50 s; the run waits for it and reports it as MEDIUM.
+
+### Full runs (`run_all.py --types all,fuzz --k6 load,stress,spike --k6-docker --chaos`)
+| Target | Tests | Passed | Failed | Skipped | Findings | Time |
+|---|---|---|---|---|---|---|
+| Petstore | 359 | 193 | 101 | 65 | HIGH 7, MEDIUM 92, LOW 2 | 22.7 min |
+| VAmPI fixed | 283 | 251 | 9 | 23 | HIGH 1, MEDIUM 8 | 24 min |
+| DVGA | 348 | 299 | 37 | 12 | HIGH 4, MEDIUM 46, LOW 1 | 18 min |
+
+The HIGH counts for Petstore and DVGA each include one HIGH `test_chaos_baseline` failure. That is the skill bug fixed in PR #124 (see Chaos
+below), not a finding about the target. Without it Petstore has the 6 HIGH explained above, and DVGA has the 2 fuzz findings below plus one
+crossed k6 error-rate threshold (DVGA's capacity; this split is read from the terminal output, not from that run's `report.json`).
+
+- **k6.** Petstore and VAmPI: load, stress and spike with 0% failed requests (VAmPI about 27,500 requests, p95 under 15 ms), apart from the two
+  Petstore endpoints that were already answering 500. DVGA, a single Flask process on SQLite, could not keep up: load 0.9% failed with p95 7.5 s,
+  stress and spike about 50% failed. That is DVGA's limit, not a capacity figure; expect the same on any small single-process server.
+  A 31-minute soak on Petstore (2 req/s, 3,683 requests) had 0 failures, p95 6.7 ms.
+- **Fuzz.** On DVGA it found SQLite error text (`sqlite3.IntegrityError ... [SQL: INSERT INTO users ...]`) returned to the client from fuzzed
+  `createUser` (4 cases) and `search` (1 case) inputs: two HIGH findings, one per fuzzed operation. On VAmPI one 500 on a password with a lone surrogate character.
+- **Chaos.** VAmPI: 19 of 20 passed, 1 skipped. Petstore and DVGA: **no chaos result.** Both baselines failed because of skill bugs, not the
+  targets: on Petstore one probe (`/store/inventory`) was already answering 500, and on DVGA chaos started while the server was still working
+  through the k6 backlog. Both are fixed in PR #124 (a broken probe is left out and shown as a skipped case; chaos waits up to 120 s after k6)
+  and have not been rerun yet.
+
+### Skill bugs these runs found (all fixed)
+PR #121: `run_evals.py --real` printed no result. PR #122: a handled 400 naming `java.lang.Long` reported as a leaked stack trace (10 false HIGH);
+41 HIGH injection findings that were one server crash per endpoint; a 2xx login with a failure body counted as a success (hid user enumeration);
+boolean SQL injection in path values missed; BOLA on writes not confirmed; `/createdb` called by fuzz, k6 and chaos (wiped the test users);
+k6 in Docker wrote no summary; GraphQL `all,fuzz` refused; side-effect GraphQL queries load-tested; a hanging server made every later test time out.
+PR #124: the two chaos problems above, and fuzz stops an endpoint after 3 timeouts in a row
+(DVGA's `systemUpdate` took 10 minutes of the pytest pass). Not a bug fix: PR #123 made eval runs also write the HTML report.
+
+Not run: crAPI; chaos on Petstore and DVGA after the fix; any second run to check the counts are stable.
