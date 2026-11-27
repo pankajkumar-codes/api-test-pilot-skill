@@ -7,8 +7,9 @@ Two modes (never mixed up in the output; every result is labelled with its mode)
           variant, and score: a flaw is "found" when one of its expected generated tests fails; the clean variant must
           have no failing test. Fully offline, no secrets.
   real    run the same pipeline against a target the person started themselves (`--base-url`). No scoring, because the
-          real behaviour is unknown until it runs: it writes the report and lists the failing tests so the person can
-          fill the "found" column in docs/evals.md. Credentials come from APITEST_* environment variables only.
+          real behaviour is unknown until it runs: it writes the report and prints the counts, the verdict line, the first
+          failing tests and the report path, so the person can fill the "found" column in docs/evals.md. Credentials
+          come from APITEST_* environment variables only.
 
 Examples (run from the repository root):
 
@@ -260,6 +261,24 @@ def score(name: str, variant: str, res: dict) -> dict:
     return res
 
 
+def print_real_summary(name: str, res: dict, shown: int = 20) -> None:
+    """Real mode has no score, so say what ran and where the report is; otherwise the run looks like it did nothing."""
+    total = res["passed"] + len(res["failed"]) + res["skipped"]
+    print(f"  {name}/real: {res['passed']} passed, {len(res['failed'])} failed, {res['skipped']} skipped of {total} generated tests",
+          file=sys.stderr)
+    report = ROOT / res["report"] if not Path(res["report"]).is_absolute() else Path(res["report"])
+    verdict = next((ln for ln in report.read_text(encoding="utf-8").splitlines() if ln.startswith("**Result")), "") if report.exists() else ""
+    if verdict:
+        print("  " + verdict.replace("**", ""), file=sys.stderr)
+    if res["failed"]:
+        print("  failing generated tests:", file=sys.stderr)
+        for t in res["failed"][:shown]:
+            print(f"    {t}", file=sys.stderr)
+        if len(res["failed"]) > shown:
+            print(f"    ... and {len(res['failed']) - shown} more (all listed in the report)", file=sys.stderr)
+    print(f"  report: {res['report']}", file=sys.stderr)
+
+
 def run_target(name: str, variants: list[str], real_url: str | None, spec_override: str | None) -> dict:
     cfg = TARGETS[name]
     out: dict = {"target": name, "title": cfg["title"], "mode": "real" if real_url else ("real-local" if cfg["kind"] == "fastapi" else "mock"),
@@ -268,7 +287,8 @@ def run_target(name: str, variants: list[str], real_url: str | None, spec_overri
         spec = Path(spec_override) if spec_override else cfg.get("spec")
         if spec is None:
             sys.exit(f"{name}: pass --spec (the seeded app serves /openapi.json)")
-        out["variants"]["real"] = run_pipeline(name, "real", real_url, Path(spec), {}, OUT / name / "real", True)
+        res = out["variants"]["real"] = run_pipeline(name, "real", real_url, Path(spec), {}, OUT / name / "real", True)
+        print_real_summary(name, res)
         return out
     for v in variants:
         with serve(name, v) as (base, extra, spec_path):

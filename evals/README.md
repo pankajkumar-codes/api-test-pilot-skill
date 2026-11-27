@@ -32,8 +32,11 @@ mass assignment, SSRF, rate limits) automatically only for loopback targets; for
 environment variables; nothing is written to disk. Load, stress, soak, spike, chaos and fuzz are not part of these evals; run them with their own
 reference files, and only on self-hosted copies.
 
-Each command writes `evals/out/<target>/real/report.md` (the findings, with repro commands) and prints the failing generated tests.
-Copy what you find into the "found" column of `docs/evals.md`.
+Each command writes `evals/out/<target>/real/report.md` (the findings, with repro commands) and prints a short summary on stderr: the
+passed/failed/skipped counts, the report's verdict line, the first 20 failing generated tests and the report path. Copy what you find into
+the "found" column of `docs/evals.md`. The run takes seconds, not minutes. The suites write and delete data (`APITEST_ALLOW_DESTRUCTIVE=yes`),
+so a second run on the same container gives different counts: for numbers you record, start a fresh container first
+(`docker rm -f petstore` and the `docker run` line again).
 
 **Containers: bind to loopback and pin the image.** VAmPI and DVGA are intentionally vulnerable (SQL and OS command injection among others),
 so every `docker run` below publishes the port on `127.0.0.1` only (`-p 127.0.0.1:PORT:PORT`), never on all interfaces, and uses a pinned image
