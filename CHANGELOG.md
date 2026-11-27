@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 Changes merged after the 0.1.0 tag go here.
 
+### Added
+- `evals/run_evals.py --real` also writes `report.html` (and `report.json`) next to `report.md`, the same self-contained page that
+  `run_all.py` and `summarize_results.py -o report.html` make, and prints its path. No new dependency.
+
 ### Fixed
 - `evals/run_evals.py --real` printed only the target name (for example `[petstore]`) and exited, so a finished run looked like it had done
   nothing. It now prints the passed/failed/skipped counts, the report's verdict line, the first 20 failing tests and the report path. Found
