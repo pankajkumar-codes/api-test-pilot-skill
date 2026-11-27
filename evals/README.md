@@ -32,7 +32,8 @@ mass assignment, SSRF, rate limits) automatically only for loopback targets; for
 environment variables; nothing is written to disk. Load, stress, soak, spike, chaos and fuzz are not part of these evals; run them with their own
 reference files, and only on self-hosted copies.
 
-Each command writes `evals/out/<target>/real/report.md` (the findings, with repro commands) and prints a short summary on stderr: the
+Each command writes `evals/out/<target>/real/report.md` (the findings, with repro commands), the same report as `report.html` to open
+in a browser (with `report.json`), and prints a short summary on stderr: the
 passed/failed/skipped counts, the report's verdict line, the first 20 failing generated tests and the report path. Copy what you find into
 the "found" column of `docs/evals.md`. The run takes seconds, not minutes. The suites write and delete data (`APITEST_ALLOW_DESTRUCTIVE=yes`),
 so a second run on the same container gives different counts: for numbers you record, start a fresh container first

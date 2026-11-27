@@ -334,6 +334,7 @@ def test_real_mode_prints_counts_and_the_report_path(tmp_path, monkeypatch, caps
     assert re.search(r"petstore/real: \d+ passed, \d+ failed, \d+ skipped of \d+ generated tests", err)
     assert "Result: " in err
     assert "report: " in err and "report.md" in err
+    assert "html report: " in err and (tmp_path / "petstore" / "real" / "report.html").exists()
 
 
 def test_reset_style_endpoints_are_recognised():

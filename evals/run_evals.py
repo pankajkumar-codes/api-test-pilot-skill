@@ -217,9 +217,10 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     cfg = TARGETS[name]
     work.mkdir(parents=True, exist_ok=True)
     intake, suite, junit, report = work / "intake.json", work / "suite", work / "junit.xml", work / "report.md"
+    html = work / "report.html"
     if suite.exists():
         shutil.rmtree(suite)
-    for stale in (junit, report):  # a file left over from an earlier run must not pass for this run's result
+    for stale in (junit, report, html):  # a file left over from an earlier run must not pass for this run's result
         stale.unlink(missing_ok=True)
     iargs = [str(SCRIPTS / "intake.py"), str(spec), "-o", str(intake)]
     if cfg["kind"] == "graphql":
@@ -240,11 +241,16 @@ def run_pipeline(name: str, variant: str, base_url: str, spec: Path, extra_env: 
     sh([str(SCRIPTS / "summarize_results.py"), "--junit", "junit.xml", "--intake", "intake.json", "--tests-dir", "suite",
         "--base-url", base_url, "--title", f"{cfg['title'].split(' (')[0] if real else cfg['title']} / {variant}", "-o", "report.md"],
        env=env, cwd=work)
+    if real:   # the same report as a page to open in a browser (with report.json next to it)
+        sh([str(SCRIPTS / "summarize_results.py"), "--junit", "junit.xml", "--intake", "intake.json", "--tests-dir", "suite",
+            "--base-url", base_url, "--title", f"{cfg['title'].split(' (')[0]} / {variant}", "-o", "report.html"], env=env, cwd=work)
     results = read_junit(junit)
     gate = sorted({m for st, m in results.values() if st == "skipped" and "safety gate" in m})
     return {"gate_refused": gate,"failed": sorted(k for k, (s, _) in results.items() if s == "failed"),
             "passed": sum(s == "passed" for s, _ in results.values()), "skipped": sum(s == "skipped" for s, _ in results.values()),
-            "report": str(report.relative_to(ROOT)) if report.is_relative_to(ROOT) else str(report), "generated": gen.stdout.splitlines()[0] if gen.stdout else ""}
+            "report": str(report.relative_to(ROOT)) if report.is_relative_to(ROOT) else str(report),
+            **({"html": str(html.relative_to(ROOT)) if html.is_relative_to(ROOT) else str(html)} if html.exists() else {}),
+            "generated": gen.stdout.splitlines()[0] if gen.stdout else ""}
 
 
 def score(name: str, variant: str, res: dict) -> dict:
@@ -279,6 +285,8 @@ def print_real_summary(name: str, res: dict, shown: int = 20) -> None:
         if len(res["failed"]) > shown:
             print(f"    ... and {len(res['failed']) - shown} more (all listed in the report)", file=sys.stderr)
     print(f"  report: {res['report']}", file=sys.stderr)
+    if res.get("html"):
+        print(f"  html report: {res['html']}", file=sys.stderr)
 
 
 def run_target(name: str, variants: list[str], real_url: str | None, spec_override: str | None, select: str | None = None) -> dict:
