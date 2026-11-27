@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/). Nothing has been tag
 
 Changes merged after the 0.1.0 tag go here.
 
+### Fixed
+- `evals/run_evals.py --real` printed only the target name (for example `[petstore]`) and exited, so a finished run looked like it had done
+  nothing. It now prints the passed/failed/skipped counts, the report's verdict line, the first 20 failing tests and the report path. Found
+  on the first real Swagger Petstore run (container `swaggerapi/petstore3:1.0.29`, pinned digest matched on pull).
+
 ### Planned
 - v0.2: an MCP server over the same scripts. Every gated run needs both a target allowlist the user writes and an MCP elicitation answer, with no
   fallback; the server sets the scripts' gate variables itself, and plans and generates only by default. It needs a security review before

@@ -6,6 +6,7 @@ and the generator fixes the evals led to stay in place.
 """
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -196,3 +197,17 @@ def test_real_mode_refuses_with_a_nonzero_exit_when_the_gate_blocks(tmp_path, mo
         monkeypatch.setattr(sys, "argv", ["run_evals.py", "--target", "petstore", "--real", "--base-url", base])
         assert ev.main() == 2
     assert "safety gate refused" in capsys.readouterr().err
+
+
+def test_real_mode_prints_counts_and_the_report_path(tmp_path, monkeypatch, capsys):
+    # a finished real run used to print only "[petstore]", which looked like nothing had happened
+    monkeypatch.setattr(ev, "OUT", tmp_path)
+    for k in ("APITEST_TARGET_ENV", "APITEST_AUTHORIZED"):
+        monkeypatch.delenv(k, raising=False)
+    with petstore_mock.running(set()) as base:
+        monkeypatch.setattr(sys, "argv", ["run_evals.py", "--target", "petstore", "--real", "--base-url", base])
+        assert ev.main() == 0
+    err = capsys.readouterr().err
+    assert re.search(r"petstore/real: \d+ passed, \d+ failed, \d+ skipped of \d+ generated tests", err)
+    assert "Result: " in err
+    assert "report: " in err and "report.md" in err

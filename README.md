@@ -482,6 +482,8 @@ python -m pytest tests                     # add k6 (K6_BIN or PATH) to also exe
 python tools/validate_skill.py             # SKILL.md frontmatter, folder layout, plugin files, version consistency
 python evals/run_evals.py --target all --markdown
 ```
+Real-target evals (`--real --base-url`, on containers you start yourself) print the pass/fail/skip counts, the verdict line and the path of
+the report they write; see [evals/README.md](evals/README.md).
 Contributing: [CONTRIBUTING.md](CONTRIBUTING.md). Changes: [CHANGELOG.md](CHANGELOG.md). Design decisions: [DECISIONS.md](DECISIONS.md).
 Build plan and status: [PLAN.md](PLAN.md).
 
