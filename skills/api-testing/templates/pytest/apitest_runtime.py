@@ -980,6 +980,39 @@ def expect_denied(resp: requests.Response, owasp: str, what: str, severity: str 
     fail(resp, f"{what}: request was accepted ({resp.status_code})", severity, owasp)
 
 
+def _record(body: Any) -> Any:
+    return body["data"] if isinstance(body, dict) and isinstance(body.get("data"), dict) else body
+
+
+def expect_victim_write_denied(api: Any, ep: Endpoint, read_ep: Endpoint | None) -> None:
+    """A write to another user's object must be refused. A 2xx alone is not proof: some APIs ignore the path and
+    change the caller's own record. So the victim's object is read before and after, and only a visible change
+    (or a delete that took) is the HIGH finding. Without a way to read it back, an accepted write is MEDIUM."""
+    owasp, what = "API1:2023 BOLA", "user A can reach an object owned by another user"
+    before = api.send(read_ep, victim=True) if read_ep is not None else None
+    resp = api.send(ep, victim=True)  # ids of ANOTHER user's objects from APITEST_VICTIM_<PARAM>
+    if 400 <= resp.status_code < 500:
+        return
+    if resp.status_code >= 500:
+        fail(resp, f"{what}: server error instead of a refusal", "MEDIUM", owasp)
+    if before is None or not 200 <= before.status_code < 300:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) and the victim's object cannot be read back to "
+                   "confirm it changed; check by hand", "MEDIUM", owasp)
+    after = api.send(read_ep, victim=True)
+    if ep.method == "DELETE":
+        if after.status_code in (404, 410):
+            fail(resp, f"{what}: the victim's object was deleted ({resp.status_code}, then {after.status_code} on read)", "HIGH", owasp)
+        return
+    old, new, sent = _record(json_of(before)), _record(json_of(after)), sent_body(resp, ep)
+    visible = [k for k in sent if isinstance(old, dict) and k in old] if isinstance(sent, dict) else []
+    if not visible:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) but none of the written fields show on a read "
+                   "of the victim's object; check by hand", "MEDIUM", owasp)
+    changed = sorted(k for k in visible if isinstance(new, dict) and new.get(k) != old.get(k))
+    if changed:
+        fail(resp, f"{what}: write was accepted ({resp.status_code}) and changed the victim's {changed}", "HIGH", owasp)
+
+
 def expect_not_assigned(resp: requests.Response, injected: dict) -> None:
     expect_no_crash(resp, "mass assignment probe")
     got = json_of(resp)
@@ -1035,11 +1068,26 @@ def expect_injection_safe(resp: requests.Response, label: str, api: Any = None, 
     if api is not None and ep is not None:
         expect_tautology_not_matched(api, ep, resp, label)
     if resp.status_code >= 500:
+        if api is not None and ep is not None and _fails_on_valid_input(api, ep):
+            pytest.skip(f"{label}: the endpoint also returns 5xx for its normal request, so this 5xx says nothing "
+                        "about injection (the positive test reports the crash)")
         fail(resp, f"{label}: payload caused a server error", "HIGH", "A03 injection")
     if DB_ERROR_RE.search(resp.text) or TRAVERSAL_RE.search(resp.text):
         fail(resp, f"{label}: response leaks internals (database error, stack trace or file content)", "HIGH", "A03 injection")
     if "<script>apitest" in resp.text and "html" in resp.headers.get("Content-Type", ""):
         fail(resp, f"{label}: payload reflected unescaped in an HTML response", "MEDIUM", "A03 injection")
+
+
+_VALID_INPUT_5XX: dict[str, bool] = {}
+SERVER_HUNG: list[str] = []   # the request after which the server stopped answering; later requests skip at once
+
+
+def _fails_on_valid_input(api: Any, ep: Any) -> bool:
+    """Whether the endpoint's own baseline request gets a 5xx (asked once per endpoint and run)."""
+    key = f"{ep.method} {ep.path}"
+    if key not in _VALID_INPUT_5XX:
+        _VALID_INPUT_5XX[key] = api.send(ep).status_code >= 500
+    return _VALID_INPUT_5XX[key]
 
 
 def expect_tautology_not_matched(api: Any, ep: Any, resp: requests.Response, label: str) -> None:
@@ -1349,11 +1397,21 @@ class Api:
                 time.sleep(wait)
         self._last_sent = time.monotonic()
 
+    def _still_answering(self) -> bool:
+        """After a read timeout: does the server still answer anything at all? Any HTTP status counts as an answer."""
+        try:
+            self.session.get(self.base_url + "/", timeout=min(self.timeout, 5.0), allow_redirects=False)
+            return True
+        except requests.exceptions.RequestException as exc:
+            return not isinstance(exc, (requests.exceptions.Timeout, requests.exceptions.ConnectionError))
+
     def _request(self, method: str, url: str, transient: str = "skip", **kw: Any) -> requests.Response:
         """Every request goes through here and is paced. A failure to CONNECT is retried (safe methods only) and then ends the
         test as "target unreachable" (a skip, or a failure for smoke tests or APITEST_UNREACHABLE=fail). An error after the
         connection was made (drop, reset, hang, truncated body) is a finding: the test fails with a clear message, for every
         method. transient="raise" hands any exception to the caller untouched (fuzzing classifies them itself)."""
+        if SERVER_HUNG:
+            pytest.skip(f"not run: the server stopped answering after {SERVER_HUNG[0]} (see that failure)")
         attempts = 1 + (max(self.retries, 0) if method.upper() in RETRY_METHODS and transient == "skip" else 0)
         for attempt in range(attempts):
             self._pace()
@@ -1368,6 +1426,11 @@ class Api:
                     if (isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
                                          requests.exceptions.ChunkedEncodingError))
                             and not isinstance(exc, requests.exceptions.SSLError)):
+                        if isinstance(exc, requests.exceptions.Timeout) and not self._still_answering():
+                            SERVER_HUNG.append(f"{method.upper()} {_redact_url(url)}")
+                            fail(None, f"{method.upper()} {_redact_url(url)}: the server stopped answering after this request "
+                                       "(a plain GET of the base URL now times out too). One request can take the service down; "
+                                       "the remaining tests are skipped", "HIGH", "API4:2023 unrestricted resource consumption")
                         fail(None, f"{method.upper()} {_redact_url(url)}: the server accepted the connection but gave no complete "
                                    f"response ({type(exc).__name__}): it dropped, reset or hung on this request", "MEDIUM")
                     raise

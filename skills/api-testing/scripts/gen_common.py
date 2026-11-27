@@ -475,10 +475,25 @@ def ends_session(ep: dict) -> bool:
     return bool(_SESSION_END_RE.search(text)) or (ep.get("method") == "DELETE" and bool(re.search(r"/sessions?(/|$)", ep.get("path", ""), re.I)))
 
 
+_RESET_PATH_RE = re.compile(r"(^|[/_.-])(create|init|populate|seed|reset|drop|wipe|purge|truncate)[-_]?(db|database)s?($|[/_.-])|"
+                            r"(^|[/_.-])(populate|seed|reset|wipe|purge|truncate)[-_]?(data|db|database)($|[/_.-])", re.I)
+_RESET_TEXT_RE = re.compile(r"\b(creates?|populates?|resets?|wipes?|drops?|seeds?|truncates?|re-?initiali[sz]es?)\b[^.]*\b(database|db)\b", re.I)
+
+
+def resets_state(ep: dict) -> bool:
+    """True for an endpoint that recreates or wipes the server's data (GET /createdb, POST /reset-db). Calling it in
+    the middle of a run deletes the accounts and records every other test depends on, so its tests run last and
+    only with APITEST_ALLOW_DESTRUCTIVE=yes."""
+    text = f"{ep.get('path', '')} {ep.get('id', '')}"
+    return bool(_RESET_PATH_RE.search(text) or _RESET_TEXT_RE.search(ep.get("summary") or ""))
+
+
 class Module:
-    def __init__(self, title: str, ttype: str, rerun: str, session_end_ids: set[str] | None = None):
+    def __init__(self, title: str, ttype: str, rerun: str, session_end_ids: set[str] | None = None,
+                 reset_ids: set[str] | None = None):
         self.title, self.ttype, self.rerun = title, ttype, rerun
         self.session_end_ids = session_end_ids or set()
+        self.reset_ids = reset_ids or set()
         self.blocks: list[str] = []
         self.names: set[str] = set()
         self.tests = 0
@@ -496,6 +511,8 @@ class Module:
             src = "@pytest.mark.destructive\n" + src
         if is_test and self.session_end_ids and any(f"EP[{i!r}]" in src for i in self.session_end_ids):
             src = "@pytest.mark.session_end\n" + src
+        if is_test and self.reset_ids and any(f"EP[{i!r}]" in src for i in self.reset_ids):
+            src = "@pytest.mark.resets_state\n" + src
         self.blocks.append(src.rstrip() + "\n")
         self.tests += is_test
 
