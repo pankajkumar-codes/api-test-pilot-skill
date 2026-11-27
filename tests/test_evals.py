@@ -8,6 +8,7 @@ import importlib.util
 import json
 import re
 import sys
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -144,29 +145,44 @@ def test_same_login_failure_helper(petstore_suite):
     with pytest.raises(BaseException) as ei:
         rt.expect_same_login_failure(R(200, '{"auth_token": "eyJ.x.y"}', "bob"), R(400, "x", "zz"), "bob")
     assert "succeeded" in str(ei.value)
+    for body in ('{"refresh": "r.x.y", "access": "a.x.y"}', '{"key": "9944b09199c62bcf"}', '{"apiKey": "k-123"}',
+                 '{"status": "ok", "sid": "abc"}', '{"success": true}'):
+        with pytest.raises(BaseException) as ei:   # token names vary; only an explicit refusal stops the HIGH
+            rt.expect_same_login_failure(R(200, body, "bob"), R(400, "x", "zz"), "bob")
+        assert "succeeded" in str(ei.value), body
+    for body in ('{"success": false}', '{"error": "invalid credentials"}', '{"result": "denied"}'):
+        rt.expect_same_login_failure(R(200, body, "bob"), R(200, body, "zz"), "bob")
     with pytest.raises(BaseException) as ei:  # a body that is not JSON gives no way to tell, so a 2xx still counts
         rt.expect_same_login_failure(R(200, "Logged in user session: 42", "bob"), R(400, "x", "zz"), "bob")
     assert "succeeded" in str(ei.value)
-    # boolean SQL injection: the tautology finds a record that an unknown value does not
+    # boolean SQL injection: the tautology finds a record that an unknown value does not, even after an unknown value
     class FakeApi:
-        def __init__(self, status):
-            self.status = status
+        def __init__(self, status, tautology=None):
+            self.status, self.tautology = status, status if tautology is None else tautology
 
         @staticmethod
         def missing_id(kind="string", fmt=None):
             return "does-not-exist-1"
 
-        def send(self, ep, **kw):
-            return R(self.status, "{}", "x")
+        def send(self, ep, path=None, **kw):
+            raw = str((path or {}).get("username", ""))
+            return R(self.tautology if "OR" in urllib.parse.unquote(raw) else self.status, "{}", "x")
 
-    ep = types.SimpleNamespace(path_params={"username": {"type": "string"}})
-    hit = R(200, '{"username": "name1"}', "x")
-    hit.request.method = "GET"
+    def hit_for(segment):
+        hit = R(200, '{"username": "name1"}', "x")
+        hit.request.method, hit.request.url = "GET", "http://x/users/v1/" + segment
+        return hit
+
+    ep = types.SimpleNamespace(path_params={"username": {"type": "string"}}, method="GET", path="/users/v1/{username}")
+    quoted = hit_for("x%27%20OR%20%271%27%3D%271")
     with pytest.raises(BaseException) as ei:
-        rt.expect_injection_safe(hit, "path_username[3]", FakeApi(404), ep)
+        rt.expect_injection_safe(quoted, "path_username[3]", FakeApi(404, tautology=200), ep)
     assert "boolean SQL injection" in str(ei.value)
-    rt.expect_injection_safe(hit, "path_username[3]", FakeApi(200), ep)   # the API answers 200 for anything: no signal
-    rt.expect_injection_safe(hit, "path_username[0]", FakeApi(404), ep)   # traversal payloads are not tautologies
+    rt.expect_injection_safe(quoted, "path_username[3]", FakeApi(200), ep)    # the API answers 200 for anything: no signal
+    rt.expect_injection_safe(quoted, "path_username[9]", FakeApi(404), ep)    # the label index no longer matters ...
+    rt.expect_injection_safe(hit_for("..%2F..%2Fetc%2Fpasswd"), "path_username[0]", FakeApi(404, tautology=200), ep)  # ... the payload does
+    # parseInt("1 OR 1=1") reads 1: record 1 comes back, but "<unknown> OR 1=1" finds nothing, so it is not injection
+    rt.expect_injection_safe(hit_for("1%20OR%201%3D1"), "path_username[2]", FakeApi(404, tautology=404), ep)
     # an injection 5xx says nothing when the endpoint's normal request fails too
     rt._VALID_INPUT_5XX.clear()
     crash = R(500, "{}", "x")
@@ -177,6 +193,11 @@ def test_same_login_failure_helper(petstore_suite):
     with pytest.raises(BaseException) as ei:
         rt.expect_injection_safe(crash, "body_name[0]", FakeApi(200), ep_post)
     assert "server error" in str(ei.value)
+    rt._VALID_INPUT_5XX.clear()   # a SQL error in the 500 is evidence however the normal request behaves
+    with pytest.raises(BaseException) as ei:
+        rt.expect_injection_safe(R(500, "SQLSTATE[42000]: Syntax error near 'OR'", "x"), "body_name[0]", FakeApi(500), ep_post)
+    assert "[HIGH]" in str(ei.value) and "leaks internals" in str(ei.value)
+    rt._VALID_INPUT_5XX.clear()
 
     # BOLA on a write: HIGH only when the victim's object visibly changed
     class SeqApi:
@@ -199,11 +220,43 @@ def test_same_login_failure_helper(petstore_suite):
         rt.expect_victim_write_denied(SeqApi((204, "")), write, None)
     assert "[MEDIUM]" in str(ei.value) and "check by hand" in str(ei.value)
     rt.expect_victim_write_denied(SeqApi((200, '{"email": "v@x"}'), (403, "no")), write, read)
+    with pytest.raises(BaseException) as ei:   # the read is protected but the write is not: a write-only BOLA
+        rt.expect_victim_write_denied(SeqApi((403, "no"), (204, "")), write, read)
+    assert "[HIGH]" in str(ei.value) and "reading the victim's object is refused" in str(ei.value)
+
+    class PwApi(SeqApi):
+        def __init__(self, *answers):
+            super().__init__(*answers)
+            self.login_body = None
+
+        def pid(self, name, default=None, victim=False):
+            return "victim" if victim else "me"
+
+        def send(self, ep, **kw):
+            if ep is login:
+                self.login_body = kw.get("body")
+            r = super().send(ep, **kw)
+            r._sent_body = {"password": "pw-new-1"}
+            return r
+
+    pw_write = types.SimpleNamespace(method="PUT", path="/users/v1/{username}/password", body={"password": "x"},
+                                     path_params={"username": {}})
+    login = types.SimpleNamespace(method="POST", path="/users/v1/login", body={"username": "a", "password": "b"})
+    api = PwApi((200, '{"username": "victim"}'), (204, ""), (200, '{"auth_token": "t"}'))
+    with pytest.raises(BaseException) as ei:   # VAmPI vulnerable: the victim can log in with the password user A set
+        rt.expect_victim_write_denied(api, pw_write, read, login)
+    assert "[HIGH]" in str(ei.value) and "password was changed" in str(ei.value)
+    assert api.login_body == {"username": "victim", "password": "pw-new-1"}
+    with pytest.raises(BaseException) as ei:   # VAmPI fixed changes the caller's own password: the victim login fails
+        rt.expect_victim_write_denied(PwApi((200, '{"username": "victim"}'), (204, ""), (200, '{"status": "fail"}'),
+                                            (200, '{"username": "victim"}')), pw_write, read, login)
+    assert "[MEDIUM]" in str(ei.value) and "check by hand" in str(ei.value)
 
     # a handled 400 that names the target type is not a leak; a Java exception or stack frame is
     assert not rt.DB_ERROR_RE.search("Input error: couldn't convert `1 OR 1=1` to type `class java.lang.Long`")
     assert rt.DB_ERROR_RE.search("java.lang.NumberFormatException: For input string")
     assert rt.DB_ERROR_RE.search("at com.example.Foo.bar(Foo.java:42)")
+    assert rt.DB_ERROR_RE.search("java.lang.reflect.InvocationTargetException")
 
 
 # ------------------------------------------------------------------ the driver and the mocks
@@ -288,8 +341,15 @@ def test_reset_style_endpoints_are_recognised():
     assert gc.resets_state({"method": "GET", "path": "/createdb", "id": "populate_db"})
     assert gc.resets_state({"method": "POST", "path": "/admin/reset-db", "id": "x"})
     assert gc.resets_state({"method": "GET", "path": "/init", "id": "x", "summary": "Creates and populates the database with dummy data"})
+    assert gc.resets_state({"method": "GET", "path": "/createdb", "id": "x", "summary": "Creates and populates the database"})
+    assert gc.resets_state({"method": "POST", "path": "/admin/x", "id": "x", "summary": "Wipes the entire DB"})
     for path in ("/users/reset-password", "/pets", "/database/stats", "/books/create"):
         assert not gc.resets_state({"method": "GET", "path": path, "id": "x", "summary": "Returns things"}), path
+    for method, path, summary in (("POST", "/users", "Creates a new user in the database"),
+                                  ("POST", "/orders", "Creates an order and saves it to the DB"),
+                                  ("PUT", "/users/{id}/password", "Resets the user's password stored in the db"),
+                                  ("POST", "/import", "Seeds a record into the database")):
+        assert not gc.resets_state({"method": method, "path": path, "id": "x", "summary": summary}), summary
 
 
 def test_reset_style_endpoints_are_kept_out_of_fuzz_k6_and_chaos(tmp_path):
@@ -306,3 +366,10 @@ def test_reset_style_endpoints_are_kept_out_of_fuzz_k6_and_chaos(tmp_path):
     assert any("/createdb" in n and "never load-tested" in n for n in notes)
     probes = chaos_run.pick_probes(doc, [])
     assert probes and "/createdb" not in probes
+
+
+def test_k_is_refused_in_mock_mode(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["run_evals.py", "--target", "petstore", "-k", "not smoke"])
+    with pytest.raises(SystemExit):
+        ev.main()
+    assert "-k only applies in real mode" in capsys.readouterr().err

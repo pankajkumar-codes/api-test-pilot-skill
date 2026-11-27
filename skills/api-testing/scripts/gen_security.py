@@ -169,10 +169,11 @@ def _api1(eps: list[dict], mod: Module) -> None:
                     '    rt.expect_denied(resp, "API1:2023 BOLA", "user A can reach an object owned by another user")\n')
             continue
         read = _victim_read(ep, eps)
+        login = next((e for e in eps if e["method"] == "POST" and LOGIN_PATH_RE.search(e["path"]) and has_json_body(e)), None)
         # a write that is "accepted" may have changed the caller's own record instead; read the victim's object to tell
         mod.add("@pytest.mark.intrusive\n"
                 f"def {name}(api):\n    ep = {_ref(ep)}\n    rt.require_destructive()\n"
-                f"    rt.expect_victim_write_denied(api, ep, {_ref(read) if read else 'None'})\n")
+                f"    rt.expect_victim_write_denied(api, ep, {_ref(read) if read else 'None'}, {_ref(login) if login else 'None'})\n")
 
 
 def _readbacks(doc: dict) -> dict[str, dict]:

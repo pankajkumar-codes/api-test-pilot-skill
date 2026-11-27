@@ -477,7 +477,8 @@ def ends_session(ep: dict) -> bool:
 
 _RESET_PATH_RE = re.compile(r"(?<![a-z0-9])(?:(?:create|init|populate|seed|reset|drop|wipe|purge|truncate)[-_]?(?:db|database)s?|"
                             r"(?:populate|seed|reset|wipe|purge|truncate)[-_]?(?:data|db|database))(?![a-z0-9])", re.I)
-_RESET_TEXT_RE = re.compile(r"\b(creates?|populates?|resets?|wipes?|drops?|seeds?|truncates?|re-?initiali[sz]es?)\b[^.]*\b(database|db)\b", re.I)
+_RESET_TEXT_RE = re.compile(r"\b(?:re-?)?(?:creates?|populates?|resets?|wipes?|drops?|seeds?|truncates?|re-?initiali[sz]es?|clears?)"
+                            r"(?:\s+(?:and|&)\s+\w+)?\s+(?:the\s+)?(?:whole\s+|entire\s+)?(?:database|db)\b", re.I)   # the database is the object
 
 
 def resets_state(ep: dict) -> bool:

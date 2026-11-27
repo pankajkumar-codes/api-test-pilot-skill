@@ -354,6 +354,8 @@ def main() -> int:
     names = list(TARGETS) if a.target == "all" else [a.target]
     if a.base_url and len(names) != 1:
         ap.error("real mode needs exactly one --target")
+    if a.k and not a.real:
+        ap.error("-k only applies in real mode: the mock scores count on every test running")
     for n in names:
         if n not in TARGETS:
             ap.error(f"unknown target {n}")
