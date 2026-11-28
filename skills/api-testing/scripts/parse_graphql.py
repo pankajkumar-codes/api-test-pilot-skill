@@ -397,7 +397,7 @@ def normalize(parsed: dict, source: dict, url: str | None, api_key_header: str |
                 "selection": scalar_selection(types, named) if _kind(types, named) in ("OBJECT", "INTERFACE") else [],
             })
     if any(o["kind"] == "subscription" for o in ops):
-        warnings.append("Subscriptions are listed but not tested (they need WebSocket/SSE transport; v2).")
+        warnings.append("Subscriptions are listed but not tested (they need WebSocket/SSE transport; not planned yet).")
     type_out: dict[str, dict] = {}
     for name, t in types.items():
         if name in roots.values() and name in (roots.get("subscription"),):

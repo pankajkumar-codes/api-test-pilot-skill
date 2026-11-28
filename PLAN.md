@@ -15,7 +15,7 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] templates/test-plan.md
 - [x] Phase 1 eval: intake.py and gen_pytest.py ran on the real upstream Petstore, VAmPI and crAPI OpenAPI documents (fetched from GitHub raw; docs/evals.md Phase 5). The live Petstore server was not reachable.
 
-## Phase 2 — Functional modules (built; real eval-apis runs pending, see docs/evals.md)
+## Phase 2 — Functional modules (built; real eval-apis runs done once on 2026-11-27, see docs/evals.md)
 - [x] references/functional.md: positive, negative, edge
 - [x] references/integration.md: multi-endpoint flows (create → read → update → delete)
 - [x] references/contract.md: response vs schema, breaking-change detection (spec_diff.py)
@@ -29,26 +29,26 @@ Status legend: [ ] todo · [~] in progress · [x] done
 - [x] references/graphql.md: positive/negative/edge adapted to GraphQL (errors arrive as 200 + `errors` array, so assert on the body, not just status)
 - [x] GraphQL security checks: query depth/complexity limits, introspection exposure in prod, batching/alias abuse, field-level authorization, injection in variables
 - [x] Reuse shared modules where possible: auth, redaction, safety gate and runtime reused; k6 load (Phase 3) and reporting (Phase 4; GraphQL results arrive as ordinary pytest/k6 output) reuse the shared intake endpoint shape
-- [~] GraphQL API in eval-apis.md validated against the mock stand-in (10 of 10); real DVGA run pending (Phase 5)
+- [x] GraphQL API in eval-apis.md validated against the mock stand-in (10 of 10) and run once on real DVGA 2.2.0 (2026-11-27)
 
 ## Phase 3 — Non-functional modules
 - [x] references/load.md, stress.md, spike.md, soak.md → k6 scripts (`gen_k6.py`, `run_k6.py`; REST and GraphQL queries)
 - [x] references/chaos.md → fault-injection plans (latency, 5xx, timeouts, dependency down) via `gen_chaos_plan.py`; plans; executable experiments added in Phase 8 (`chaos_run.py`, `chaos_proxy.py`)
 - [x] references/fuzzing.md (`--types fuzz` in `gen_pytest.py`, REST; GraphQL fuzzing added in v2)
 - [x] Safety gate wired into every non-functional flow (`safety_gate.py`, k6 script start-up gate, `intrusive` fuzz tests, chaos plan checklist)
-- [~] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
+- [x] Phase 3 eval: k6 scripts and fuzz suites validated against local mock servers, then run on real Petstore, VAmPI and DVGA (docs/evals.md, 2026-11-27); chaos on Petstore and DVGA still to rerun after the fixes
 
 ## Phase 4 — Reporting
 - [x] templates/report.md: summary, per-endpoint coverage, severity-ranked findings
 - [x] scripts/summarize_results.py (pytest JUnit XML + k6 `--summary-export` JSON → report; `references/reporting.md`)
 - [x] Every finding includes a reproducible command (curl line from the runtime when present, exact pytest or `run_k6.py` command always)
-- [~] Phase 4 eval: validated on real pytest and real k6 v1.3.0 output from the local mock servers (docs/evals.md); eval-apis.md targets still pending (Phase 5)
+- [x] Phase 4 eval: validated on real pytest and real k6 v1.3.0 output from the local mock servers, and on the real Petstore, VAmPI and DVGA runs (docs/evals.md, 2026-11-27)
 
 ## Phase 5 — Evals
-- [~] Run against each API in eval-apis.md; record expected vs found bugs (seeded FastAPI app run for real, locally; Petstore, VAmPI and GraphQL as labelled mock stand-ins; real third-party targets not reachable from the sandbox, run them with `evals/README.md`)
+- [~] Run against each API in eval-apis.md; record expected vs found bugs (seeded FastAPI app run for real, locally; Petstore, VAmPI and GraphQL as labelled mock stand-ins; real Petstore, VAmPI and DVGA once each on 2026-11-27; crAPI not run)
 - [x] Iterate on prompts/references/generators until expected bugs are found (27 of 28 seeded flaws found; VAmPI mass assignment is a documented gap)
 - [x] Add results to docs/evals.md
-- [ ] Person runs the real Petstore, VAmPI (vulnerable and `vulnerable=0`) and DVGA evals on their machine and fills the "found" column (`evals/README.md`)
+- [x] Person runs the real Petstore, VAmPI (vulnerable and `vulnerable=0`) and DVGA evals on their machine and records what was found (docs/evals.md, 2026-11-27)
 
 ## Phase 6 — Package and publish
 Preparation is done on a branch; the outward-facing steps need the maintainer (see docs/RELEASE.md).

@@ -177,7 +177,7 @@ def render(doc: dict, env: str | None, deps: list[str], endpoints: list[dict]) -
               "- Record what was found, what surprised you, and which alerts or runbooks were missing.",
               "- Turn each finding into a fix or an accepted risk with an owner.",
               "- Rerun the failed scenarios after the fix; keep this plan under version control.",
-              "- Executable fault injection is deferred to v2 (DECISIONS.md): use your platform's chaos tooling for now.", ""]
+              "- To inject faults instead of planning them, run `chaos_run.py` (references/chaos.md); same safety gate.", ""]
     return "\n".join(lines)
 
 
